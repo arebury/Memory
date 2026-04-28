@@ -3,13 +3,11 @@ import {
   ArrowUpRight,
   BookOpen,
   Database,
-  MessageSquareText,
   Phone,
   Sparkles,
   Tags,
   User,
   Users,
-  Workflow,
   Mic,
   FileText,
 } from "lucide-react";
@@ -130,24 +128,12 @@ export function Repository({
             </div>
           </Group>
 
-          {/* ─── Próximamente ─── */}
-          <Group
-            eyebrow="Próximamente"
-            description="En desarrollo. Te avisaremos cuando estén disponibles."
-          >
-            <ul className="divide-y divide-sc-border-soft overflow-hidden rounded-sc-lg border border-sc-border-soft bg-sc-surface">
-              <ComingSoonItem
-                icon={<Workflow size={15} strokeWidth={1.6} />}
-                title="Scripts de IVR"
-                description="Flujos de conversación y árboles de decisión configurables sin tocar el IVR."
-              />
-              <ComingSoonItem
-                icon={<MessageSquareText size={15} strokeWidth={1.6} />}
-                title="Plantillas de respuesta"
-                description="Respuestas predefinidas que tus agentes podrán reutilizar en chat."
-              />
-            </ul>
-          </Group>
+          {/*
+            "Próximamente" cards retiradas en sec 15.21 (audit follow-up
+            "no purposeless UI elements"). Eran teasers sin afford
+            actionable. Cuando una de estas funcionalidades aterrice,
+            añadirla como Group activo, no como banner.
+          */}
         </div>
       </div>
     </div>
@@ -424,32 +410,3 @@ function SyncedItem({
   );
 }
 
-/* ────────────────────────────────────────────────────────────────
-   Coming-soon item — slim list row with a "próximamente" pill.
-   ──────────────────────────────────────────────────────────────── */
-function ComingSoonItem({
-  icon,
-  title,
-  description,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-}) {
-  return (
-    <li className="flex items-start gap-3 px-5 py-4">
-      <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-sc-sm bg-sc-surface-muted text-sc-muted">
-        {icon}
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sc-sm font-medium text-sc-body">{title}</span>
-          <span className="rounded-full border border-sc-border-soft bg-sc-surface-muted px-2 py-0.5 text-[10px] uppercase tracking-wide text-sc-muted">
-            Próximamente
-          </span>
-        </div>
-        <p className="text-sc-xs text-sc-muted">{description}</p>
-      </div>
-    </li>
-  );
-}

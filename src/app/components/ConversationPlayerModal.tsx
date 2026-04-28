@@ -286,14 +286,20 @@ export function ConversationPlayerModal({
                 )}
               >
                 <span className="relative h-1.5 w-full overflow-visible rounded-full bg-sc-border-soft">
+                  {/* Fill via transform scaleX — full-width element
+                      scaled along origin-left. Animating `width` would
+                      trigger reflow on every tick of playback. The
+                      thumb sits on top with `left: %` (no transition
+                      on `left`, so no layout-property animation). */}
                   <span
-                    className="absolute inset-y-0 left-0 rounded-full bg-sc-accent transition-[width] duration-150"
-                    style={{ width: `${progressPct}%` }}
+                    aria-hidden
+                    className="absolute inset-0 origin-left rounded-full bg-sc-accent transition-transform duration-150 will-change-transform"
+                    style={{ transform: `scaleX(${progressPct / 100})` }}
                   />
                   <span
                     aria-hidden
                     className={cn(
-                      "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sc-accent shadow-sc-sm transition-opacity",
+                      "pointer-events-none absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sc-accent shadow-sc-sm transition-opacity",
                       "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
                       isPlaying && "opacity-100",
                     )}

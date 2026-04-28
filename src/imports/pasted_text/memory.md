@@ -1552,6 +1552,7 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 - **Bubble alignment iMessage** en la transcripción del player (Agente derecha + Cliente izquierda). El supervisor es observador, no participante; el patrón "right=me" es culturalmente sesgado. Validar con usuarios reales si confunde antes de cambiar a layout Slack-style (todo a la izquierda + avatar). (P3.)
 - **`text-sc-display` collapsing con `text-sc-color`** en `cn()` (sec 15.15). Hoy resuelto con `style={{ fontSize }}` en 4 sitios. Alternativa más durable: configurar `tailwind-merge` con `extendTailwindMerge({ classGroups: { 'font-size': [{ text: ['sc-xs', ...] }] } })` y reemplazar `cn` por la versión configurada. Migración coordinada, no parche. (P2.)
+- **Side-panel pattern repo-wide**: `CreateCategoryPanel`, `EditCategoryPanel`, `EditEntitySidepanel`, los rule builders, `RuleQuickViewPanel` — todos son `Sheet` lateral con anchuras 40-50%. La regla del audit "<4 fields → modal" aplica a `CreateCategoryPanel` (2 inputs) y `EditCategoryPanel` (3 inputs) en estricto, pero esos paneles llevan template-picker, linked-rules y kebab actions. Decisión sistémica pendiente: ¿se mantiene la convención sidepanel para creación/edición, o se migra todo a modal centralizado? Tocar solo dos crearía inconsistencia con el resto. (P3 — decisión cross-cutting, no parche puntual.)
 
 ---
 
@@ -2100,6 +2101,45 @@ Cualquier código que mute `Conversation` debe pasar por estas reglas o respetar
 - **Descripción explica el "por qué" antes que el "cómo"**. Antes de "Puedes solicitarla individualmente", "Solicita la transcripción para activar la búsqueda dentro del audio".
 - **Highlights como pills triple-eje**: qué pasa / qué desbloquea / qué cuesta.
 
+### 20.10 · Iconografía sin emojis
+
+Regla absoluta: **cero emojis en cualquier interface Component**. README/memory.md están exentos (no son interface). Cualquier emoji que aparezca en `src/app/**/*.tsx` es un bug y se sustituye por su equivalente lucide:
+
+| Emoji previo | Reemplazo lucide | Contexto típico |
+|---|---|---|
+| ⚠️ | `<AlertTriangle>` | warnings, "sin usar", confirmaciones destructivas |
+| 🚨 | `<AlertTriangle>` o `<Siren>` | alta urgencia |
+| 😤 | `<AlertCircle>` | quejas, fricciones |
+| 🏢 | `<Building2>` | competencia, organizaciones |
+| 🔧 | `<Wrench>` | incidencias técnicas |
+| 🏷️ | `<Tag>` | tags decorativos |
+| 📋 | `<ClipboardList>` | plantillas, listas |
+| 📘 | `<BookOpen>` | documentación |
+| 🤔 / 😱 | `<HelpCircle>` | ayuda / docs link |
+
+### 20.11 · Async placeholders (deuda futura, no aplica a mock)
+
+Hoy todo es síncrono (mock + localStorage). Cuando aterrice backend real (sec 17 P0), aplicar:
+
+- **Listas/tablas**: skeleton de 5-8 filas con `animate-pulse` mientras se aplica un filtro nuevo. Reservar `min-h` igual al alto medio de fila × n.
+- **Modal player audio**: reservar el alto de la audio bar antes de saber si es llamada (con audio) o chat (sin). Hoy lo evitamos hideándola condicionalmente; con backend real puede haber un momento "no sé el canal aún". Reservar.
+- **Tabs body** (transcripción/análisis): ya tiene `min-h-[360px]` ✓ — sirve como reserva.
+- **Cualquier nuevo `<Toast>`**: anclado a corner por sonner ✓ — cumple la regla "no banners encima de contenido".
+
+Cuando se introduzca el primer fetch async, actualizar este apartado con el patrón skeleton concreto (probable: extraer un `<Skeleton>` reusable en `ui/`).
+
+### 20.12 · Animaciones: solo `transform` + `opacity`
+
+Regla repo-wide. Auditado en 15.21:
+
+- ✅ Keyframes en `sc-design-system.css` usan `scale`, `translateX/Y`, `opacity`. No layout properties.
+- ✅ `motion.span` del status icon usa `opacity`.
+- ✅ Scrub bar del player usa `transform: scaleX()` + `transform-origin: left` para el fill (era `transition-[width]`, fixed en 15.21).
+- ✅ Thumb del scrub usa `left: %` SIN transition — snap instant, no layout-property animation.
+- ❌ `ui/sidebar.tsx` (shadcn default) tenía `transition-[width,height,left,padding]` — eliminado en 15.21 al borrar el archivo (era dead code).
+
+Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**. Si necesitas crecer/encoger un elemento, escala con `scaleX/Y` y compensa el contenido con `transform-origin`. Si necesitas posicionar, `translate`. NUNCA `width`, `height`, `top`, `left`, `padding`, `margin` con transition.
+
 ---
 
 ### 15.19 · 2026-04-28 · Claude Code · doc pass · roadmap items + canon section 20 + Guidelines.md reescrita
@@ -2186,3 +2226,55 @@ Cualquier código que mute `Conversation` debe pasar por estas reglas o respetar
 - **Patrón canónico para chains de mutaciones async**: queue de ids + useEffect que observa el campo objetivo del invariant (`hasX`) y drena cuando llega. Si aparece un tercer chain (analyze → re-classify? export? notify?), seguir este patrón.
 - **`handleRequestAnalysis` ya no rechaza ids no-transcritos en la entrada**. Marca `analyzingIds` para todos los ids pasados, pero la mutación real solo aplica a los que cumplan el invariant en el momento del setTimeout. Visualmente esto significa que si alguien dispara analyze sobre un id sin transcripción, el icono pulsará "analyzing" 4 s y luego volverá al estado anterior sin progresar. Para el chain (donde el id SÍ tendrá transcripción a tiempo) funciona perfecto. Si en el futuro hay otros callers, tener esto en cuenta.
 - **El player ya no controla la timing del chain**. Su único job es dispatch y feedback local del botón (~600 ms). El estado del icono lo controla la tabla via processingIds/analyzingIds + conversations. Single source of truth = el padre.
+
+### 15.21 · 2026-04-28 · Claude Code · audit "Vibe Coding" aplicado · 7 fixes + 1 push-back
+
+**Hecho**:
+- **Emojis fuera de la interface (5 archivos)**:
+  - `CategoriesEmpty.tsx`: 😤/🚨/🏢/🔧/🏷️/📋/📘 → `<AlertCircle>`/`<AlertTriangle>`/`<Building2>`/`<Wrench>`/`<Tag>`/`<ClipboardList>`/`<BookOpen>` lucide. Templates ahora usan medallón teal soft con icono en vez de emoji 2xl suelto.
+  - `CategoriesList.tsx`: "⚠️ Sin usar" → `<AlertTriangle size={12}>` + texto "Sin usar".
+  - `CreateCategoryPanel.tsx`: mismos emojis del template + "📋 Plantilla aplicada" → equivalentes lucide; banner usa `<ClipboardList size={13}>` inline.
+  - `EditCategoryPanel.tsx`: warning "⚠️ Cambiar el nombre…" → `<AlertTriangle size={13}>`.
+  - `DeleteCategoryDialog.tsx`: ⚠️ del confirm dialog → medallón `bg-amber-100 text-amber-700` con `<AlertTriangle size={16}>`.
+  - Verificación: `grep -rE "📋|⚠️|🚨|✅|❌|🤔|😱|💬|🎯|🔧|🏢|😤|🏷️|📘" src/app/components/*.tsx` retorna vacío.
+- **Scrub bar del player** (`ConversationPlayerModal.tsx:286`): la fill animaba `transition-[width]` → reflow continuo durante playback (1Hz). Reescrito a `transform: scaleX()` con `transform-origin: left` y `transition-transform`. El thumb ya tenía `transition-opacity` solamente (sin animación de `left`), así que se queda con `left: %` (snap instant, no layout shift). archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Próximamente cards retiradas** del Repository LP (`Scripts de IVR`, `Plantillas de respuesta`). Eran teasers sin afford actionable — violación directa de "No Purposeless UI Elements". Borrado el `<Group>` entero, el componente helper `ComingSoonItem`, y los imports de `Workflow` + `MessageSquareText`. Cuando alguna de esas funcionalidades aterrice, se añade como Group activo, no como teaser. archivos: `src/app/components/Repository.tsx`.
+- **Status icon palette reducida** de 4 colores activos a 2:
+  - Antes: gris (`#6F7784`) + teal (`#60D3E4`) + púrpura (`#9B59B6`) + amarillo (`yellow-500`).
+  - Ahora: `text-sc-muted` (gris para estado default) + `text-sc-accent-strong` (teal para todo lo "activo": transcribiendo, transcrito, analizando, analizado).
+  - La distinción analyzed-vs-transcribed la lleva el ICONO (sparkle inside vs lines), no el color. La distinción active-vs-rest la lleva el PULSE animation. Consolida la regla "subdued, functional palette". archivos: `src/app/components/StatusIcons.tsx`.
+- **MockSampleSwitcher amber suavizado**: badge `bg-#D97706 text-white` (saturado, "clashing") → `bg-#FEF3C7 text-#92400E` (amber-100 / amber-800), borde dashed `border-#D97706/30` en lugar de `/40`. Mismo significado semántico (DEMO), menos agresivo visualmente. archivos: `src/app/components/MockSampleSwitcher.tsx`.
+- **Dead code eliminado**: `src/app/components/ui/sidebar.tsx` (shadcn sidebar component). Verificado con `grep -rE "from .*ui/sidebar"` — cero importadores. Tenía 5 transitions en width/height/left/padding que violaban "no layout-property animations". Borrado.
+- **README.md fix**: "Calcula coste por adelantado" → "Avisa de que la operación genera coste". El producto NO calcula coste real — solo muestra el cue "genera coste" + cantidad de items a procesar. La copy original prometía algo que no hace.
+- **`memory.md` sec 20** ganó 3 nuevos sub-apartados:
+  - 20.10 · Iconografía sin emojis (tabla emoji → reemplazo lucide).
+  - 20.11 · Async placeholders (deuda documentada para cuando llegue backend).
+  - 20.12 · Animaciones: solo transform + opacity (regla repo-wide + estado del audit).
+- **`memory.md` sec 17** abre nuevo item: "Side-panel pattern repo-wide" — decisión cross-cutting pendiente sobre convertir flyouts pequeños a modales (push-back contra fix puntual). (P3.)
+
+**Decidido**:
+- **Push-back en CreateCategoryPanel/EditCategoryPanel flyout→modal**. La regla "<4 fields → modal" lee mal la complejidad: ambos paneles tienen template-picker + linked-rules + kebab actions, no son forms puros. Convertir solo dos crearía inconsistencia con `EditEntitySidepanel`, `RuleQuickViewPanel`, los rule builders. La decisión correcta es sistémica (todo el patrón sidepanel del repo) y se difiere a evaluación futura.
+- **Status icon: shape encoded analyzed-vs-transcribed, NO color**. El icono de "transcripción" (lineas) y "análisis" (sparkle) ya carga la diferencia visualmente. Usar dos colores teal/púrpura era redundancia + violación de "max 1 accent color".
+- **MockSwitcher amber suavizado**, NO ocultado en producción. La URL pública sirve para demos en vivo a stakeholders; ocultarlo elimina el switcher cuando más se usa. El cue tinted (no saturado) cumple su función sin chillar.
+- **README "Avisa de coste" en lugar de "Calcula"**. La copy debe reflejar lo que el producto hace de verdad. "Calcula" prometía un breakdown (€/min, total€) que no existe. El producto solo cuenta items y muestra "genera coste" como warning.
+
+**Descartado**:
+- **Conversión flyout→modal puntual** (solo 2 panels). Push-back documentado.
+- **Hide MockSwitcher con `import.meta.env.DEV`**. El switcher SE QUIERE en producción para demos.
+- **Mantener púrpura como acento secundario para "analizado"**. Consume visual budget. Mejor: shape carries the meaning, color carga el "active vs rest".
+- **Reescribir el Sidebar custom** (sec 6 del audit): user excluyó. Sidebar custom mantiene hex hardcodeados + 7 placeholders. Anotado pero no tocado.
+- **Migrar StatusIcons a lucide** (sec 6 audit): user excluyó. Las 5 SVG custom siguen siendo dual-source con lucide. Aceptado como excepción documentada (DS oficial).
+
+**Pendiente** (ya en sec 17):
+- Side-panel pattern repo-wide (P3).
+- tailwind-merge config extender (P2).
+- Bubble alignment iMessage (P3).
+- Skeleton loaders cuando llegue backend real (P0 al integrar).
+
+**Notas para próxima sesión**:
+- **Cero emojis en `src/app/**/*.tsx`**. Si vuelves a ver uno, es bug. Lookup table en sec 20.10.
+- **Status icon palette = teal + gray** definitivo. No reintroducir otros colores sin discusión explícita en log de sesión.
+- **Animaciones**: regla en sec 20.12. Antes de añadir un `transition-[X]` nuevo, comprobar que X es `transform` u `opacity`. Si no, replantear.
+- **Repository LP** ya no tiene la sección Próximamente. Si alguien añade una nueva funcionalidad y quiere "anunciarla", debe ser un Group real con afford actionable, no un teaser.
+- **`ui/sidebar.tsx` borrado**. Si en el futuro alguien necesita un layout sidebar más complejo, instalar shadcn fresh con `npx shadcn-ui add sidebar` o reescribir custom (no usar el archivo borrado como referencia — su shadcn era v0 con animaciones `width/height` rotas).
+- **README** ahora dice "Avisa de coste". Cualquier futura sección sobre billing debe ser igual de honesta — el producto no calcula €, solo cuenta items.

@@ -4,11 +4,16 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
-import { 
-  X, 
+import {
+  X,
   HelpCircle,
   ChevronDown,
-  FileText
+  FileText,
+  AlertCircle,
+  AlertTriangle,
+  Building2,
+  Wrench,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
@@ -77,25 +82,25 @@ export function CreateCategoryPanel({ open, onOpenChange, template }: CreateCate
   const templates = [
     {
       id: "complaint" as const,
-      icon: "😤",
+      Icon: AlertCircle,
       title: "Queja",
       description: "Cliente expresa insatisfacción"
     },
     {
       id: "churn" as const,
-      icon: "🚨",
+      Icon: AlertTriangle,
       title: "Intención de baja",
       description: "Cliente quiere cancelar servicio"
     },
     {
       id: "competitor" as const,
-      icon: "🏢",
+      Icon: Building2,
       title: "Competencia",
       description: "Menciona otras empresas"
     },
     {
       id: "incident" as const,
-      icon: "🔧",
+      Icon: Wrench,
       title: "Incidencia",
       description: "Reporta problemas técnicos"
     }
@@ -262,7 +267,10 @@ export function CreateCategoryPanel({ open, onOpenChange, template }: CreateCate
                 {/* Badge si hay plantilla seleccionada */}
                 {selectedTemplate && (
                   <div className="bg-[#EEFBFD] border border-[#60D3E4]/30 rounded-lg px-3 py-2 text-sm text-[#387983] flex items-center justify-between">
-                    <span>📋 Plantilla aplicada — personaliza según tus necesidades</span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <ClipboardList size={13} strokeWidth={1.6} />
+                      Plantilla aplicada — personaliza según tus necesidades
+                    </span>
                     <button
                       onClick={() => {
                         setSelectedTemplate(null);
@@ -403,17 +411,19 @@ export function CreateCategoryPanel({ open, onOpenChange, template }: CreateCate
           </DialogHeader>
           
           <div className="grid grid-cols-2 gap-3 mt-4">
-            {templates.map((tpl) => (
+            {templates.map(({ id, Icon, title, description }) => (
               <button
-                key={tpl.id}
-                onClick={() => handleTemplateClick(tpl.id)}
+                key={id}
+                onClick={() => handleTemplateClick(id)}
                 className="bg-white border border-[#E5E7EB] rounded-lg p-4 cursor-pointer hover:border-[#60D3E4] hover:shadow-md transition-all text-left group"
               >
                 <div className="flex flex-col gap-2">
-                  <span className="text-2xl">{tpl.icon}</span>
+                  <span className="inline-flex size-9 items-center justify-center rounded-md bg-[#EEFBFD] text-[#60D3E4]">
+                    <Icon size={18} strokeWidth={1.6} />
+                  </span>
                   <div>
-                    <div className="text-sm font-medium text-[#233155] mb-1">{tpl.title}</div>
-                    <div className="text-xs text-[#8D939D] leading-snug">{tpl.description}</div>
+                    <div className="text-sm font-medium text-[#233155] mb-1">{title}</div>
+                    <div className="text-xs text-[#8D939D] leading-snug">{description}</div>
                   </div>
                 </div>
               </button>

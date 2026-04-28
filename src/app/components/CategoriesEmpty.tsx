@@ -1,5 +1,15 @@
 import { Button } from "./ui/button";
-import { Tags } from "lucide-react";
+import {
+  Tags,
+  AlertCircle,
+  AlertTriangle,
+  Building2,
+  Wrench,
+  Tag,
+  ClipboardList,
+  BookOpen,
+  ArrowRight,
+} from "lucide-react";
 
 interface CategoriesEmptyProps {
   onCreateCategory: () => void;
@@ -10,25 +20,25 @@ export function CategoriesEmpty({ onCreateCategory, onUseTemplate }: CategoriesE
   const templates = [
     {
       id: "complaint" as const,
-      icon: "😤",
+      Icon: AlertCircle,
       title: "Queja",
       description: "Cliente expresa insatisfacción"
     },
     {
       id: "churn" as const,
-      icon: "🚨",
+      Icon: AlertTriangle,
       title: "Intención de baja",
       description: "Cliente quiere cancelar servicio"
     },
     {
       id: "competitor" as const,
-      icon: "🏢",
+      Icon: Building2,
       title: "Competencia",
       description: "Menciona otras empresas o competidores"
     },
     {
       id: "incident" as const,
-      icon: "🔧",
+      Icon: Wrench,
       title: "Incidencia",
       description: "Reporta problemas técnicos o fallos"
     }
@@ -43,12 +53,11 @@ export function CategoriesEmpty({ onCreateCategory, onUseTemplate }: CategoriesE
             <div className="w-20 h-20 bg-[#EEFBFD] rounded-full flex items-center justify-center">
               <Tags size={40} className="text-[#60D3E4]" strokeWidth={1.5} />
             </div>
-            {/* Decorative tags */}
             <div className="absolute -top-1 -right-1 w-8 h-8 bg-white rounded-lg shadow-md flex items-center justify-center transform rotate-12">
-              <span className="text-lg">🏷️</span>
+              <Tag size={14} className="text-[#60D3E4]" strokeWidth={1.6} />
             </div>
             <div className="absolute -bottom-1 -left-1 w-8 h-8 bg-white rounded-lg shadow-md flex items-center justify-center transform -rotate-12">
-              <span className="text-lg">📋</span>
+              <ClipboardList size={14} className="text-[#60D3E4]" strokeWidth={1.6} />
             </div>
           </div>
         </div>
@@ -82,20 +91,23 @@ export function CategoriesEmpty({ onCreateCategory, onUseTemplate }: CategoriesE
 
         {/* Cards de plantillas */}
         <div className="grid grid-cols-2 gap-2 mb-3">
-          {templates.map((template) => (
+          {templates.map(({ id, Icon, title, description }) => (
             <div
-              key={template.id}
-              onClick={() => onUseTemplate(template.id)}
+              key={id}
+              onClick={() => onUseTemplate(id)}
               className="bg-white border border-[#E5E7EB] rounded-lg p-3 cursor-pointer hover:border-[#60D3E4] hover:shadow-md transition-all group"
             >
-              <div className="text-center">
-                <div className="text-2xl mb-1">{template.icon}</div>
-                <h3 className="text-[#233155] mb-1 text-sm">{template.title}</h3>
+              <div className="flex flex-col items-center text-center">
+                <span className="mb-1.5 inline-flex size-8 items-center justify-center rounded-md bg-[#EEFBFD] text-[#60D3E4]">
+                  <Icon size={16} strokeWidth={1.6} />
+                </span>
+                <h3 className="text-[#233155] mb-1 text-sm">{title}</h3>
                 <p className="text-xs text-[#8D939D] mb-2 leading-snug">
-                  {template.description}
+                  {description}
                 </p>
-                <div className="text-xs text-[#60D3E4] opacity-0 group-hover:opacity-100 transition-opacity">
-                  Usar plantilla →
+                <div className="text-xs text-[#60D3E4] opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1">
+                  Usar plantilla
+                  <ArrowRight size={11} strokeWidth={1.8} />
                 </div>
               </div>
             </div>
@@ -108,7 +120,9 @@ export function CategoriesEmpty({ onCreateCategory, onUseTemplate }: CategoriesE
             href="#"
             className="text-xs text-[#60D3E4] hover:text-[#4FC3D3] inline-flex items-center gap-1"
           >
-            📘 Ver cómo funcionan las categorías →
+            <BookOpen size={12} strokeWidth={1.6} />
+            Ver cómo funcionan las categorías
+            <ArrowRight size={11} strokeWidth={1.8} />
           </a>
         </div>
       </div>

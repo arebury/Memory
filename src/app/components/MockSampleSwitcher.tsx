@@ -32,24 +32,27 @@ export function MockSampleSwitcher({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          /* DEMO-only affordance: dashed border + amber DEMO chip make
-             it visually obvious that this control does not exist in
-             the production app. Keeps stakeholders from mistaking it
-             for shippable functionality. */
+          /* DEMO-only affordance: dashed border + soft amber chip.
+             Audit 15.21 softened the previous saturated amber-on-white
+             treatment because a fully filled `bg-#D97706 text-white`
+             chip flirted with the "no clashing colors" rule. The new
+             treatment uses a tinted background (amber-100-equivalent)
+             and a lower-saturation text color — same semantic
+             (this-is-not-production), less visual aggression. */
           className={cn(
-            "group flex h-10 items-center gap-2 rounded-full border border-dashed border-[#D97706]/40 bg-[#FFFBEB] px-3",
+            "group flex h-10 items-center gap-2 rounded-full border border-dashed border-[#D97706]/30 bg-[#FFFBEB] px-3",
             "text-xs font-medium text-[#92400E] transition-all",
-            "hover:border-[#D97706] hover:bg-[#FEF3C7]",
+            "hover:border-[#D97706]/60 hover:bg-[#FEF3C7]",
           )}
           title="Cambiar conjunto de datos de demo (solo en prototipo)"
           aria-label="Cambiar conjunto de datos de demo"
         >
-          <span className="rounded-sm bg-[#D97706] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+          <span className="rounded-sm bg-[#FEF3C7] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-[#92400E]">
             Demo
           </span>
           <Database
             size={14}
-            className="text-[#D97706] transition-transform group-hover:scale-110"
+            className="text-[#92400E] transition-transform group-hover:scale-110"
           />
           <span className="hidden sm:inline">Datos:</span>
           <span className="text-[#92400E]">{current.label}</span>

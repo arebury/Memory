@@ -15,7 +15,7 @@ import {
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "./ui/dropdown-menu";
-import { Search, MoreVertical, Edit2, Copy, Archive, Trash2 } from "lucide-react";
+import { Search, MoreVertical, Edit2, Copy, Archive, Trash2, AlertTriangle } from "lucide-react";
 import { Category } from "./CategoriesContext";
 
 interface CategoriesListProps {
@@ -54,7 +54,7 @@ export function CategoriesList({
   // Función para determinar el estado de uso de la categoría
   const getUsageStatus = (category: Category) => {
     if (!category.linkedRules || category.linkedRules.length === 0) {
-      return { type: 'unused', text: '⚠️ Sin usar', color: 'text-amber-600' };
+      return { type: 'unused', text: 'Sin usar', color: 'text-amber-600' };
     }
 
     const hasActiveRule = category.linkedRules.some(rule => rule.isActive);
@@ -117,7 +117,12 @@ export function CategoriesList({
                     {truncateText(category.description)}
                   </TableCell>
                   <TableCell className={`text-sm ${getUsageStatus(category).color}`}>
-                    {getUsageStatus(category).text}
+                    <span className="inline-flex items-center gap-1.5">
+                      {getUsageStatus(category).type === 'unused' && (
+                        <AlertTriangle size={12} strokeWidth={1.8} />
+                      )}
+                      {getUsageStatus(category).text}
+                    </span>
                   </TableCell>
                   <TableCell className="text-[#8D939D] text-sm">
                     {formatDate(category.createdAt)}

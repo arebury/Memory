@@ -131,6 +131,15 @@ type ResolvedStatus = {
   color: string;
 };
 
+/* Reduced palette (sec 15.21 audit): only two hues active.
+   - `text-sc-muted` (gray) for the default / unprocessed state.
+   - `text-sc-accent-strong` (teal) for any "in-flight" or "completed"
+     state — transcribing, transcribed, analyzing, analyzed.
+   The icon SHAPE carries the analyzed-vs-transcribed distinction
+   (sparkle inside vs lines), and the pulse animation (driven by
+   isProcessing/isAnalyzing) carries the active distinction. We
+   stopped using purple/yellow because three semantic colors plus
+   the cost-warn amber crowded the visual budget. */
 function resolveStatus(
   conv: Conversation,
   isProcessing: boolean,
@@ -139,17 +148,19 @@ function resolveStatus(
   const isCall = conv.channel === "llamada";
   const hasAnalysis = conv.hasAnalysis === true;
   const hasTranscription = conv.hasTranscription === true;
+  const ACTIVE = "text-sc-accent-strong";
+  const REST = "text-sc-muted";
 
   // Active processing wins over static state.
   if (isAnalyzing) {
     return isCall
-      ? { Icon: IconCallTranscriptionAnalysis, label: "Analizando…", color: "text-[#9B59B6]" }
-      : { Icon: IconChatAnalysis, label: "Analizando…", color: "text-[#9B59B6]" };
+      ? { Icon: IconCallTranscriptionAnalysis, label: "Analizando…", color: ACTIVE }
+      : { Icon: IconChatAnalysis, label: "Analizando…", color: ACTIVE };
   }
   if (isProcessing) {
     return isCall
-      ? { Icon: IconCallTranscription, label: "Transcribiendo…", color: "text-yellow-500" }
-      : { Icon: IconChatTranscription, label: "Transcribiendo…", color: "text-yellow-500" };
+      ? { Icon: IconCallTranscription, label: "Transcribiendo…", color: ACTIVE }
+      : { Icon: IconChatTranscription, label: "Transcribiendo…", color: ACTIVE };
   }
 
   if (isCall) {
@@ -157,43 +168,31 @@ function resolveStatus(
       return {
         Icon: IconCallTranscriptionAnalysis,
         label: "Llamada · grabada, transcrita y analizada",
-        color: "text-[#9B59B6]",
+        color: ACTIVE,
       };
     }
     if (hasTranscription) {
       return {
         Icon: IconCallTranscription,
         label: "Llamada · grabada y transcrita",
-        color: "text-[#60D3E4]",
+        color: ACTIVE,
       };
     }
     return {
       Icon: IconPhone,
       label: conv.hasRecording ? "Llamada · grabada" : "Llamada",
-      color: "text-[#6F7784]",
+      color: REST,
     };
   }
 
   // Chat
   if (hasAnalysis) {
-    return {
-      Icon: IconChatAnalysis,
-      label: "Chat · analizado",
-      color: "text-[#9B59B6]",
-    };
+    return { Icon: IconChatAnalysis, label: "Chat · analizado", color: ACTIVE };
   }
   if (hasTranscription) {
-    return {
-      Icon: IconChatTranscription,
-      label: "Chat · transcrito",
-      color: "text-[#60D3E4]",
-    };
+    return { Icon: IconChatTranscription, label: "Chat · transcrito", color: ACTIVE };
   }
-  return {
-    Icon: IconChat,
-    label: "Chat",
-    color: "text-[#6F7784]",
-  };
+  return { Icon: IconChat, label: "Chat", color: REST };
 }
 
 export function StatusIcon({ conversation, isProcessing = false, isAnalyzing = false, size = 18 }: StatusIconProps) {

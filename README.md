@@ -32,7 +32,7 @@ Tres palancas, en este orden:
 | **Conversaciones** | Tabla principal. Filtra por servicio, fecha, agente, estado de procesamiento. Selección múltiple para transcripción / análisis masivo. |
 | **Reproductor** | Modal por conversación. Audio (en llamadas), transcripción diarizada tipo chat y panel de **Resumen + Sentimiento** generados por IA. |
 | **Repositorio** | Configuración. Reglas de automatización, categorías IA y entidades a extraer. La estructura del IVR (servicios, grupos, agentes) se sincroniza automáticamente. |
-| **Transcripción masiva** | Modal de bulk. Calcula coste por adelantado y permite incluir el análisis IA con un toggle. |
+| **Transcripción masiva** | Modal de bulk. Avisa de que la operación genera coste y permite incluir el análisis IA con un toggle. |
 
 ## Decisiones de producto que el código refleja
 

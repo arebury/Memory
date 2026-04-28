@@ -4,14 +4,14 @@ import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
 import { Textarea } from "./ui/textarea";
-import { 
-  X, 
+import {
+  X,
   HelpCircle,
-  // ChevronDown, // Eliminado - no hay opciones avanzadas
   MoreVertical,
   Copy,
   Link,
-  Trash2
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { Tooltip, TooltipTrigger, TooltipContent } from "./ui/tooltip";
@@ -223,8 +223,9 @@ export function EditCategoryPanel({ category, open, onOpenChange, onDelete, onNa
                 {errors.name ? (
                   <p className="text-sm text-red-500">{errors.name}</p>
                 ) : nameChanged ? (
-                  <p className="text-sm text-amber-600 flex items-center gap-2">
-                    ⚠️ Cambiar el nombre actualizará cómo aparece esta categoría en todos los informes
+                  <p className="text-sm text-amber-600 flex items-center gap-1.5">
+                    <AlertTriangle size={13} strokeWidth={1.7} />
+                    Cambiar el nombre actualizará cómo aparece esta categoría en todos los informes
                   </p>
                 ) : (
                   <p className="text-sm text-[#8D939D]">

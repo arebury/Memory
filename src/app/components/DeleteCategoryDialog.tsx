@@ -1,4 +1,4 @@
-import { 
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
+import { AlertTriangle } from "lucide-react";
 import { Category } from "./CategoriesContext";
 
 interface DeleteCategoryDialogProps {
@@ -42,7 +43,9 @@ export function DeleteCategoryDialog({ category, open, onOpenChange, onConfirm, 
                 <>
                   <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                     <div className="flex items-start gap-3">
-                      <span className="text-xl">⚠️</span>
+                      <span className="mt-0.5 inline-flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                        <AlertTriangle size={16} strokeWidth={1.7} />
+                      </span>
                       <div className="space-y-3">
                         <p className="text-sm text-[#233155]">
                           Esta categoría se está usando en:
