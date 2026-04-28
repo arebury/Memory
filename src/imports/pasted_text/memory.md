@@ -1417,6 +1417,9 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 ## 🚢 18. Deploy · publicación
 
+**URL pública**: https://memoryplus3.netlify.app/
+**Repositorio**: https://github.com/arebury/Memory (privado)
+
 ### Pipeline actual
 
 ```

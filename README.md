@@ -2,6 +2,9 @@
 
 Dashboard de monitorización de conversaciones para contact centers. Permite a supervisores y administradores revisar conversaciones (llamadas y chats), lanzar transcripciones y análisis IA, y gestionar reglas automáticas de grabación, transcripción y clasificación.
 
+🌐 **Live**: [memoryplus3.netlify.app](https://memoryplus3.netlify.app/)
+
+[![live](https://img.shields.io/badge/live-memoryplus3.netlify.app-00C7B7?style=flat-square&logo=netlify&logoColor=white)](https://memoryplus3.netlify.app/)
 ![status](https://img.shields.io/badge/status-prototipo-F59E0B?style=flat-square)
 ![React](https://img.shields.io/badge/React-18.3-61DAFB?style=flat-square&logo=react&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-6.3-646CFF?style=flat-square&logo=vite&logoColor=white)
@@ -74,6 +77,8 @@ src/
 ```
 
 ## 🚢 Deploy
+
+URL pública: **https://memoryplus3.netlify.app/**
 
 El repositorio está conectado a **Netlify** para despliegue continuo. Cada push a `main` dispara un build (`pnpm build`) y publica `dist/` en la URL pública. Configuración declarativa en [`netlify.toml`](netlify.toml).
 
