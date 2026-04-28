@@ -1,15 +1,15 @@
 import { useState } from "react";
-import { motion } from "motion/react";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Phone, Trash2, Search, FileText, Sparkles } from "lucide-react";
+import { Search } from "lucide-react";
 import { Conversation } from "../data/mockData";
-import { PlayerModal } from "./PlayerModal";
+import { ConversationPlayerModal } from "./ConversationPlayerModal";
 import { Input } from "./ui/input";
 import { TimeRangeFilter } from "./TimeRangeFilter";
 import { RecordingFilter } from "./RecordingFilter";
 import { DurationFilter } from "./DurationFilter";
 import { DateRangePicker } from "./DateRangePicker";
+import { StatusIcon } from "./StatusIcons";
 import {
   Tooltip,
   TooltipContent,
@@ -45,9 +45,11 @@ interface ConversationTableProps {
     classification: boolean;
   };
   processingIds?: string[];
+  analyzingIds?: string[];
   newlyTranscribedIds?: string[];
   onClearNewlyTranscribed?: (id: string) => void;
   onRequestTranscription?: (id: string) => void;
+  onRequestAnalysis?: (id: string) => void;
 }
 
 export function ConversationTable({ 
@@ -59,11 +61,19 @@ export function ConversationTable({
   onColumnFiltersChange,
   ruleFilters,
   processingIds = [],
+  analyzingIds = [],
   newlyTranscribedIds = [],
   onClearNewlyTranscribed,
   onRequestTranscription,
+  onRequestAnalysis,
 }: ConversationTableProps) {
-  const [playerConversation, setPlayerConversation] = useState<Conversation | null>(null);
+  // Track the active conversation by ID rather than reference so that
+  // when the parent updates a conversation (e.g. transcription completes
+  // mid-modal), the modal re-renders with the latest data.
+  const [playerConversationId, setPlayerConversationId] = useState<string | null>(null);
+  const playerConversation = playerConversationId
+    ? conversations.find((c) => c.id === playerConversationId) ?? null
+    : null;
 
   const allSelected = conversations.length > 0 && conversations.every(conv => selectedIds.includes(conv.id));
   const someSelected = selectedIds.length > 0 && !allSelected;
@@ -87,7 +97,7 @@ export function ConversationTable({
   const handleRowClick = (conv: Conversation) => {
     // STATE 2 → STATE 3: clear newly-transcribed badge on click
     onClearNewlyTranscribed?.(conv.id);
-    setPlayerConversation(conv);
+    setPlayerConversationId(conv.id);
   };
 
   const isRowDimmed = (conv: Conversation): boolean => {
@@ -293,71 +303,14 @@ export function ConversationTable({
                     />
                   </TableCell>
                   
-                  {/* STATUS Column */}
+                  {/* STATUS Column — combined channel + processing-state pictogram */}
                   <TableCell className="w-[80px] py-3">
-                    <div className="flex items-center justify-center gap-1">
-                      {/* Recording badge */}
-                      {conv.hasRecording ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <div className="w-2 h-2 rounded-full bg-[#E74C3C]" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Grabado</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : null}
-
-                      {/* Transcription badge — STATE 1: pulsing yellow / STATE 2+3: static teal */}
-                      {processingIds.includes(conv.id) ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <motion.div
-                                animate={{ opacity: [1, 0.3, 1] }}
-                                transition={{ duration: 0.8, repeat: Infinity, ease: "easeInOut" }}
-                                className="flex items-center"
-                              >
-                                <FileText size={12} className="text-yellow-400" />
-                              </motion.div>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Transcripción en proceso</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : conv.hasTranscription ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <FileText size={12} className="text-[#60D3E4]" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Transcrito</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : null}
-
-                      {/* Classification badge */}
-                      {conv.hasClassificationRule ? (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <Sparkles size={12} className="text-[#9B59B6]" />
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <p>Clasificado con IA</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      ) : null}
-
-                      {!conv.hasRecording && !conv.hasTranscription && !conv.hasClassificationRule && !processingIds.includes(conv.id) && (
-                        <span className="text-[#A3A8B0]">-</span>
-                      )}
+                    <div className="flex items-center justify-center">
+                      <StatusIcon
+                        conversation={conv}
+                        isProcessing={processingIds.includes(conv.id)}
+                        isAnalyzing={analyzingIds.includes(conv.id)}
+                      />
                     </div>
                   </TableCell>
 
@@ -381,15 +334,19 @@ export function ConversationTable({
         </table>
       </div>
 
-      {playerConversation && (
-        <PlayerModal
-          isOpen={!!playerConversation}
-          onClose={() => setPlayerConversation(null)}
-          conversation={playerConversation}
-          isProcessing={processingIds.includes(playerConversation.id)}
-          onRequestTranscription={onRequestTranscription}
-        />
-      )}
+      <ConversationPlayerModal
+        isOpen={!!playerConversation}
+        onClose={() => setPlayerConversationId(null)}
+        conversation={playerConversation}
+        isTranscribing={
+          !!playerConversation && processingIds.includes(playerConversation.id)
+        }
+        isAnalyzing={
+          !!playerConversation && analyzingIds.includes(playerConversation.id)
+        }
+        onRequestTranscription={onRequestTranscription}
+        onRequestAnalysis={onRequestAnalysis}
+      />
     </>
   );
 }

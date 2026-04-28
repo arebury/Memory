@@ -185,15 +185,21 @@
   --sc-modal-body-padding-x:      var(--sc-space-600);  /* 24 */
   --sc-modal-body-padding-y:      var(--sc-space-400);  /* 16 */
 
-  /* Body · Bulk transcription cells (v25 layout, Figma 289:649)
-     Values in pairs: vertical/horizontal. Hero uses wider horizontal
-     padding to give the 56px display number breathing room. */
-  --sc-bulk-cell-height:          200px;
+  /* Body · Bulk transcription cells (compact layout, Figma 297:2559)
+     Body is 632×100 split into two equal cells. Hero centers
+     vertically; Decision uses 0 vertical padding because its inner
+     content (label + title+switch + caption) exactly fills 100px. */
+  --sc-bulk-cell-height:          100px;
   --sc-bulk-cell-gap:             var(--sc-space-300);  /* 12 — between label and content */
-  --sc-bulk-hero-padding-x:       var(--sc-space-800);  /* 32 */
-  --sc-bulk-hero-padding-y:       var(--sc-space-700);  /* 28 */
+  --sc-bulk-hero-padding-x:       var(--sc-space-600);  /* 24 */
+  --sc-bulk-hero-padding-y:       var(--sc-space-300);  /* 12 */
   --sc-bulk-decision-padding-x:   var(--sc-space-600);  /* 24 */
-  --sc-bulk-decision-padding-y:   var(--sc-space-700);  /* 28 */
+  --sc-bulk-decision-padding-y:   0px;
+  /* Decision section nested gaps:
+     · 24 (--sc-space-600) between Label and Title+switch row
+     · 12 (--sc-space-300) between Title+switch group and Caption */
+  --sc-bulk-decision-gap-inner:   var(--sc-space-600);
+  --sc-bulk-decision-gap-outer:   var(--sc-space-300);
 
   /* Footer */
   --sc-modal-foot-height:         68px;

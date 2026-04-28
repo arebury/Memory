@@ -17,7 +17,7 @@ interface BulkTranscriptionModalProps {
 }
 
 /**
- * BulkTranscriptionModal · v25
+ * BulkTranscriptionModal · v26 (Figma 297:2559 compact body)
  *
  * Body taxonomy (replaces v11's 3-destination breakdown):
  *
@@ -36,9 +36,10 @@ interface BulkTranscriptionModalProps {
  *     C5  chat_ea>0 only       → toggle default-on (only-analysis chats)
  *     C6  nTrans>0, ea>0       → toggle default-off (mix all)
  *
- * Layout: 2 columns split by hairline. Left = hero number + cost tag.
- * Right = "Incluir análisis" toggle + "{N} admiten análisis" caption.
- * Footer reuses Modal.Cancel / Modal.Action from the SC design system.
+ * Layout (v26): 720×100 body, two equal cells, no internal divider.
+ * Left = hero number + cost tag. Right = nested Decision (Label / Title+
+ * switch row / Caption) with 24/12 nested gaps. Footer reuses Modal.Cancel
+ * / Modal.Action from the SC design system.
  */
 export function BulkTranscriptionModal({
   isOpen,
@@ -229,69 +230,76 @@ export function BulkTranscriptionModal({
               </div>
             </section>
 
-            {/* ── Decision cell · Análisis ── */}
+            {/* ── Decision cell · Análisis ──
+                Nested per Figma 297:2559:
+                  Decision (flex col, justify-center, padding-x 24, padding-y 0)
+                  └ Group A (flex col, gap 12 = decision-gap-outer)
+                    ├ Group B (flex col, gap 24 = decision-gap-inner)
+                    │   ├ Label "ANÁLISIS"
+                    │   └ Title+switch row (justify-between)
+                    └ Caption ("X admiten análisis", always teal) */}
             <section
               key={shakeKey}
               className={cn(
-                "flex flex-1 flex-col items-start justify-center gap-[var(--sc-space-600)] px-[var(--sc-bulk-decision-padding-x)] py-[var(--sc-bulk-decision-padding-y)]",
+                "flex flex-1 flex-col items-stretch justify-center px-[var(--sc-bulk-decision-padding-x)] py-[var(--sc-bulk-decision-padding-y)]",
                 shakeKey > 0 && "animate-sc-shake",
               )}
             >
-              <span className="text-sc-base font-bold uppercase leading-[var(--sc-line-height-body2)] text-sc-body">
-                Análisis
-              </span>
-              <div className="flex w-full items-center justify-between gap-[var(--sc-space-300)]">
-                <span
-                  className={cn(
-                    "text-sc-md font-semibold leading-[var(--sc-line-height-md)] transition-colors duration-200",
-                    toggleOn ? "text-sc-heading" : "text-sc-disabled",
-                  )}
-                >
-                  Incluir análisis
-                </span>
-                <Switch
-                  checked={toggleOn}
-                  onCheckedChange={handleToggle}
-                  disabled={toggleDisabled}
-                  aria-label="Incluir análisis"
-                  className="data-[state=checked]:bg-sc-accent-strong shrink-0"
-                />
-              </div>
-              {/* Caption reserves one body line height so it never
-                  collapses (anti layout-shift), even in C1. */}
-              <div className="flex min-h-[var(--sc-line-height-body2)] flex-wrap items-baseline gap-[var(--sc-space-100)] text-sc-base leading-[var(--sc-line-height-body2)]">
-                {toggleDisabled ? (
-                  <span className="font-normal text-sc-muted">
-                    todo procesado
+              <div className="flex w-full flex-col gap-[var(--sc-bulk-decision-gap-outer)]">
+                <div className="flex w-full flex-col gap-[var(--sc-bulk-decision-gap-inner)]">
+                  <span className="text-sc-base font-bold uppercase leading-[var(--sc-line-height-body2)] text-sc-body">
+                    Análisis
                   </span>
-                ) : (
-                  <>
+                  <div className="flex w-full items-center justify-between gap-[var(--sc-space-300)]">
                     <span
-                      key={`num-${pulseKey}`}
                       className={cn(
-                        "inline-block tabular-nums transition-colors duration-200",
-                        toggleOn
-                          ? "font-medium text-sc-accent-strong"
-                          : "font-normal text-sc-muted",
-                        pulseKey > 0 && "animate-sc-pulse",
+                        "text-sc-md font-semibold leading-[var(--sc-line-height-md)] transition-colors duration-200",
+                        toggleOn ? "text-sc-heading" : "text-sc-disabled",
                       )}
                     >
-                      {nTrans + nAnBase}
+                      Incluir análisis
                     </span>
-                    <span
-                      key={`pred-${pulseKey}`}
-                      className={cn(
-                        "inline-block transition-colors duration-200",
-                        toggleOn
-                          ? "font-medium text-sc-accent-strong"
-                          : "font-normal text-sc-muted",
-                        pulseKey > 0 && "animate-sc-pulse",
-                      )}
-                    >
-                      admiten análisis
+                    <Switch
+                      checked={toggleOn}
+                      onCheckedChange={handleToggle}
+                      disabled={toggleDisabled}
+                      aria-label="Incluir análisis"
+                      className="data-[state=checked]:bg-sc-accent-strong shrink-0"
+                    />
+                  </div>
+                </div>
+
+                {/* Caption — always teal accent (per Figma C3 spec).
+                    Reserves a single body line so it never collapses
+                    even in C1 (todo procesado). */}
+                <div className="flex min-h-[var(--sc-line-height-body2)] flex-wrap items-baseline gap-[var(--sc-space-100)] text-sc-base leading-[var(--sc-line-height-body2)]">
+                  {toggleDisabled ? (
+                    <span className="font-normal text-sc-muted">
+                      todo procesado
                     </span>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <span
+                        key={`num-${pulseKey}`}
+                        className={cn(
+                          "inline-block tabular-nums font-normal text-sc-accent-strong transition-colors duration-200",
+                          pulseKey > 0 && "animate-sc-pulse",
+                        )}
+                      >
+                        {nTrans + nAnBase}
+                      </span>
+                      <span
+                        key={`pred-${pulseKey}`}
+                        className={cn(
+                          "inline-block font-normal text-sc-accent-strong transition-colors duration-200",
+                          pulseKey > 0 && "animate-sc-pulse",
+                        )}
+                      >
+                        admiten análisis
+                      </span>
+                    </>
+                  )}
+                </div>
               </div>
             </section>
           </div>

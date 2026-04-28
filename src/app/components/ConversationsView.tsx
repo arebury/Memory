@@ -15,7 +15,33 @@ import { TypeFilterButton } from "./TypeFilterButton";
 import { CategoryFilterButton } from "./CategoryFilterButton";
 import { CategoryFilterPanel } from "./CategoryFilterPanel";
 import { BulkTranscriptionModal } from "./BulkTranscriptionModal";
-import { mockConversations } from "../data/mockData";
+import { MockSampleSwitcher } from "./MockSampleSwitcher";
+import { Conversation } from "../data/mockData";
+import { defaultSampleId, getSample } from "../data/mockSamples";
+import { generateTranscriptionFor } from "../data/mockTranscriptionGenerator";
+
+/* Deterministic random AI categories for newly-analyzed conversations. */
+const ANALYSIS_CATEGORY_POOL = [
+  "Soporte Técnico",
+  "Consulta de precio",
+  "Queja Cliente",
+  "Venta",
+  "Seguimiento",
+  "Prospección",
+  "Incidencia Masiva",
+  "Consulta Interna",
+  "Retención",
+];
+const pickRandomCategories = (id: string): string[] => {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const pool = ANALYSIS_CATEGORY_POOL;
+  const count = (h % 2) + 1; // 1 or 2 categories
+  const first = pool[h % pool.length];
+  if (count === 1) return [first];
+  const second = pool[(h * 7 + 3) % pool.length];
+  return first === second ? [first] : [first, second];
+};
 
 interface ConversationsViewProps {
   onNavigateToRepository: () => void;
@@ -39,8 +65,28 @@ export function ConversationsView({
   const [lastSearchTime, setLastSearchTime] = useState("");
   const [showColumnFilters, setShowColumnFilters] = useState(false);
   const [processingIds, setProcessingIds] = useState<string[]>([]);
+  const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [newlyTranscribedIds, setNewlyTranscribedIds] = useState<string[]>([]);
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
+
+  /* Mock-data sample switching ──────────────────────────────────────
+     `currentSampleId` is the active preset; `conversations` is the
+     working copy that local mutations (transcribe / analyze a row)
+     write to. Switching presets resets selection + processing. */
+  const [currentSampleId, setCurrentSampleId] = useState(defaultSampleId);
+  const [conversations, setConversations] = useState<Conversation[]>(() =>
+    getSample(defaultSampleId).build(),
+  );
+
+  const handleSampleChange = (sampleId: string) => {
+    if (sampleId === currentSampleId) return;
+    setCurrentSampleId(sampleId);
+    setConversations(getSample(sampleId).build());
+    setSelectedIds([]);
+    setProcessingIds([]);
+    setAnalyzingIds([]);
+    setNewlyTranscribedIds([]);
+  };
 
   const [columnFilters, setColumnFilters] = useState({
     hourStart: "",
@@ -88,11 +134,11 @@ export function ConversationsView({
 
   const availableCategories = useMemo(() => {
     const categoriesSet = new Set<string>();
-    mockConversations.forEach(conv => {
+    conversations.forEach(conv => {
       if (conv.aiCategories) conv.aiCategories.forEach(cat => categoriesSet.add(cat));
     });
     return Array.from(categoriesSet).sort();
-  }, []);
+  }, [conversations]);
 
   useEffect(() => {
     setTypeFilters({
@@ -121,7 +167,7 @@ export function ConversationsView({
   }, [filters, typeFilters, columnFilters, selectedCategories, ruleFilters]);
 
   const filteredConversations = useMemo(() => {
-    return mockConversations.filter(conv => {
+    return conversations.filter(conv => {
       if (filters.services.length > 0) {
         const serviceMatch = filters.services.some(v => conv.service.toLowerCase().includes(v.toLowerCase()));
         if (!serviceMatch) return false;
@@ -171,20 +217,56 @@ export function ConversationsView({
       if (columnFilters.id && !conv.id.toLowerCase().includes(columnFilters.id.toLowerCase())) return false;
       return true;
     });
-  }, [filters, typeFilters, ruleFilters, columnFilters, selectedCategories]);
+  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories]);
 
   const handleDownload = () => {
     alert(`Descargando ${selectedIds.length} conversación(es)`);
   };
 
-  /* ── Transcription: moves IDs through processing → newlyTranscribed ── */
+  /* ── Transcription: moves IDs through processing → newlyTranscribed.
+        On completion, also generates a random transcription so the
+        single-conversation player has content to render. ──────────── */
   const handleRequestTranscription = (ids: string | string[]) => {
     const idArray = Array.isArray(ids) ? ids : [ids];
     setProcessingIds(prev => [...new Set([...prev, ...idArray])]);
     setTimeout(() => {
       setProcessingIds(prev => prev.filter(id => !idArray.includes(id)));
       setNewlyTranscribedIds(prev => [...new Set([...prev, ...idArray])]);
+      setConversations(prev =>
+        prev.map(c => {
+          if (!idArray.includes(c.id)) return c;
+          return {
+            ...c,
+            hasTranscription: true,
+            // Only seed lines for entries that don't already have them.
+            transcription: c.transcription ?? generateTranscriptionFor(c),
+          };
+        }),
+      );
     }, 6000);
+  };
+
+  /* ── Analysis: flips `hasAnalysis` and seeds AI categories so the
+        Análisis tab in the player has visible payload after the run. */
+  const handleRequestAnalysis = (ids: string | string[]) => {
+    const idArray = Array.isArray(ids) ? ids : [ids];
+    setAnalyzingIds(prev => [...new Set([...prev, ...idArray])]);
+    setTimeout(() => {
+      setAnalyzingIds(prev => prev.filter(id => !idArray.includes(id)));
+      setConversations(prev =>
+        prev.map(c => {
+          if (!idArray.includes(c.id)) return c;
+          return {
+            ...c,
+            hasAnalysis: true,
+            aiCategories:
+              c.aiCategories && c.aiCategories.length > 0
+                ? c.aiCategories
+                : pickRandomCategories(c.id),
+          };
+        }),
+      );
+    }, 4000);
   };
 
   const handleClearNewlyTranscribed = (id: string) => {
@@ -205,8 +287,8 @@ export function ConversationsView({
   // Memoized so BulkTranscriptionModal's inner useMemo doesn't re-fire
   // on every render of this view (parent re-renders are frequent).
   const selectedConversations = useMemo(
-    () => mockConversations.filter(c => selectedIds.includes(c.id)),
-    [selectedIds],
+    () => conversations.filter(c => selectedIds.includes(c.id)),
+    [selectedIds, conversations],
   );
 
   return (
@@ -225,6 +307,12 @@ export function ConversationsView({
           </div>
           
           <div className="flex items-center gap-3">
+            {/* Mock-data sample switcher · prototype-only */}
+            <MockSampleSwitcher
+              currentSampleId={currentSampleId}
+              onChange={handleSampleChange}
+            />
+
             {/* Documentation easter-egg button */}
             <div className="relative group">
               <div
@@ -412,8 +500,8 @@ export function ConversationsView({
         </div>
 
         {/* Table */}
-        <ConversationTable 
-          conversations={filteredConversations} 
+        <ConversationTable
+          conversations={filteredConversations}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
           showColumnFilters={showColumnFilters}
@@ -421,9 +509,11 @@ export function ConversationsView({
           onColumnFiltersChange={setColumnFilters}
           ruleFilters={ruleFilters}
           processingIds={processingIds}
+          analyzingIds={analyzingIds}
           newlyTranscribedIds={newlyTranscribedIds}
           onClearNewlyTranscribed={handleClearNewlyTranscribed}
           onRequestTranscription={(id) => handleRequestTranscription(id)}
+          onRequestAnalysis={(id) => handleRequestAnalysis(id)}
         />
       </div>
 

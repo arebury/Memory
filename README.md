@@ -96,4 +96,4 @@ Prototipo funcional. Toda la data es mock; el estado persiste en `localStorage` 
 
 ## 👤 Autoría
 
-**Rafael Areses Bury** · [@arebury](https://github.com/arebury)
+**Rafael Areses Brackenbury** · [@arebury](https://github.com/arebury)

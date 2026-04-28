@@ -343,20 +343,30 @@ Animaciones SC (en el mismo archivo): `animate-sc-bump` (260ms), `animate-sc-pul
 - `filters: FiltersObject`
 - `onFiltersChange: (filters) => void`
 
-**Estado interno relevante**:
-- `selectedIds: string[]` — IDs seleccionados en la tabla
-- `showColumnFilters: boolean` — mostrar fila de filtros por columna en tabla
-- `processingIds: string[]` — IDs en proceso de transcripción (muestra spinner)
-- `newlyTranscribedIds: string[]` — IDs recién transcritos (muestra badge de éxito)
-- `isTranscriptionModalOpen: boolean` — abre `BulkTranscriptionModal`
-- `columnFilters` — filtros por cada columna de la tabla
-- `typeFilters` / `ruleFilters` — filtros de tipo/regla (sincronizados con `unifiedTypeFilters`)
-- `unifiedTypeFilters` — fuente de verdad de tipos, canales, direcciones y filtros de regla
-- `selectedCategories: string[]` — filtro por categorías IA (UI deshabilitada, lógica presente)
+**Estado interno relevante** (v26):
+- `selectedIds: string[]` — IDs seleccionados en la tabla.
+- `showColumnFilters: boolean` — mostrar fila de filtros por columna en tabla.
+- `processingIds: string[]` — IDs en transcripción activa (icono pulsa amarillo).
+- `analyzingIds: string[]` — IDs en análisis IA activo (icono pulsa púrpura).
+- `newlyTranscribedIds: string[]` — IDs recién transcritos (fila highlighted hasta primer click).
+- `isTranscriptionModalOpen: boolean` — abre `BulkTranscriptionModal`.
+- `currentSampleId: string` — preset de mock-data activo (driver del `MockSampleSwitcher`).
+- `conversations: Conversation[]` — copia de trabajo del sample actual; mutaciones locales (transcribir/analizar) escriben aquí.
+- `columnFilters` — filtros por cada columna de la tabla.
+- `typeFilters` / `ruleFilters` — filtros de tipo/regla (sincronizados con `unifiedTypeFilters`).
+- `unifiedTypeFilters` — fuente de verdad de tipos, canales, direcciones y filtros de regla.
+- `selectedCategories: string[]` — filtro por categorías IA (UI deshabilitada, lógica presente).
 
-**Lógica de transcripción**:
-- `handleRequestTranscription(ids)`: añade IDs a `processingIds` → tras 6 segundos mueve a `newlyTranscribedIds`
-- `handleBulkConfirm`: llama a `handleRequestTranscription` con los IDs elegibles del modal
+**Lógica de transcripción** (v26):
+- `handleRequestTranscription(ids)`: añade IDs a `processingIds`, espera 6000 ms, los mueve a `newlyTranscribedIds`, y **muta `conversations`** marcando `hasTranscription: true` y sembrando `transcription` con `generateTranscriptionFor(c)` si la conversación no traía script. Esto permite que el `ConversationPlayerModal` muestre contenido tras una transcripción simulada.
+- `handleRequestAnalysis(ids)`: análogo para análisis. Espera 4000 ms; al completar setea `hasAnalysis: true` y siembra `aiCategories` con `pickRandomCategories(id)` si estaba vacío. La fuente determinista (hash del id) garantiza que las categorías sean estables entre renders.
+- `handleBulkConfirm`: llama a `handleRequestTranscription` con los IDs elegibles del modal.
+
+**Mock-sample switching**:
+- `handleSampleChange(sampleId)`: cambia el preset y resetea `selectedIds`, `processingIds`, `analyzingIds` y `newlyTranscribedIds`. La función está memoized vía referencia simple (no useCallback porque los handlers de la vista son single-instance por mount).
+- `selectedConversations` derivado vía `useMemo([selectedIds, conversations])` para que el modal no re-calcule en cada render del padre.
+
+**Pool de categorías IA usado por `pickRandomCategories`**: `["Soporte Técnico", "Consulta de precio", "Queja Cliente", "Venta", "Seguimiento", "Prospección", "Incidencia Masiva", "Consulta Interna", "Retención"]`. Se devuelven 1 ó 2 categorías por id (decisión driven por `hash % 2 + 1`).
 
 **Easter egg**: Botón avatar 🤔 en el header. Al hover muestra tooltip con link a documentación externa y emoji 😱.
 
@@ -364,7 +374,7 @@ Animaciones SC (en el mismo archivo): `animate-sc-bump` (260ms), `animate-sc-pul
 
 ---
 
-### BulkTranscriptionModal.tsx ⭐ (v25 — CRÍTICO)
+### BulkTranscriptionModal.tsx ⭐ (v26 — CRÍTICO)
 
 **Descripción**: Modal de transcripción masiva. Construido sobre el shell oficial del Smart Contact Design System (`ui/modal.tsx` → Radix Dialog) usando los tokens `--sc-*`. Reemplaza la taxonomía v11 de 3 destinos por un layout simplificado de 2 columnas: hero number + toggle de análisis.
 
@@ -415,26 +425,35 @@ canSubmit      = heroCount > 0 && !isLoading
 initialUserOn  = nTrans === 0 && nAnBase > 0    // C2 + C5 default-on
 ```
 
-**Layout** (dentro de `<Modal.Body className="!p-0">`, valores extraídos de Figma node `289:649`):
-- Frame **720×200**, `flex h-[200px]`, dos cells de `flex-1` cada una. **SIN divider interno** (per spec del DS — la documentación del símbolo lo dice explícitamente).
-- **Cell hero** (left): padding `28v / 32h`, justify-center.
+**Layout v26** (dentro de `<Modal.Body className="!p-0">`, valores extraídos de Figma node `297:2559`):
+- Frame **720×100**, `flex h-[var(--sc-bulk-cell-height)]`, dos cells de `flex-1` cada una. **SIN divider interno**.
+- **Cell hero** (left): padding `12v / 24h` (`--sc-bulk-hero-padding-{x,y}`), justify-center.
   - Label "Total a procesar": **14px Bold uppercase**, line-height 22px, color `text-sc-body` (#5C616B).
   - Número: **56px semibold** (`text-sc-display`), line-height 48px, color `text-sc-emphasis` (#3C434D — softened black).
   - Cost-tag: 14px regular, line-height 22px:
     - "Genera coste" (capitalizado) → `text-sc-cost-warn` (#D97706 amber).
     - "todo procesado" (lowercase, en C1) → `text-sc-muted`.
-  - Gap 12px entre label y row, gap 12px entre número y tag.
-- **Cell decision** (right): padding `28v / 24h`, justify-center.
-  - Label "Análisis": mismo estilo que label hero.
+  - Gap `--sc-bulk-cell-gap` (12) entre label y row.
+- **Cell decision** (right): padding `0v / 24h` (`--sc-bulk-decision-padding-{x,y}`), justify-center, **estructura anidada**:
+  ```
+  Decision (flex col, items-stretch, justify-center)
+  └ Group A (flex col, gap --sc-bulk-decision-gap-outer = 12)
+    ├ Group B (flex col, gap --sc-bulk-decision-gap-inner = 24)
+    │   ├ Label "ANÁLISIS"
+    │   └ Title+switch row (flex justify-between)
+    └ Caption ("X admiten análisis")
+  ```
+  - Label "ANÁLISIS": mismo estilo que label hero (14px Bold uppercase, `text-sc-body`).
   - Título "Incluir análisis": **16px semibold** (`text-sc-md`), line-height 24px:
     - Toggle ON → `text-sc-heading` (#181D26).
     - Toggle OFF / disabled → `text-sc-disabled` (#797979).
   - Switch: project `<Switch>` con override `data-[state=checked]:bg-sc-accent-strong` (#48B8C9).
-  - Caption: 14px regular, line-height 22px:
-    - C1 (disabled): "todo procesado" muted.
-    - C2-C6 OFF: "{N} admiten análisis" muted, regular.
-    - C2-C6 ON: "{N} admiten análisis" `text-sc-accent-strong` (#48B8C9), medium.
-  - Gap 24px entre label y title-row, 24px entre title-row y caption (más amplio que hero por el switch).
+  - Caption: 14px regular, line-height 22px, **siempre teal cuando hay candidatos** (per Figma C3 spec — antes alternaba muted/teal según toggle):
+    - C1 (toggle disabled): "todo procesado" muted.
+    - C2–C6 (independiente del toggle): "{N} admiten análisis" `text-sc-accent-strong` regular.
+  - Caption reserva `min-h-[var(--sc-line-height-body2)]` para evitar layout-shift en C1.
+
+**Por qué v26**: la altura 200px de v25 dejaba aire excesivo entre celdas; el rediseño en Figma `297:2559` compactó body a 100px y reorganizó el cell decision con gaps anidados (24 entre label↔switch, 12 entre switch↔caption) para que la tipografía respire pegada al límite de 100px sin padding vertical externo.
 
 **Animaciones (`sc-design-system.css`)**:
 - `animate-sc-bump` — hero number escala 1.03 al cambiar `heroCount` (260ms).
@@ -498,12 +517,114 @@ Advierte de que la transcripción anterior será reemplazada.
 - `showColumnFilters: boolean`
 - `columnFilters: ColumnFilters`
 - `onColumnFiltersChange: (filters) => void`
-- `processingIds: string[]` — muestra spinner en esas filas
-- `newlyTranscribedIds: string[]` — muestra badge de éxito
+- `processingIds: string[]` — IDs en transcripción activa (icono pulsa).
+- `analyzingIds: string[]` — IDs en análisis activo (icono pulsa).
+- `newlyTranscribedIds: string[]` — fila highlighted con `bg-yellow-50` hasta primer click.
 - `onClearNewlyTranscribed: (id: string) => void`
 - `onRequestTranscription: (id: string) => void`
+- `onRequestAnalysis: (id: string) => void`
 
-**Columnas**: Hora, Fecha, Servicio, Origen, Grupo, Destino, ID, Espera, Duración, indicadores de reglas (grabación/transcripción/clasificación)
+**Columnas**: Estado, Hora, Fecha, Servicio, Origen, Grupo, Destino, T. Conv., T. Espera, ID.
+
+**Estado column** (pictograma único en lugar del antiguo trío de badges):
+- A partir de v26 la columna "Estado" usa `<StatusIcon />` (ver `StatusIcons.tsx` más abajo). Un único pictograma combina canal (chat/llamada) + nivel de procesamiento (sin transcripción / transcrito / analizado). Reemplaza la combinación previa de "punto rojo grabación + FileText transcripción + Sparkles análisis".
+- Click en fila abre `ConversationPlayerModal` (no `PlayerModal` legacy). El ID del conversation activo se mantiene en estado para que el modal re-renderice si la fila se actualiza (transcripción completada con modal abierto).
+
+---
+
+### StatusIcons.tsx ⭐ (nuevo en v26)
+
+**Descripción**: 5 pictogramas SVG inline (paths de Figma — design dio los assets) que combinan **canal + estado de procesamiento** en un único icono. Sustituye el badge-stacking previo.
+
+**Iconos exportados**:
+- `IconPhone` — llamada sin transcripción (stroke-only, no fill).
+- `IconCallTranscription` — llamada grabada y transcrita (filled, líneas a la derecha).
+- `IconCallTranscriptionAnalysis` — llamada grabada, transcrita y analizada (filled, líneas + sparkle a la derecha).
+- `IconChat` — chat plano (sin transcripción ni análisis).
+- `IconChatTranscription` — chat con transcripción (líneas dentro del bocadillo).
+- `IconChatAnalysis` — chat con análisis IA (sparkle dentro del bocadillo).
+
+**Componente principal `<StatusIcon conversation isProcessing isAnalyzing size />`**: mira `conversation.channel`, `hasRecording`, `hasTranscription`, `hasAnalysis` y los flags `isProcessing/isAnalyzing` para resolver el icono y el color. Reglas de prioridad:
+
+1. `isAnalyzing` → variante "+ análisis" en color púrpura (#9B59B6) con pulse animado.
+2. `isProcessing` → variante "transcripción" en amarillo (text-yellow-500) con pulse animado.
+3. Si chat: `hasAnalysis` → IconChatAnalysis; `hasTranscription` → IconChatTranscription; resto → IconChat.
+4. Si llamada: `hasTranscription && hasAnalysis` → IconCallTranscriptionAnalysis púrpura; `hasTranscription` → IconCallTranscription teal; resto → IconPhone gris.
+
+**Animación de pulse**: `motion.span` con `animate={{ opacity: [1, 0.35, 1] }}` durante 1.1s en bucle. Toda otra animación de fila (yellow row-bg) se mantiene tal cual en `ConversationTable`.
+
+**Tooltip**: cada pictograma envuelto en `<Tooltip>` con label descriptivo ("Llamada · grabada y transcrita", "Chat · analizado", "Transcribiendo…", etc.).
+
+**Por qué pictograma único** (vs trío de badges v25):
+- Reduce ruido visual en la columna 80px de Estado.
+- Los 5 SVG son los assets oficiales del DS (no son Lucide). Mantenerlos como paths inline garantiza fidelity 1:1 con Figma.
+- El canal va integrado en el icono → no hay que repetir un icono "llamada/chat" en otra columna. Ahorra ancho de tabla.
+
+---
+
+### ConversationPlayerModal.tsx ⭐ (nuevo en v26)
+
+**Descripción**: Reproductor individual de conversación. Sustituye al legacy `PlayerModal.tsx` (que sigue en el repo pero ya no se usa desde la tabla). Estructuralmente inspirado en Figma node `325:10103`, adaptado al SC design system: surface blanca, shell `<Modal>`, tokens `--sc-*`.
+
+**Props**:
+- `isOpen: boolean`
+- `onClose: () => void`
+- `conversation: Conversation | null`
+- `isTranscribing?: boolean` — propagado desde `processingIds.includes(conv.id)`.
+- `isAnalyzing?: boolean` — propagado desde `analyzingIds.includes(conv.id)`.
+- `onRequestTranscription?: (id: string) => void`
+- `onRequestAnalysis?: (id: string) => void`
+
+**Anatomía**:
+- Header: icono + "Conversación · {id}" + meta (servicio · fecha · hora).
+- Body:
+  - Audio player row compacto: back-10 / play / fwd-10 / elapsed / scrub / total / download. La reproducción es **mock** — un `setInterval` que incrementa `currentTime` cada 1000ms hasta `totalDuration` parseada desde `conversation.duration`.
+  - Tabs Transcripción / Análisis con empty-states que llaman a `onRequestTranscription/onRequestAnalysis` para reaccionar al estado del padre.
+- Footer: botón único "Cerrar".
+
+**Default tab**: si `!hasTranscription && hasAnalysis` abre directamente en "Análisis"; en cualquier otro caso abre en "Transcripción".
+
+**Imports añadidos al proyecto** (todos lucide, ya disponibles):
+- `Headphones`, `Play`, `Pause`, `RotateCcw`, `RotateCw`, `Download`, `Search`, `FileText`, `Sparkles`, `Loader2`, `FileX`, `User`, `Tag`, `TrendingUp`.
+
+**Por qué un nuevo Modal en vez de iterar `PlayerModal`**: el legacy era un dialog Radix custom con surface `#0F1117` oscura, no migrado al shell SC. Refactor en sitio rompía el resto del proyecto (varios callers todavía lo usan vía Repository/PlayerModal). Decisión: nuevo componente con la API mínima necesaria; migrar el legacy en una sesión dedicada.
+
+---
+
+### MockSampleSwitcher.tsx (prototype-only)
+
+**Descripción**: Botón pill con icono `Database` que abre un `DropdownMenu` para cambiar el preset de mock-data en caliente. Vive junto al easter-egg de validación UX en `ConversationsView` para que reviewers puedan demostrar escenarios distintos sin recargar.
+
+**Props**:
+- `currentSampleId: string`
+- `onChange: (sampleId: string) => void`
+
+**Comportamiento**: lee la lista `mockSamples` de `data/mockSamples.ts`, marca el activo con `Check size={13}` y un `bg-[#EEFBFD]` light-teal. Cambiar de preset reseteo `selectedIds`, `processingIds`, `analyzingIds` y `newlyTranscribedIds` en el padre.
+
+---
+
+### data/mockSamples.ts (prototype-only)
+
+**Descripción**: Catálogo de presets para `MockSampleSwitcher`. Cada `MockSample` tiene `id`, `label`, `description` y un `build()` que devuelve un `Conversation[]` clonado (la lista base `mockConversations` se trata como inmutable; cada builder hace `clone()` defensivo y mutaciones en el resultado).
+
+**Presets actuales**: `default` (estado mixto), `all-pending` (todo por procesar), `all-done` (todo procesado, demuestra C1), `calls-only-untranscribed` (flujo principal de transcribir), `chats-only` (toggle default-on de análisis), `small` (primeras 8 conversaciones).
+
+`getSample(id)` devuelve siempre un `MockSample` válido (fallback al primero) y `defaultSampleId = "default"`.
+
+---
+
+### data/mockTranscriptionGenerator.ts (prototype-only)
+
+**Descripción**: Generador determinista de líneas de transcripción para conversaciones que no traen `transcription` precargada. Se usa cuando el usuario lanza una transcripción individual o masiva sobre una conversación que no tenía script en `mockData.ts`.
+
+**Determinismo**: `hashString(conversation.id) % dialogues.length` selecciona uno de 6 templates de diálogo (soporte, ventas, técnico, facturación, seguimiento, retención). Mismo `id` siempre rinde mismo diálogo.
+
+**Tiempos**: las líneas se distribuyen uniformemente en `parseDuration(conversation.duration)` con jitter `±3s` derivado del hash → no quedan timestamps mecánicos.
+
+**Speaker labels**:
+- Chat: "Speaker 1" / "Speaker 2".
+- Llamada con `origin` que parece nombre (regex `/[a-zA-Z]/` y no empieza por dígito) → usa el origin como agent label, "Cliente" para el otro lado.
+- Llamada con `origin` numérico → "Agente" / "Cliente".
 
 ---
 
@@ -1398,20 +1519,23 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 ### Pendiente
 
-- Migrar al `<Modal>` shell SC los modales legacy: `TranscriptionRequestModal`, `DiarizationRequestModal`, `RetranscriptionConfirmModal`, `PlayerModal`, `RuleSelectionModal`, `CreateEntityModal`, `DeleteCategoryDialog`.
-- Consolidar los tres tonos de navy en circulación (`#1B273D` / `#1C283D` / `#233155`) en el token canónico `--sc-navy-600`.
-- Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS.
-- Reproductor de audio funcional en `PlayerModal.tsx` (actualmente mock).
-- Re-habilitar el filtro de categorías IA en `ConversationsView` (actualmente bloqueado con `{false && showCategoryFilter && (...)}`).
-- Implementar `onNavigateToEntities` en `ClassificationRuleBuilder` (actualmente lanza un toast "TBI").
-- Paginación real en `ConversationTable`.
-- Exportación / importación real en `DataExportImport.tsx`.
-- Backend / persistencia real (hoy todo es mock + `localStorage`).
-- Modo oscuro: tokens definidos en `default_theme.css` con `.dark`, falta toggle UI y variantes dark de los `--sc-*`.
-- Dividir `ConversationTable.tsx` en subcomponentes (es muy grande).
-- Migrar `useEffect` de sincronización `typeFilters`/`ruleFilters` en `ConversationsView` a `useMemo` (actualmente estado derivado vía effect).
-- Code-splitting del bundle: el chunk JS pasa de 500kB. Considerar `manualChunks` en `vite.config.ts` cuando empiece a importar.
+- Migrar al `<Modal>` shell SC los modales legacy: `TranscriptionRequestModal`, `DiarizationRequestModal`, `RetranscriptionConfirmModal`, `PlayerModal` (legacy oscuro), `RuleSelectionModal`, `CreateEntityModal`, `DeleteCategoryDialog`. (P1)
+- Consolidar los tres tonos de navy en circulación (`#1B273D` / `#1C283D` / `#233155`) en el token canónico `--sc-navy-600`. (P1)
+- Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS. (P2)
+- Audio real en `ConversationPlayerModal` (hoy reproducción simulada con `setInterval`). El `PlayerModal` legacy queda muerto en el repo — borrar cuando todos los callers se hayan movido al nuevo. (P1)
+- Re-habilitar el filtro de categorías IA en `ConversationsView` (actualmente bloqueado con `{false && showCategoryFilter && (...)}`). (P2)
+- Implementar `onNavigateToEntities` en `ClassificationRuleBuilder` (actualmente lanza un toast "TBI"). (P2)
+- Paginación real en `ConversationTable`. (P2)
+- Exportación / importación real en `DataExportImport.tsx`. (P2)
+- Backend / persistencia real (hoy todo es mock + `localStorage`). (P0 cuando empiece la integración)
+- Modo oscuro: tokens definidos en `default_theme.css` con `.dark`, falta toggle UI y variantes dark de los `--sc-*`. (P3)
+- Dividir `ConversationTable.tsx` en subcomponentes (es muy grande). (P2)
+- Migrar `useEffect` de sincronización `typeFilters`/`ruleFilters` en `ConversationsView` a `useMemo` (actualmente estado derivado vía effect). (P2)
+- Code-splitting del bundle: el chunk JS pasa de 500kB. Considerar `manualChunks` en `vite.config.ts` (separar `recharts`, `motion`, `@mui/*`, `react-day-picker`). (P3)
 - Decisión pendiente sobre el destino del prototipo (rol 1/2/3) cuando el DS del cliente esté maduro — ver sección 16.
+- `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
+- Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
+- Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
 
 ---
 
@@ -1552,3 +1676,46 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - ANTES de instalar nada o cambiar stack: leer sec 16. NO añadir `primereact`, `@angular/*` ni renombrar tokens `--sc-*` a `--p-*` sin discusión explícita.
 - Para verificar que un cambio compila antes de pushear: `npx -y pnpm@latest build` (~2s, produce `dist/`). Si falla local, falla en Netlify.
 - `gh auth status` confirma autenticación como `arebury`. No hace falta re-loguear en sesiones futuras.
+
+### 15.11 · 2026-04-28 · Claude Code · v26 · status pictograms + ConversationPlayerModal + mock-sample switcher + body compacto
+
+**Hecho**:
+- `BulkTranscriptionModal` v25 → **v26**: body compactado de 720×200 a 720×100. Tokens en `sc-design-system.css`: `--sc-bulk-cell-height` 200→100, `--sc-bulk-hero-padding-x` 32→24, `--sc-bulk-hero-padding-y` 28→12, `--sc-bulk-decision-padding-y` 28→0. Nuevos tokens `--sc-bulk-decision-gap-inner` (24, label↔switch) y `--sc-bulk-decision-gap-outer` (12, switch↔caption). Cell decision reorganizado en grupos anidados (Group A flex-col gap 12 ⊃ Group B flex-col gap 24 + Caption). Caption del análisis ahora **siempre** teal `text-sc-accent-strong` cuando hay candidatos (antes alternaba muted/teal según toggle). archivos: `src/styles/sc-design-system.css`, `src/app/components/BulkTranscriptionModal.tsx`.
+- Nuevo componente `StatusIcons.tsx` con 6 pictogramas SVG inline (paths de Figma, no Lucide): `IconPhone`, `IconCallTranscription`, `IconCallTranscriptionAnalysis`, `IconChat`, `IconChatTranscription`, `IconChatAnalysis`. Componente principal `<StatusIcon conversation isProcessing isAnalyzing size />` resuelve canal+estado en un único pictograma. Pulso `motion.span opacity 1→0.35→1` durante 1.1s mientras procesa o analiza. Tooltip con label específico por estado. archivos: `src/app/components/StatusIcons.tsx`.
+- Columna "Estado" de `ConversationTable.tsx` reescrita: el trío histórico (punto rojo grabación + FileText transcripción + Sparkles análisis con stack de tooltips por badge) sustituido por un único `<StatusIcon />`. Imports limpiados: removidos `Phone`, `Trash2`, `FileText`, `Sparkles`, `motion` que ya no se usaban. archivos: `src/app/components/ConversationTable.tsx`.
+- Nuevo `ConversationPlayerModal.tsx` (720 líneas) inspirado en Figma node `325:10103` pero adaptado al SC design system (surface blanca, shell `<Modal>`, tokens `--sc-*`). Reemplaza al click de fila el legacy `PlayerModal.tsx` (que sigue en repo, listed en sec 17 como pending de migración). Anatomía: header `Conversación · {id}` + meta, body con audio player row (back-10/play/fwd-10/scrub/download — reproducción mock con setInterval) + tabs Transcripción/Análisis con empty-states que llaman a `onRequestTranscription/onRequestAnalysis`. Default tab = Análisis si `!hasTranscription && hasAnalysis`. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- Nuevo `MockSampleSwitcher.tsx` + `data/mockSamples.ts` (presets `default`/`all-pending`/`all-done`/`calls-only-untranscribed`/`chats-only`/`small`) y `data/mockTranscriptionGenerator.ts` (6 templates de diálogo con hash determinista por id, jitter ±3s en timestamps). El switcher vive junto al easter-egg de validación UX en `ConversationsView`. archivos: `src/app/components/MockSampleSwitcher.tsx`, `src/app/data/mockSamples.ts`, `src/app/data/mockTranscriptionGenerator.ts`.
+- `ConversationsView.tsx` reescrito para soportar el nuevo flujo: mock-data ahora vive en estado local (`conversations`, copia de trabajo del sample) en lugar de leer `mockConversations` directamente; `analyzingIds` añadido al state (paralelo a `processingIds`); `handleRequestTranscription` ahora muta la conversación al completar (siembra `transcription` con `generateTranscriptionFor` si no había script); nuevo `handleRequestAnalysis` (4000 ms, marca `hasAnalysis: true` y siembra `aiCategories` con `pickRandomCategories(id)` deterministic); pool de categorías IA documentado inline. `selectedConversations` memoized con dep `[selectedIds, conversations]`. archivos: `src/app/components/ConversationsView.tsx`.
+- `index.html` title fijado a `Memory + 3.0` (era `Memory 3.0 + Transcripción masiva (Copy)` heredado de Figma Make).
+- JSDoc de `BulkTranscriptionModal` actualizada de `v25` a `v26 (Figma 297:2559 compact body)` con descripción del layout anidado.
+- Roadmap (`memory.md` sec 17) repasado: ítems heredados con prioridades P0–P3 explícitas; añadidos items nuevos (purgar `MockSampleSwitcher` antes de demos a stakeholders externos, tipar `resolveStatus` con `React.ReactElement` cuando se introduzca tsconfig, añadir tsconfig+typecheck script).
+
+**Decidido**:
+- Pictograma único en columna Estado (vs trío de badges v25). Razón: la columna mide 80px y tres badges + tres tooltips se sentían ruidosos; los SVG oficiales del DS ya combinan canal+estado en un solo símbolo, mantenerlos como paths inline garantiza fidelity 1:1 con Figma sin pasar por un asset pipeline.
+- Caption del análisis **siempre** teal cuando hay candidatos. Antes alternaba muted/teal según toggle, lo cual implicaba que C2/C5 (default-on) y C3 (default-off) se veían distintos para el mismo dato subyacente. Figma 297:2559 spec C3 confirma teal constante.
+- Body compactado a 100px en lugar de 200px. Razón: el padding-y de 28px sumaba aire vertical innecesario tras quitar el divider central. Decision cell ahora usa `padding-y 0` y deja que los gaps anidados (12+24) hagan el espaciado.
+- `ConversationPlayerModal` como **componente nuevo** en vez de refactor del legacy `PlayerModal`. Razón: el legacy es un Radix Dialog con surface oscura `#0F1117` que aún tiene callers vivos en `Repository`/`PlayerModal`; refactor en sitio rompía esos otros flujos. Trade-off aceptado: dos modales coexisten temporalmente; tarea de migración añadida a sec 17.
+- Mock-data ahora muta vía `setConversations` en `ConversationsView`. Razón: el flujo "transcribe individual → abro modal y veo transcripción" requiere que el cambio sobreviva al cierre/reapertura del modal. Mantener `mockConversations` inmutable como base + clones por sample preserva la posibilidad de resetear.
+- Generador determinista de transcripciones (hash del id, no random). Razón: si la transcripción cambiara entre renders el modal mostraría líneas distintas tras un re-render del padre. Determinismo evita esa rareza en demos.
+
+**Descartado** (decisiones de diseño no tomadas):
+- Mostrar un icono "fallback" (`-`) cuando un chat está sin procesar. Sustituido por `IconChat` (bocadillo plano) — el canal siempre se ve, aunque no haya progreso.
+- Renombrar `PlayerModal.tsx` legacy a `PlayerModalLegacy.tsx`. Decidido NO: se borra cuando se migran sus callers; renombrarlo crearía un diff sin valor.
+- Añadir `react-router` para que el player sea una ruta en lugar de un modal. Sigue siendo modal — la navegación de la app no usa router (sec 2).
+- Bajar el JS chunk con manualChunks ahora. Sigue siendo P3; el build pasa con warning >500 kB pero no bloquea.
+
+**Pendiente** (todos reflejados en sec 17):
+- Migrar `PlayerModal` legacy + el resto de modales antiguos al shell SC. (P1)
+- Audio real en `ConversationPlayerModal` (hoy mock con `setInterval`). (P1)
+- Backend real cuando empiece la integración. (P0 al empezar)
+- `MockSampleSwitcher` debe purgarse antes de demos externas no técnicas. (P3)
+- Tipar `resolveStatus` con `React.ReactElement` cuando se añada tsconfig.json. (P3)
+- Añadir `tsconfig.json` + script `npm run typecheck` — hoy esbuild no typechecka en CI. (P2)
+
+**Notas para próxima sesión**:
+- Repo: https://github.com/arebury/Memory · Live: https://memoryplus3.netlify.app/
+- v26 es la versión activa del modal. Cualquier ajuste de body height/padding va por los tokens `--sc-bulk-*` en `sc-design-system.css`, no hardcoded en el componente.
+- Los 5 SVG de status están inline en `StatusIcons.tsx` con `fill="currentColor"` (excepto `IconPhone` que usa `stroke="currentColor"` porque Figma lo entregó como outline). Si design entrega más variantes (e.g. "chat con análisis + transcripción simultáneo"), añadir un nuevo `Icon*` y extender la matriz en `resolveStatus`.
+- `mockTranscriptionGenerator.ts` cubre 6 dominios. Si las demos repiten el mismo diálogo, ampliar `dialogues[]`.
+- Para verificar build: `npx -y pnpm@latest build` (~1m45s aquí; varía). Output esperado: `dist/index-*.css` ~137 kB y `dist/index-*.js` ~836 kB. Warning de chunk >500 kB es esperado (sec 17).
+- El modal legacy `PlayerModal.tsx` sigue importado desde `Repository.tsx` y otros — NO borrar todavía. Dependency check: `grep -rn "from .*PlayerModal" src` antes de eliminar.
