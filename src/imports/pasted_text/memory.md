@@ -4,7 +4,7 @@
 
 ---
 
-## 1. Project Overview
+## 📋 1. Project Overview
 
 **Nombre**: Memory 3.0  
 **Descripción**: Dashboard de monitorización de conversaciones para contact centers. Permite a supervisores y administradores ver, filtrar y gestionar conversaciones (llamadas y chats), configurar reglas automáticas de grabación/transcripción/clasificación IA, y gestionar el repositorio de categorías IA y entidades de extracción de datos.
@@ -22,7 +22,7 @@
 
 ---
 
-## 2. Tech Stack
+## 🛠️ 2. Tech Stack
 
 | Categoría | Tecnología | Versión |
 |---|---|---|
@@ -48,7 +48,7 @@
 
 ---
 
-## 3. File Structure
+## 📁 3. File Structure
 
 ```
 project-root/
@@ -217,7 +217,7 @@ project-root/
 
 ---
 
-## 4. Design System & Tokens
+## 🎨 4. Design System & Tokens
 
 ### Colores principales (hardcoded en componentes, no en tokens)
 
@@ -301,7 +301,7 @@ Animaciones SC (en el mismo archivo): `animate-sc-bump` (260ms), `animate-sc-pul
 
 ---
 
-## 5. Component Inventory
+## 🧩 5. Component Inventory
 
 ### App.tsx (Root)
 
@@ -741,7 +741,7 @@ interface Category {
 
 ---
 
-## 6. Pages & Routing
+## 🗺️ 6. Pages & Routing
 
 **El proyecto NO usa react-router para navegación**. Todo se gestiona con `useState<View>` en `App.tsx`.
 
@@ -768,7 +768,7 @@ rules → categories (para crear categorías desde ClassificationRuleBuilder)
 
 ---
 
-## 7. State Management
+## 🔄 7. State Management
 
 ### Estado global (Context API)
 
@@ -826,7 +826,7 @@ RulesContext.addRule / updateRule
 
 ---
 
-## 8. Interactions & Animations
+## ✨ 8. Interactions & Animations
 
 ### Animaciones implementadas
 
@@ -858,7 +858,7 @@ RulesContext.addRule / updateRule
 
 ---
 
-## 9. Assets & Media
+## 🖼️ 9. Assets & Media
 
 ### SVGs
 
@@ -886,7 +886,7 @@ No hay imágenes en el proyecto (sin `<img>` con Unsplash o similares). Si se ne
 
 ---
 
-## 10. Key Features & Business Logic
+## 🎯 10. Key Features & Business Logic
 
 ### Funcionalidades implementadas
 
@@ -963,7 +963,7 @@ En `mockData.ts`:
 
 ---
 
-## 11. Environment & Configuration
+## ⚙️ 11. Environment & Configuration
 
 ### Variables de entorno
 
@@ -999,7 +999,7 @@ export default defineConfig({
 
 ---
 
-## 12. How to Run Locally
+## 🚀 12. How to Run Locally
 
 ```bash
 # 1. Clonar/descomprimir el proyecto
@@ -1028,7 +1028,7 @@ pnpm preview
 
 ---
 
-## 13. Known Issues & Decisions
+## ⚠️ 13. Known Issues & Decisions
 
 ### Decisiones de diseño/arquitectura
 
@@ -1068,7 +1068,7 @@ pnpm preview
 
 ---
 
-## 14. Claude Code Handoff Notes
+## 📝 14. Claude Code Handoff Notes
 
 ### Convenciones de naming
 
@@ -1181,7 +1181,7 @@ import { toast } from "sonner@2.0.3"; // Con versión específica
 
 ---
 
-## 15. Session log · 2026-04-25 — SC Design System Modal + BulkTranscriptionModal v25
+## 📅 15. Session log · 2026-04-25 — SC Design System Modal + BulkTranscriptionModal v25
 
 > Esta sección documenta exhaustivamente lo decidido, hecho, refactorizado y pendiente en la sesión que sustituyó el modal de transcripción masiva v11 por el shell oficial del Smart Contact Design System y construyó el body v25. Lectura obligatoria si se reabre el proyecto.
 
@@ -1354,7 +1354,7 @@ setBumpKey(k => k + 1);
 
 ---
 
-## 16. Naturaleza del proyecto · stack del prototipo vs producción
+## 🎯 16. Naturaleza del proyecto · stack del prototipo vs producción
 
 > **Lectura crítica para cualquier sesión futura.** Sin entender esto, se pueden tomar decisiones equivocadas (tipo "voy a meter PrimeReact").
 
@@ -1392,7 +1392,7 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 ---
 
-## 17. Roadmap · pendiente
+## 📌 17. Roadmap · pendiente
 
 > Lista plana de items abiertos. Sin milestones, sin estimaciones. Se actualiza cada vez que se cierra o se abre un item.
 
@@ -1415,7 +1415,7 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 ---
 
-## 18. Deploy · publicación
+## 🚢 18. Deploy · publicación
 
 ### Pipeline actual
 
@@ -1467,7 +1467,7 @@ En el dashboard de Netlify, "Deploys" → seleccionar un deploy anterior estable
 
 ---
 
-## 19. Protocolo de session log
+## 🔁 19. Protocolo de session log
 
 > Reglas obligatorias para mantener `memory.md` útil entre sesiones. Si se rompen, las sesiones futuras pierden contexto y queman tokens preguntando lo mismo.
 
