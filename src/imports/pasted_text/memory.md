@@ -2278,3 +2278,40 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - **Repository LP** ya no tiene la sección Próximamente. Si alguien añade una nueva funcionalidad y quiere "anunciarla", debe ser un Group real con afford actionable, no un teaser.
 - **`ui/sidebar.tsx` borrado**. Si en el futuro alguien necesita un layout sidebar más complejo, instalar shadcn fresh con `npx shadcn-ui add sidebar` o reescribir custom (no usar el archivo borrado como referencia — su shadcn era v0 con animaciones `width/height` rotas).
 - **README** ahora dice "Avisa de coste". Cualquier futura sección sobre billing debe ser igual de honesta — el producto no calcula €, solo cuenta items.
+
+### 15.22 · 2026-04-28 · Claude Code · audit layout-shift cero + duplicado de download
+
+**Hecho**:
+- **Removed duplicate `<Download>` button** del audio bar del player. Antes había dos affords iguales: uno en la audio bar (visible solo para llamadas) y otro en la tab row (visible siempre). Ahora solo queda el de la tab row, que cubre ambos canales y mantiene paridad. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Layout-shift audit aplicado** punto por punto:
+  - **EmptyState CTA** del player: `min-w-[200px]` reservado, suficiente para el label más largo ("Transcribir y analizar"). Antes el botón se encogía cuando el label cambiaba a "Procesando…" (~14 chars vs ~22 chars).
+  - **Bulk modal hero cell**: cost-tag "genera coste" pasa a renderizarse SIEMPRE pero con `opacity-0` cuando `isAllProcessed`. Antes se removía con `{!isAllProcessed && (...)}` y la línea desaparecía → si el supervisor transcribía hasta vaciar el conjunto mid-modal, el layout shifteaba.
+  - **Bulk modal heroDeltaHint**: pasaba a renderizarse condicionalmente bajo el hero number. Ahora siempre renderiza un span con `min-h-[var(--sc-line-height-body2)]` y contenido `heroDeltaHint ?? " "` (un espacio no-breaking). Toggle del switch ya no shiftea.
+  - **Player transcription header counter** (`{N} intervenciones`): número envuelto en `<span className="tabular-nums">` para que de 9 → 10 → 99 → 100 no shiftee la palabra al lado.
+  - **ConversationsView "Resultados: N"**: span del número y span de `lastSearchTime` ganan `tabular-nums`. Cuando el filtro reduce 999 → 12, los dígitos no respiran ni colapsan.
+  - **Selection badge** del bulk-trigger (`{N}` o `99+`): añadido `tabular-nums` aunque ya tenía `min-w-[16px]`. Defensa adicional.
+  - **Repository counters** ya tenían `tabular-nums` desde sec 15.18 ✓.
+  - **Audio playback timestamps** ya tenían `tabular-nums` ✓.
+  - **Tab body** ya tenía `min-h-[360px]` ✓.
+  - **Modal.Action button** ya tenía `min-w-[120px]` ✓.
+
+**Decidido**:
+- **Reservar contenedores con `min-h` + `opacity-0`** en lugar de `{cond && (...)}` cuando un elemento puede aparecer/desaparecer durante interacción. Aplicado al cost-tag y heroDeltaHint del bulk modal. Patrón: si hay alguna probabilidad de que el contenido se toggle mid-modal, render-always-hide-condicional. Si solo cambia entre opens (página-load), `cond && (...)` es OK.
+- **`min-w` igual al label más largo** para CTAs con texto variable. Mejor `min-w-[200px]` (todos los textos caben) que reflow.
+- **`tabular-nums` por defecto** en cualquier counter / tiempo / id que cambie de valor durante uso. Cero excepciones.
+- **Download único en la tab row** (paridad chat+llamada) en lugar de dos buttons. La audio bar conserva back-10/play/fwd-10/scrub/duración — operadores específicos del audio. La descarga es transversal: vive en la tab row.
+
+**Descartado**:
+- **Download solo en audio bar** (con paridad rota para chats). Ya descartado en 15.18.
+- **Reservar `min-h` global en empty states** del player. Cada empty state ya respira con su medallón + título + descripción + highlights + acción + meta + hint. Reservar un alto fijo encima sería over-engineering.
+- **Convertir `width: ${pct}%` del thumb del scrub a `transform: translateX`**. El thumb no anima la propiedad `left` (no tiene `transition-[left]`); snap instant en cada tick de playback. No genera reflow continuo. La regla "no animations on left/top/width/height" aplica a transitions, no a property updates sin transition.
+
+**Pendiente**: ninguno nuevo.
+
+**Notas para próxima sesión**:
+- **Política reservación de espacio** (sec 20 candidate, no documentada aún explícitamente):
+  1. Si el contenido aparece/desaparece mid-interaction → reservar `min-h` + opacity-toggle.
+  2. Si el contenido cambia entre instancias (open/close del modal con conversaciones distintas) → no reservar, cada open es independiente.
+  3. Para counters/IDs/tiempos en interacción → `tabular-nums`.
+  4. Para CTAs con label dinámico → `min-w-[Npx]` con N = ancho del label más largo.
+- Si un futuro componente añade un CTA con label que cambia, hacer el cálculo del ancho del label más largo y aplicar `min-w` desde el día 1.

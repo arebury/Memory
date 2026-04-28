@@ -312,21 +312,10 @@ export function ConversationPlayerModal({
                 {formatTime(totalDuration)}
               </span>
 
-              <span className="mx-1 h-5 w-px bg-sc-border-soft" />
-
-              <button
-                type="button"
-                disabled={!playerEnabled}
-                className={cn(
-                  "flex size-9 cursor-pointer items-center justify-center rounded-sc-md text-sc-body transition-colors",
-                  "hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40",
-                  FOCUS_RING,
-                )}
-                aria-label="Descargar audio"
-                title="Descargar audio"
-              >
-                <Download size={15} />
-              </button>
+              {/* Download moved to the tab row (single afford for
+                  calls + chats). The previous duplicate here was
+                  redundant — the tab-row button covers both channels
+                  and prevents asymmetry. */}
             </div>
           )}
 
@@ -525,7 +514,8 @@ function TranscriptionTab({
     <>
       <div className="flex items-center justify-between gap-[var(--sc-space-300)] px-[var(--sc-space-600)] py-[var(--sc-space-300)]">
         <span className="text-sc-sm text-sc-muted">
-          {lines.length} {lines.length === 1 ? "intervención" : "intervenciones"}
+          <span className="tabular-nums">{lines.length}</span>{" "}
+          {lines.length === 1 ? "intervención" : "intervenciones"}
         </span>
         <div className="relative w-full max-w-[260px]">
           <Search
@@ -846,7 +836,10 @@ function EmptyState({
             disabled={action.disabled}
             style={{ fontSize: "var(--sc-font-size-sm)" }}
             className={cn(
-              "inline-flex items-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
+              /* min-w-[200px] reserves enough width for the longest
+                 label variant ("Transcribir y analizar") so the button
+                 doesn't shrink when label switches to "Procesando…". */
+              "inline-flex min-w-[200px] items-center justify-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
               "font-medium text-sc-on-primary transition-all",
               "hover:bg-sc-primary-hover",
               "active:scale-[0.98] disabled:active:scale-100",

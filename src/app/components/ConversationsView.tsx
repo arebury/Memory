@@ -473,7 +473,7 @@ export function ConversationsView({
                   >
                     <AlignLeft size={18} strokeWidth={1.75} />
                     {hasSelection && (
-                      <span className="absolute -top-1 -right-1 bg-[#233155] text-white text-[9px] rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none font-medium">
+                      <span className="absolute -top-1 -right-1 bg-[#233155] text-white text-[9px] rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none font-medium tabular-nums">
                         {selectedIds.length > 99 ? "99+" : selectedIds.length}
                       </span>
                     )}
@@ -536,7 +536,7 @@ export function ConversationsView({
           {/* Result count */}
           <div className="flex items-center gap-4">
             <div className="text-sm text-[#8D939D]">
-              Resultados: <span className="text-[#233155] font-medium">{filteredConversations.length}</span> | Última Búsqueda: <span className="text-[#233155] font-light">{lastSearchTime}</span>
+              Resultados: <span className="text-[#233155] font-medium tabular-nums">{filteredConversations.length}</span> | Última Búsqueda: <span className="text-[#233155] font-light tabular-nums">{lastSearchTime}</span>
             </div>
           </div>
         </div>

@@ -256,24 +256,30 @@ export function BulkTranscriptionModal({
                       </span>
                     )}
                   </span>
-                  {/* Cost cue lives next to the hero. We dropped the
-                      "todo procesado" copy from this cell because the
-                      decision cell on the right already carries that
-                      message — we kept only the cost variant here. */}
-                  {!isAllProcessed && (
-                    <span className="text-sc-base font-normal leading-[var(--sc-line-height-body2)] text-sc-cost-warn transition-colors duration-200">
-                      genera coste
-                    </span>
-                  )}
-                </div>
-                {/* Delta hint — surfaces only when the hero number
-                    differs from the selection size, so the supervisor
-                    sees WHY the count shrunk. */}
-                {heroDeltaHint && (
-                  <span className="text-sc-xs text-sc-muted">
-                    {heroDeltaHint}
+                  {/* Cost cue: always reserves a single body line so
+                      flipping `isAllProcessed` (e.g. transcribing
+                      everything mid-modal) doesn't shift the layout.
+                      When all is done, the slot stays but stays empty. */}
+                  <span
+                    aria-hidden={isAllProcessed}
+                    className={cn(
+                      "min-h-[var(--sc-line-height-body2)] text-sc-base font-normal leading-[var(--sc-line-height-body2)] transition-opacity duration-200",
+                      isAllProcessed
+                        ? "opacity-0 text-sc-cost-warn"
+                        : "opacity-100 text-sc-cost-warn",
+                    )}
+                  >
+                    genera coste
                   </span>
-                )}
+                </div>
+                {/* Delta hint slot — always renders to reserve a single
+                    line; content swaps based on whether the hero
+                    differs from the selection size. Toggling the
+                    "Incluir análisis" switch flips this content but
+                    can't shift the layout. */}
+                <span className="min-h-[var(--sc-line-height-body2)] text-sc-xs leading-[var(--sc-line-height-body2)] text-sc-muted">
+                  {heroDeltaHint ?? " "}
+                </span>
               </div>
             </section>
 
