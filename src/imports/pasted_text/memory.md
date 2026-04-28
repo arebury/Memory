@@ -1538,11 +1538,18 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
 
-### Decisiones del audit 15.18 que necesitan segunda opinión
+### Decisiones del audit 15.18 — estado actual
 
-- **Timer 6500 ms en `handleTranscribeAndAnalyze`** (`ConversationPlayerModal.tsx`) acopla el chain transcribe→analyze al `setTimeout(6000)` del padre `handleRequestTranscription` en `ConversationsView`. Cuando aterrice backend real, sustituir por una promesa explícita (`await transcribe; analyze;`) en lugar del timer paralelo. (P1 cuando llegue backend; P3 hoy.)
-- **CTA primario unificado a navy filled** (`bg-sc-primary text-sc-on-primary`) tanto para Modal.Action como para EmptyState. Pendiente confirmar: ¿necesitamos un cue visual diferenciado para "acción opt-in con coste" frente a "submit del modal"? Hoy ambos lucen idénticos. Si sí, recuperar el teal-soft para los CTA opt-in y dejar navy para submits — pero requiere documentar la regla en Guidelines. (P2 — decisión de DS, no urgente.)
-- **Ribbon "Cómo funciona" condicional por `rules.length === 0`** en `Repository.tsx`. Si un supervisor borra todas sus reglas, el ribbon vuelve a aparecer (no es bug, es la lógica). Si en testing eso confunde, cambiar la condición a un flag persistente en `localStorage` ("repository-onboarding-dismissed") en vez de derivada del estado. (P3.)
+> Las decisiones se mueven a "cerrada" al confirmar/revertir. Aquí solo viven las **abiertas** o que necesitan validación con uso real.
+
+**Cerradas en sesión 15.20** (audit follow-up · ver log de esa sesión para racional):
+
+- ✅ ~~Timer 6500 ms del `handleTranscribeAndAnalyze`~~ → **reemplazado** por chain event-driven en el padre (`chainAnalysisIds` + `useEffect` que drena cuando `hasTranscription` flipa). Ya no hay timer ni acople al `setTimeout(6000)`. Cuando llegue backend real, basta con sustituir el flag derivado de la mutación por la promesa real — la lógica de queue/effect sigue igual.
+- ✅ ~~CTA primario navy vs teal-soft para opt-in~~ → **mantenido navy filled** en TODOS los empty states + Modal.Action. Razón: un solo "primary action" recognition pattern repo-wide. El cost cue vive en `meta` (`text-sc-cost-warn`) bajo el botón; diferenciar también por color del botón es redundante. El teal-soft queda libre como CTA secundario.
+- ✅ ~~Ribbon condicional por `rules.length === 0`~~ → **mantenido**. Re-aparición tras reset es intencional (estado-cero merece orientación). Si testing futuro lo confirma confuso, switch a `localStorage` dismiss persistente en una pasada simple.
+
+**Abiertas**:
+
 - **Bubble alignment iMessage** en la transcripción del player (Agente derecha + Cliente izquierda). El supervisor es observador, no participante; el patrón "right=me" es culturalmente sesgado. Validar con usuarios reales si confunde antes de cambiar a layout Slack-style (todo a la izquierda + avatar). (P3.)
 - **`text-sc-display` collapsing con `text-sc-color`** en `cn()` (sec 15.15). Hoy resuelto con `style={{ fontSize }}` en 4 sitios. Alternativa más durable: configurar `tailwind-merge` con `extendTailwindMerge({ classGroups: { 'font-size': [{ text: ['sc-xs', ...] }] } })` y reemplazar `cn` por la versión configurada. Migración coordinada, no parche. (P2.)
 
@@ -2141,3 +2148,41 @@ Cualquier código que mute `Conversation` debe pasar por estas reglas o respetar
 - **Sec 20 debe actualizarse** cuando se confirme/cambie un patrón canónico (ej. si la decisión #2 del roadmap se resuelve y volvemos a teal-soft para opt-in CTAs, actualizar 20.1 + el shape).
 - **El sub-bloque "Decisiones... segunda opinión" en sec 17** es donde van las "decisiones tomadas que necesitan validación con uso real". Cuando una se confirme o se reverse, sale del sub-bloque y va al log de la sesión que la cerró.
 - **No mover los tokens `--sc-*` al `:root` de `globals.css`**. Tienen que quedarse en `sc-design-system.css` para que el `@theme inline` los exponga como utilities Tailwind v4. Si alguien los mueve, las clases `text-sc-display`, `bg-sc-primary` etc. dejan de generarse.
+
+### 15.20 · 2026-04-28 · Claude Code · audit follow-up · chain event-driven, decisiones cerradas
+
+**Hecho**:
+- **Bug del icono de Estado tras transcribir resuelto**: el chain transcribe→analyze tenía dos bugs encadenados que dejaban el icono atascado:
+  1. `handleRequestAnalysis` filtraba elegibilidad usando el closure de `conversations` (variable cerrada al render del click), no el estado actual. Tras transcribir (mutación a +6 s), la closure seguía viendo `hasTranscription: false` → `eligible.length === 0` → return temprano → no se setteaba `analyzingIds` → no se mutaba `hasAnalysis` → el icono nunca pasaba a la variante "+ análisis".
+  2. El chain del player usaba `setTimeout(6500)` capturando `onRequestAnalysis` en su closure — la función envolvente (`(id) => handleRequestAnalysis(id)`) se recreaba cada render del padre, pero la captura del setTimeout era la VIEJA, con su propio closure stale.
+- **Fix** (`ConversationsView.tsx`):
+  - Movido el guard de elegibilidad de `handleRequestAnalysis` desde el filter de entrada a DENTRO del `setConversations(prev => …)` callback. Ahí `c.hasTranscription` se lee de la última versión del estado, no del closure.
+  - Nuevo `chainAnalysisIds: string[]` + `useEffect([conversations, chainAnalysisIds])`: cuando una conversación con id en la queue alcanza `hasTranscription: true`, el effect la saca de la queue y dispara `handleRequestAnalysis(ready)`. Event-driven, sin timers paralelos.
+  - Nuevo `handleRequestTranscriptionAndAnalysis(ids)` que mete los ids en `chainAnalysisIds` + dispara `handleRequestTranscription(ids)`. Reemplaza la cadena local del player.
+  - `handleBulkConfirm` reescrito para clasificar `eligibleIds` en `needsTranscription` vs `alreadyTranscribed`. Cuando `includeAnalysis: true`, los ya-transcritos van directo a `handleRequestAnalysis` y los pendientes pasan por el chain. Antes el flag `includeAnalysis` no chained nada y los `callEa`/`chatEa` recibían un `handleRequestTranscription` que era no-op para ellos.
+- **Player** (`ConversationPlayerModal.tsx`):
+  - Nueva prop `onRequestTranscriptionAndAnalysis`. La acción "Transcribir y analizar" del empty state de Análisis ahora delega al padre (no `setTimeout(6500)` local). El requesting flag local se libera a +600 ms — el icono de la tabla muestra el resto del lifecycle (transcribiendo amarillo → transcrito teal → analizando púrpura → analizado púrpura).
+- Prop threaded a través de `ConversationTable` también.
+
+**Decisiones cerradas** (reflejadas en sec 17):
+- **#1 Timer 6500 ms** → cerrada. Reemplazado por queue + useEffect. Ya no hay acople al timer del padre; cuando llegue backend, basta sustituir la mutación timer-based por una promesa.
+- **#2 CTA primario navy filled** → cerrada, mantenida. Un solo recognition pattern. Cost cue vive en `meta`, no en color del botón. Teal-soft libre para CTAs secundarios.
+- **#3 Ribbon condicional por `rules.length === 0`** → cerrada, mantenida. Re-aparición tras reset es intencional. Switch a `localStorage` dismiss persistente solo si testing real lo demanda.
+
+**Decidido**:
+- **Event-driven chain > timer chain**. La queue + useEffect es robusta a cambios futuros del timer del padre, robusta a re-renders, robusta a múltiples ids en flight (cada uno se drena cuando su transcripción individual completa). El timer local del player era brittle por diseño.
+- **Eligibilidad guard DENTRO de `setConversations(prev => …)`**, no fuera. Patrón a seguir para cualquier handler futuro que dependa de un campo derivado del propio estado: leer ese campo dentro del callback, no del closure.
+- **Bulk modal `includeAnalysis: true` ahora hace algo de verdad**. Antes el toggle ponía `eligibleIds` con call_ea + chat_ea + readyToTranscribe juntos y los pasaba todos por `handleRequestTranscription` — los ya-transcritos recibían un re-transcribe que era no-op pero no llegaba al análisis. Ahora cada bucket va al handler correcto.
+
+**Descartado**:
+- **Mantener el setTimeout(6500) del player con un `useRef` para `onRequestAnalysis`**. Soluciona el closure issue pero no la fragilidad del acople al timer del padre. Si el padre cambia su `setTimeout(6000)` a 8000 (porque el backend tarda más), el chain se rompe silenciosamente.
+- **Filtrar `chainAnalysisIds` por `processingIds` en lugar de `hasTranscription`**. `processingIds` se vacía a +6 s pero el `setConversations` también ocurre a +6 s — race. `hasTranscription === true` es la condición canónica del invariant — usarla cierra el círculo.
+- **Reactivar la pulse de "Analizando…" desde el momento del click** (UX más responsive). Implica meter el id en `analyzingIds` antes de tener transcripción → el icono mostraría análisis cuando realmente está transcribiendo. Confuso. Mejor el lifecycle puro: cada estado se ve mientras es real.
+
+**Pendiente**:
+- Quedan 2 abiertas en sec 17: bubble alignment iMessage (P3), tailwind-merge config extender (P2). Ambas requieren más trabajo o testing antes de actuar.
+
+**Notas para próxima sesión**:
+- **Patrón canónico para chains de mutaciones async**: queue de ids + useEffect que observa el campo objetivo del invariant (`hasX`) y drena cuando llega. Si aparece un tercer chain (analyze → re-classify? export? notify?), seguir este patrón.
+- **`handleRequestAnalysis` ya no rechaza ids no-transcritos en la entrada**. Marca `analyzingIds` para todos los ids pasados, pero la mutación real solo aplica a los que cumplan el invariant en el momento del setTimeout. Visualmente esto significa que si alguien dispara analyze sobre un id sin transcripción, el icono pulsará "analyzing" 4 s y luego volverá al estado anterior sin progresar. Para el chain (donde el id SÍ tendrá transcripción a tiempo) funciona perfecto. Si en el futuro hay otros callers, tener esto en cuenta.
+- **El player ya no controla la timing del chain**. Su único job es dispatch y feedback local del botón (~600 ms). El estado del icono lo controla la tabla via processingIds/analyzingIds + conversations. Single source of truth = el padre.

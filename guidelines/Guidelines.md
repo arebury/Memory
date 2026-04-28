@@ -64,6 +64,20 @@ Usa el `EmptyState` del player (`ConversationPlayerModal.tsx`) como referencia. 
 - **Chats siempre tienen transcripción**. **No hay análisis sin transcripción**. Centralizadas en `normalizeChats(list)` de `mockSamples.ts`. Sec 20.8.
 - Si añades una conversación nueva al mock-data, no necesitas marcar `hasTranscription: true` manualmente para chats — el normalizador lo hace.
 
+### Chains de mutaciones async (transcribe → analyze, etc.)
+
+Patrón canónico (sec 15.20 introdujo este, sec 20 lo formaliza):
+
+1. Una **queue** de ids en estado del padre (`chainXIds: string[]`).
+2. Un **`useEffect([conversations, chainXIds])`** que detecta cuando un id en la queue cumple el invariant (ej. `hasTranscription === true`) y dispara el siguiente paso, sacándolo de la queue.
+3. El handler "combinado" solo mete ids en la queue + dispara el primer paso. NO usa setTimeout para el segundo paso.
+
+**No hacer**:
+- `setTimeout(() => onNextStep(id), TIMER_DEL_PASO_ANTERIOR + buffer)` — captura `onNextStep` con su closure stale; falla en silencio cuando `conversations` ha mutado entre click y firing.
+- Filtrar elegibilidad por `closure.find(c => c.id === id)?.hasX` fuera del setState callback. Usa `setConversations(prev => ...)` y mira `prev` adentro.
+
+**Implementación canónica**: `handleRequestTranscriptionAndAnalysis` + `chainAnalysisIds` + useEffect en `ConversationsView.tsx`.
+
 ## 5. Skills disponibles para esta sesión
 
 Si tienes acceso a Claude Code skills, estas están instaladas y son útiles para Memory:

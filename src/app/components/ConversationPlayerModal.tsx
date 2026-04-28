@@ -29,6 +29,11 @@ interface ConversationPlayerModalProps {
   isAnalyzing?: boolean;
   onRequestTranscription?: (id: string) => void;
   onRequestAnalysis?: (id: string) => void;
+  /** Combined handler for the analysis dead-end empty state. The
+   *  parent owns the timing — when the transcription mutation lands,
+   *  the parent's effect drains a queue and dispatches analysis.
+   *  We pass the request through; we don't time it ourselves. */
+  onRequestTranscriptionAndAnalysis?: (id: string) => void;
 }
 
 /**
@@ -57,6 +62,7 @@ export function ConversationPlayerModal({
   isAnalyzing = false,
   onRequestTranscription,
   onRequestAnalysis,
+  onRequestTranscriptionAndAnalysis,
 }: ConversationPlayerModalProps) {
   const [activeTab, setActiveTab] = useState<"transcription" | "analysis">(
     "transcription",
@@ -144,21 +150,23 @@ export function ConversationPlayerModal({
     }
   };
 
-  /* Combined CTA — used by the Análisis empty state when there's no
-     transcription yet. Triggers transcription immediately, then waits
-     just past the parent's transcription timer (6 s) so the
-     `handleRequestAnalysis` invariant (`hasTranscription === true`)
-     is satisfied when we kick off the analysis. The button stays
-     visually "requesting" until both runs are queued. */
+  /* Combined CTA — delegates to the parent's chain handler, which
+     owns the timing via an effect that drains a queue when the
+     transcription mutation lands. The previous local setTimeout(6500)
+     was brittle: it captured `onRequestAnalysis` at click-time and
+     called it with stale `conversations` in the parent's closure,
+     so the eligibility filter (`hasTranscription === true`) failed.
+     Event-driven chain in the parent fixes both issues. */
   const handleTranscribeAndAnalyze = () => {
-    if (!conversation || !onRequestTranscription) return;
+    if (!conversation || !onRequestTranscriptionAndAnalysis) return;
     setRequestingAnalysis(true);
-    void Promise.resolve(onRequestTranscription(conversation.id));
-    const id = conversation.id;
-    setTimeout(() => {
-      if (onRequestAnalysis) onRequestAnalysis(id);
-      setRequestingAnalysis(false);
-    }, 6500);
+    void Promise.resolve(
+      onRequestTranscriptionAndAnalysis(conversation.id),
+    );
+    // Local "requesting" flag mirrors the parent's processing state;
+    // we release it shortly after dispatch so the button doesn't sit
+    // disabled forever — the table icon shows the rest of the lifecycle.
+    setTimeout(() => setRequestingAnalysis(false), 600);
   };
 
   if (!conversation) return null;

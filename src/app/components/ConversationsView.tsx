@@ -250,23 +250,23 @@ export function ConversationsView({
         Análisis tab in the player has visible payload after the run.
 
         Invariant: analysis is derived FROM the transcript, so a row
-        without transcription cannot be analyzed. We silently skip
-        those targets — the caller (player or bulk modal) only ever
-        offers the analysis CTA when it's valid, but this guards
-        against bugs that would create contradictory state. */
+        without transcription cannot be analyzed. The eligibility check
+        runs INSIDE `setConversations(prev => …)` so it always reads
+        the latest state — the previous closure-based filter broke the
+        transcribe→analyze chain because the filter ran with stale
+        conversations from click-time. */
   const handleRequestAnalysis = (ids: string | string[]) => {
     const idArray = Array.isArray(ids) ? ids : [ids];
-    const eligible = idArray.filter(id => {
-      const conv = conversations.find(c => c.id === id);
-      return conv ? conv.hasTranscription === true : false;
-    });
-    if (eligible.length === 0) return;
-    setAnalyzingIds(prev => [...new Set([...prev, ...eligible])]);
+    setAnalyzingIds(prev => [...new Set([...prev, ...idArray])]);
     setTimeout(() => {
-      setAnalyzingIds(prev => prev.filter(id => !eligible.includes(id)));
+      setAnalyzingIds(prev => prev.filter(id => !idArray.includes(id)));
       setConversations(prev =>
         prev.map(c => {
-          if (!eligible.includes(c.id)) return c;
+          if (!idArray.includes(c.id)) return c;
+          // Latest-state guard: only flip hasAnalysis if the row
+          // actually has transcription. A non-transcribed id passes
+          // through untouched.
+          if (!c.hasTranscription) return c;
           return {
             ...c,
             hasAnalysis: true,
@@ -280,16 +280,72 @@ export function ConversationsView({
     }, 4000);
   };
 
+  /* ── Chain: transcribe → analyze. Queue an id; when the
+        transcription mutation lands (effect below), drain it and
+        kick off analysis. Replaces the old setTimeout(6500) chain
+        which was brittle — coupled to the parent's transcription
+        timer and broke if anyone changed the 6000 ms value. The
+        event-driven version works regardless of the timer. */
+  const [chainAnalysisIds, setChainAnalysisIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (chainAnalysisIds.length === 0) return;
+    const ready = chainAnalysisIds.filter(id => {
+      const conv = conversations.find(c => c.id === id);
+      return conv?.hasTranscription === true;
+    });
+    if (ready.length === 0) return;
+    setChainAnalysisIds(prev => prev.filter(id => !ready.includes(id)));
+    handleRequestAnalysis(ready);
+    // We DON'T list `handleRequestAnalysis` as a dep — it's a stable
+    // reference within this component's lifetime (no useCallback needed).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversations, chainAnalysisIds]);
+
+  const handleRequestTranscriptionAndAnalysis = (ids: string | string[]) => {
+    const idArray = Array.isArray(ids) ? ids : [ids];
+    setChainAnalysisIds(prev => [...new Set([...prev, ...idArray])]);
+    handleRequestTranscription(idArray);
+  };
+
   const handleClearNewlyTranscribed = (id: string) => {
     setNewlyTranscribedIds(prev => prev.filter(prevId => prevId !== id));
   };
 
-  /* onConfirm from BulkTranscriptionModal */
-  const handleBulkConfirm = async (_opts: { includeAnalysis: boolean }, eligibleIds: string[]) => {
+  /* onConfirm from BulkTranscriptionModal — splits the eligible IDs
+     into "needs transcription" vs "already-transcribed, just analyze"
+     so each goes through the right handler. The bulk modal already
+     classifies these internally; we mirror that split here. */
+  const handleBulkConfirm = async (
+    opts: { includeAnalysis: boolean },
+    eligibleIds: string[],
+  ) => {
     await new Promise(resolve => setTimeout(resolve, 1500));
-    handleRequestTranscription(eligibleIds);
     setIsTranscriptionModalOpen(false);
     setSelectedIds([]);
+
+    // Classify against current conversations state.
+    const needsTranscription: string[] = [];
+    const alreadyTranscribed: string[] = [];
+    for (const id of eligibleIds) {
+      const conv = conversations.find(c => c.id === id);
+      if (!conv) continue;
+      if (conv.hasTranscription) alreadyTranscribed.push(id);
+      else needsTranscription.push(id);
+    }
+
+    if (opts.includeAnalysis) {
+      // Already-transcribed → analyze directly.
+      if (alreadyTranscribed.length > 0) handleRequestAnalysis(alreadyTranscribed);
+      // Needs transcription → chain transcribe → analyze.
+      if (needsTranscription.length > 0)
+        handleRequestTranscriptionAndAnalysis(needsTranscription);
+    } else {
+      // Toggle off: only transcribe what needs transcription. Already-
+      // transcribed ids in eligibleIds shouldn't happen (the modal
+      // sends only `readyToTranscribe` when toggle is off), but guard.
+      if (needsTranscription.length > 0) handleRequestTranscription(needsTranscription);
+    }
   };
 
   const showCategoryFilter = availableCategories.length > 0;
@@ -500,6 +556,9 @@ export function ConversationsView({
           onClearNewlyTranscribed={handleClearNewlyTranscribed}
           onRequestTranscription={(id) => handleRequestTranscription(id)}
           onRequestAnalysis={(id) => handleRequestAnalysis(id)}
+          onRequestTranscriptionAndAnalysis={(id) =>
+            handleRequestTranscriptionAndAnalysis(id)
+          }
         />
       </div>
 

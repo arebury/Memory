@@ -50,11 +50,12 @@ interface ConversationTableProps {
   onClearNewlyTranscribed?: (id: string) => void;
   onRequestTranscription?: (id: string) => void;
   onRequestAnalysis?: (id: string) => void;
+  onRequestTranscriptionAndAnalysis?: (id: string) => void;
 }
 
-export function ConversationTable({ 
-  conversations, 
-  selectedIds, 
+export function ConversationTable({
+  conversations,
+  selectedIds,
   onSelectionChange,
   showColumnFilters,
   columnFilters,
@@ -66,6 +67,7 @@ export function ConversationTable({
   onClearNewlyTranscribed,
   onRequestTranscription,
   onRequestAnalysis,
+  onRequestTranscriptionAndAnalysis,
 }: ConversationTableProps) {
   // Track the active conversation by ID rather than reference so that
   // when the parent updates a conversation (e.g. transcription completes
@@ -346,6 +348,7 @@ export function ConversationTable({
         }
         onRequestTranscription={onRequestTranscription}
         onRequestAnalysis={onRequestAnalysis}
+        onRequestTranscriptionAndAnalysis={onRequestTranscriptionAndAnalysis}
       />
     </>
   );
