@@ -1538,6 +1538,14 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
 
+### Decisiones del audit 15.18 que necesitan segunda opinión
+
+- **Timer 6500 ms en `handleTranscribeAndAnalyze`** (`ConversationPlayerModal.tsx`) acopla el chain transcribe→analyze al `setTimeout(6000)` del padre `handleRequestTranscription` en `ConversationsView`. Cuando aterrice backend real, sustituir por una promesa explícita (`await transcribe; analyze;`) en lugar del timer paralelo. (P1 cuando llegue backend; P3 hoy.)
+- **CTA primario unificado a navy filled** (`bg-sc-primary text-sc-on-primary`) tanto para Modal.Action como para EmptyState. Pendiente confirmar: ¿necesitamos un cue visual diferenciado para "acción opt-in con coste" frente a "submit del modal"? Hoy ambos lucen idénticos. Si sí, recuperar el teal-soft para los CTA opt-in y dejar navy para submits — pero requiere documentar la regla en Guidelines. (P2 — decisión de DS, no urgente.)
+- **Ribbon "Cómo funciona" condicional por `rules.length === 0`** en `Repository.tsx`. Si un supervisor borra todas sus reglas, el ribbon vuelve a aparecer (no es bug, es la lógica). Si en testing eso confunde, cambiar la condición a un flag persistente en `localStorage` ("repository-onboarding-dismissed") en vez de derivada del estado. (P3.)
+- **Bubble alignment iMessage** en la transcripción del player (Agente derecha + Cliente izquierda). El supervisor es observador, no participante; el patrón "right=me" es culturalmente sesgado. Validar con usuarios reales si confunde antes de cambiar a layout Slack-style (todo a la izquierda + avatar). (P3.)
+- **`text-sc-display` collapsing con `text-sc-color`** en `cn()` (sec 15.15). Hoy resuelto con `style={{ fontSize }}` en 4 sitios. Alternativa más durable: configurar `tailwind-merge` con `extendTailwindMerge({ classGroups: { 'font-size': [{ text: ['sc-xs', ...] }] } })` y reemplazar `cn` por la versión configurada. Migración coordinada, no parche. (P2.)
+
 ---
 
 ## 🚢 18. Deploy · publicación
@@ -1967,3 +1975,169 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - **Iconografía AI canon**: `Sparkles` = "AI-generated" cue (label/pill), nunca como icono de sección. Los iconos de sección son narrativos (`AlignLeft` para texto, `TrendingUp` para valoración, etc.).
 - **MockSampleSwitcher** queda con look amber/dashed permanente. Si en el futuro se quiere ocultar en producción de verdad, envolver en `{import.meta.env.DEV && (...)}`. Hoy se mantiene visible para demos.
 - **`handleTranscribeAndAnalyze` chain con setTimeout 6500ms** asume el timer actual del padre (`6000 ms` para transcripción + `~500ms buffer`). Cuando se integre backend real, sustituir por una promise real (await transcription, then trigger analysis). Marca este comentario.
+
+---
+
+## 🧭 20. Canon · patrones consolidados (post-audit 15.18)
+
+> Patterns que el audit 15.18 dejó como **estables**. Cualquier sesión futura que añada un componente nuevo debe seguir esta sección antes de inventar un patrón. Si un patrón no encaja, abrir un debate explícito en una entrada de sec 15 — no improvisar.
+
+### 20.1 · CTA primario (acción que confirma o lanza algo billable)
+
+**Shape canónico**:
+```tsx
+<button
+  type="button"
+  onClick={...}
+  disabled={...}
+  style={{ fontSize: "var(--sc-font-size-sm)" }}  // o omitir si no se combina con text-color en cn()
+  className={cn(
+    "inline-flex items-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
+    "font-medium text-sc-on-primary transition-all",
+    "hover:bg-sc-primary-hover",
+    "active:scale-[0.98] disabled:active:scale-100",
+    "disabled:cursor-not-allowed disabled:opacity-60",
+    FOCUS_RING,
+  )}
+>
+  {icon}
+  {label}
+</button>
+```
+
+**Implementaciones canónicas**: `Modal.Action` (en `ui/modal.tsx`), `EmptyState.action` (en `ConversationPlayerModal.tsx`).
+
+**Cuándo usar**: una sola vez por modal/panel. Es el verbo principal (Procesar, Solicitar transcripción, Transcribir y analizar, Guardar).
+
+**Cuándo NO usar**: navegación entre vistas (eso son cards/links), confirmaciones destructivas (eso es `Modal.Cancel` con texto "Eliminar" + variant destructive — cuando exista; hoy no hay).
+
+### 20.2 · Focus ring
+
+**Source of truth**: `src/app/components/ui/focus.ts` — `export const FOCUS_RING = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface"`.
+
+**Política**: cualquier elemento interactivo (button, link, role="button" div, role="slider" button, search input) debe importar `FOCUS_RING` y aplicarlo. No re-escribir la cadena `focus-visible:…` en sitios nuevos.
+
+**Excepción justificada**: search input nativo `<input>` puede usar `focus:ring-2 focus:ring-sc-accent/20` (sin `-visible`) porque el patrón de input tiene focus permanente al click; el ring suave (20% alpha) es mejor que el ring fuerte de keyboard nav.
+
+### 20.3 · Iconografía canónica
+
+| Icono lucide | Significado | Lugar canónico |
+|---|---|---|
+| `<Sparkles>` | "Esto es generado por IA" | Pill aside del Resumen, badge "Generado por IA". **NUNCA** como icono de sección o tab principal. |
+| `<AlignLeft>` | "Body of text / cuerpo de transcripción" | Header del modal Bulk, sección Resumen del análisis, trigger del bulk en la toolbar de Conversaciones. |
+| `<FileText>` | "Documento / archivo de transcripción" | Tab Transcripción del player, status icon de transcripción (no en SC iconpaths, pero conceptualmente). |
+| `<TrendingUp>` | "Valoración / métrica" | Sección Sentimiento del análisis. |
+| `<Phone>` / `<MessageSquare>` | Canal de la conversación | Header del player (channel-aware). |
+| `<HelpCircle>` | Documentación / ayuda | Toolbar de filtros en Conversaciones. |
+| `<Mic>` | Grabación (regla) | Hero card de Reglas (Repository). |
+| `<Database>` / `<Tags>` | Entidades / Categorías | PrimaryCard del Repository. |
+| `<Download>` | Descargar contenido visible | Audio bar del player, tab row del player (paridad chat/llamada). |
+
+**Regla**: un icono = un significado. Si necesitas "AI-generated cue" en un sitio nuevo, usa `<Sparkles>`. Si reaparece una sección "Resumen" o equivalente, usa `<AlignLeft>`. No inventes nuevas correspondencias sin documentarlas aquí.
+
+### 20.4 · EmptyState API (`ConversationPlayerModal.tsx`)
+
+**Props**:
+- `icon`: ReactNode — irá en un medallón circular 48px con `bg-sc-surface-muted` + `ring-1 ring-sc-border-soft`. Tamaño recomendado del icono interno: 22px.
+- `title`: string — conversacional, en gerundio para estados activos ("Transcribiendo…"), instructivo para dead-ends ("Primero transcribe la llamada").
+- `description`: string — explica QUÉ desbloquea, no solo el estado actual.
+- `highlights?`: string[] — pills inline tipo "value-prop list" (max 3-4). Cada pill es un noun-phrase corto.
+- `meta?`: { text, intent: 'info' | 'cost' } — línea pequeña bajo el botón. `intent: 'cost'` usa `text-sc-cost-warn` (#D97706 amber). Convención: cualquier acción que dispara coste real debe declarar `meta` con cue.
+- `action?`: { label, icon, onClick, disabled } — usa el shape de CTA primario canónico (sec 20.1).
+- `secondaryHint?`: string — texto plano bajo el meta. Conecta con otros affordances ya visibles (ej. "Mientras tanto, puedes reproducir el audio" cuando la audio bar está visible arriba).
+
+**Cuándo extraer a `ui/EmptyState.tsx`**: cuando aparezca el segundo callsite. Hoy solo lo usa el player; premature abstraction si lo movemos sin razón.
+
+### 20.5 · Copy en gerundio para estados activos
+
+| Estado | Título | Descripción |
+|---|---|---|
+| Procesando transcripción | "Transcribiendo…" | "Estamos generando la transcripción. Puedes seguir escuchando el audio mientras tanto." |
+| Procesando análisis | "Analizando…" | "Generamos el resumen y el sentimiento a partir de la transcripción. Tarda unos segundos." |
+| Listo, sin acción | "Esta llamada todavía no se ha transcrito" | Explica qué desbloquea. |
+| Dead-end resuelto | "Transcribir + analizar en un paso" | CTA combinado. |
+| Dependencia ausente | "Primero transcribe la llamada" | Instructivo, no negativo ("Sin análisis disponible" está prohibido). |
+
+### 20.6 · Cost cue ("genera coste")
+
+**Cuándo aparece**: cualquier acción que dispara llamadas a transcripción o análisis IA — son las dos únicas operaciones billables del sistema mock.
+
+**Forma**:
+- En el Bulk modal hero: `<span className="text-sc-base text-sc-cost-warn">genera coste</span>` junto al hero number cuando `!isAllProcessed`.
+- En empty states: `meta={{ text: "Genera coste · tarda unos segundos", intent: "cost" }}` debajo del CTA.
+- Lowercase en ambos casos. La capitalización ("Genera coste") solo cuando empieza una frase (en el meta).
+
+### 20.7 · MockSampleSwitcher / código prototype-only
+
+Cualquier control que **no existe en producción real** debe llevar el cue visual demo:
+- Borde dashed `border-dashed border-[#D97706]/40`.
+- Fondo `bg-[#FFFBEB]` (amber-50).
+- Texto `text-[#92400E]` (amber-800).
+- Badge `<span>DEMO</span>` `bg-[#D97706] text-white text-[9px] font-bold uppercase`.
+
+Alternativa: envolver en `{import.meta.env.DEV && (...)}` si quieres ocultarlo del todo en builds de producción. Hoy se mantiene visible en producción para que stakeholders puedan ver demos en la URL pública.
+
+### 20.8 · Invariantes de datos (recordatorio cross-cutting)
+
+Centralizadas en `mockSamples.ts → normalizeChats(list)`:
+1. `channel === "chat"` ⇒ `hasTranscription === true` + `transcription[]` poblado.
+2. `hasAnalysis === true` ⇒ `hasTranscription === true`. Si no, se baja `hasAnalysis` y se limpia `aiCategories`.
+
+Cualquier código que mute `Conversation` debe pasar por estas reglas o respetarlas en su propio path. `handleRequestAnalysis` en `ConversationsView` ya filtra targets sin transcripción antes de actuar (capa de defensa adicional).
+
+### 20.9 · Política copy general
+
+- **Imperativo conversacional para títulos** ("Esta llamada todavía no se ha transcrito"), no estado seco ("Sin transcripción disponible").
+- **Gerundio para procesos activos** ("Transcribiendo…", "Analizando…"), no estado pasado ("Transcripción en proceso").
+- **Lowercase para cost cues y captions** in-cell ("genera coste", "todo procesado", "admiten análisis"). Uppercase reservado a labels estructurales ("TOTAL A PROCESAR", "ANÁLISIS").
+- **Descripción explica el "por qué" antes que el "cómo"**. Antes de "Puedes solicitarla individualmente", "Solicita la transcripción para activar la búsqueda dentro del audio".
+- **Highlights como pills triple-eje**: qué pasa / qué desbloquea / qué cuesta.
+
+---
+
+### 15.19 · 2026-04-28 · Claude Code · doc pass · roadmap items + canon section 20 + Guidelines.md reescrita
+
+**Hecho**:
+- Sec 17 (Roadmap) gana sub-bloque **"Decisiones del audit 15.18 que necesitan segunda opinión"** con 5 items:
+  1. Timer 6500 ms del `handleTranscribeAndAnalyze` (acopla al setTimeout del padre).
+  2. CTA primario unificado a navy — pendiente decidir si "opt-in cost" merece variante diferenciada.
+  3. Ribbon "Cómo funciona" condicional — comportamiento de re-aparición si user borra reglas.
+  4. Bubble alignment iMessage — validar con usuarios reales antes de cambiar a Slack-style.
+  5. tailwind-merge collapsing `text-{size}+text-{color}` — alternativa durable es extender twMerge config en lugar de parchear con `style={{fontSize}}`.
+- Nueva **sec 20 · Canon · patrones consolidados (post-audit 15.18)** en `memory.md`. Documenta como referencia estable:
+  - 20.1 CTA primario shape canónico.
+  - 20.2 Focus ring source of truth (`ui/focus.ts`).
+  - 20.3 Iconografía canónica (tabla icono → significado).
+  - 20.4 EmptyState API completa.
+  - 20.5 Copy en gerundio para estados activos.
+  - 20.6 Cost cue ("genera coste").
+  - 20.7 MockSampleSwitcher / código prototype-only treatment.
+  - 20.8 Invariantes de datos (recordatorio cross-cutting).
+  - 20.9 Política copy general.
+- `guidelines/Guidelines.md` reescrito desde su template HTML-comentado vacío. Estructura:
+  - Antes de empezar una sesión.
+  - Código (stack, Tailwind+twMerge, focus rings, comments).
+  - Diseño visual (CTA, iconografía, empty states, copy, anti-patterns).
+  - Datos mock e invariantes.
+  - Skills disponibles (impeccable, ui-ux-pro-max, taste-skill) con overrides para Memory.
+  - Deploy.
+  - Cuándo preguntar antes de actuar.
+  El archivo apunta a `memory.md` sec 20 como fuente de detalle; Guidelines.md es la "puerta" para nuevas sesiones, no la enciclopedia.
+
+**Decidido**:
+- **Sec 20 separada de sec 4 (design system)**. Razón: sec 4 documenta TOKENS (colores, espaciados, fuentes); sec 20 documenta PATRONES de uso (cuándo usar qué token, en qué shape). Mezclarlas reduce ambas. Sec 4 cambia poco, sec 20 evoluciona con el producto.
+- **Guidelines.md como puerta corta, no enciclopedia**. Apunta a `memory.md` para detalles. Razón: si cada sesión tiene que leer 2000 líneas de `memory.md` antes de actuar, queman tokens y se desorientan. Guidelines.md cabe en una pantalla y dice "lee esto, luego ve a memory.md sec X".
+- **Decisiones pendientes en sub-bloque dentro de sec 17**, no en una sec nueva. Razón: el roadmap es "items abiertos sin milestones"; las decisiones a revalidar son items abiertos. Convivir bajo el mismo paraguas mantiene una sola lista que recorrer.
+
+**Descartado**:
+- **Mover el contenido de `memory.md` sec 4 a `Guidelines.md`**. Sec 4 vive bien donde está y es referencia de tokens; Guidelines hace de índice y políticas de uso, no de catálogo.
+- **Crear un `CONTRIBUTING.md` separado**. Hoy `Guidelines.md` cumple ese rol y no hay equipo externo contribuyendo. Si en el futuro se abre el repo a otros developers, separar tiene sentido — hoy no.
+- **Generar un changelog automático** al cerrar sesión. La sec 15 ya hace este trabajo de forma narrativa (con WHY, no solo WHAT) — un changelog flat estilo Keep a Changelog perdería el contexto de las decisiones.
+
+**Pendiente**: ninguno nuevo. Las 5 decisiones del audit ya están en roadmap como sub-bloque.
+
+**Notas para próxima sesión**:
+- **Lee `Guidelines.md` primero** — fue diseñado como onboarding. Cuando algo te lleva a `memory.md` sec X, ve ahí. Si no aparece en Guidelines, no hace falta para ese trabajo.
+- **Sec 20 debe actualizarse** cuando se confirme/cambie un patrón canónico (ej. si la decisión #2 del roadmap se resuelve y volvemos a teal-soft para opt-in CTAs, actualizar 20.1 + el shape).
+- **El sub-bloque "Decisiones... segunda opinión" en sec 17** es donde van las "decisiones tomadas que necesitan validación con uso real". Cuando una se confirme o se reverse, sale del sub-bloque y va al log de la sesión que la cerró.
+- **No mover los tokens `--sc-*` al `:root` de `globals.css`**. Tienen que quedarse en `sc-design-system.css` para que el `@theme inline` los exponga como utilities Tailwind v4. Si alguien los mueve, las clases `text-sc-display`, `bg-sc-primary` etc. dejan de generarse.

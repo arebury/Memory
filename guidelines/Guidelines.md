@@ -1,61 +1,93 @@
-**Add your own guidelines here**
-<!--
+# Guidelines · Memory 3.0
 
-System Guidelines
+> Reglas operativas para desarrollar este prototipo. La fuente única de verdad arquitectónica vive en [`src/imports/pasted_text/memory.md`](../src/imports/pasted_text/memory.md). Este archivo destila lo que **necesitas leer antes de tocar código** — el resto está en `memory.md` por si lo necesitas.
 
-Use this file to provide the AI with rules and guidelines you want it to follow.
-This template outlines a few examples of things you can add. You can add your own sections and format it to suit your needs
+## 1. Antes de empezar una sesión
 
-TIP: More context isn't always better. It can confuse the LLM. Try and add the most important rules you need
+1. Lee la última entrada de `memory.md` sec 15 (session log). Te dice qué se hizo en la sesión anterior y qué dejó pendiente.
+2. Si vas a tocar diseño visual, lee `memory.md` sec 4 (design system) y sec 20 (canon). Si tu cambio rompe un canon, abre debate explícito en el log de sesión, no improvises.
+3. Si vas a instalar una dependencia, lee `memory.md` sec 16 (estrategia stack). Algunas dependencias están bloqueadas (no `primereact`, no `@phosphor-icons/react`, no `Geist`/`Outfit`/`Cabinet Grotesk`/`Satoshi` como font).
 
-# General guidelines
+## 2. Código
 
-Any general rules you want the AI to follow.
-For example:
+### Stack y convenciones que NO se discuten
 
-* Only use absolute positioning when necessary. Opt for responsive and well structured layouts that use flexbox and grid by default
-* Refactor code as you go to keep code clean
-* Keep file sizes small and put helper functions and components in their own files.
+- React 18.3 + Vite 6.3 + TypeScript + Tailwind v4. No introducir `next/*`, no proponer migrar a Vue/Svelte.
+- Tokens `--sc-*` en `src/styles/sc-design-system.css`. Si necesitas un valor nuevo (color, espaciado, radio, sombra), abre un token en la capa apropiada (L1 primitive, L2 semantic, L3 component) — no hardcodees hex en un `.tsx`.
+- Iconos: `lucide-react` exclusivamente. No `@phosphor-icons/react`, no `@radix-ui/react-icons`, no SVG inline excepto para los pictogramas oficiales del DS (`StatusIcons.tsx`).
+- Fuente: Roboto, locked por el cliente. No proponer Geist/Outfit/Cabinet Grotesk/Satoshi como reemplazo.
+- Sin emojis en código, markup o copy. Reemplazar por iconos lucide.
 
---------------
+### Tailwind + tailwind-merge
 
-# Design system guidelines
-Rules for how the AI should make generations look like your company's design system
+- `cn()` de `ui/utils.ts` usa `tailwind-merge`. **Si combinas `text-sc-{size}` + `text-sc-{color}` en un mismo `cn()`, twMerge borra el font-size silenciosamente**. Workaround: aplica `font-size` vía `style={{ fontSize: 'var(--sc-font-size-X)' }}` y deja solo el color en className. Documentado en `memory.md` sec 15.15.
+- Para fuera de `cn()` (className plano sin condicionales) NO hay colisión — los dos classes coexisten.
 
-Additionally, if you select a design system to use in the prompt box, you can reference
-your design system's components, tokens, variables and components.
-For example:
+### Focus rings
 
-* Use a base font-size of 14px
-* Date formats should always be in the format “Jun 10”
-* The bottom toolbar should only ever have a maximum of 4 items
-* Never use the floating action button with the bottom toolbar
-* Chips should always come in sets of 3 or more
-* Don't use a dropdown if there are 2 or fewer options
+- Importa `FOCUS_RING` de `src/app/components/ui/focus.ts` para cualquier elemento interactivo. No re-escribir la cadena `focus-visible:…` en sitios nuevos.
 
-You can also create sub sections and add more specific details
-For example:
+### Comments
 
+- Sigue lo que dice CLAUDE.md / system prompt: **no comentes lo obvio**. Comentas solo cuando el WHY es no-obvio, hay un workaround a un bug, o un constraint oculto.
 
-## Button
-The Button component is a fundamental interactive element in our design system, designed to trigger actions or navigate
-users through the application. It provides visual feedback and clear affordances to enhance user experience.
+## 3. Diseño visual
 
-### Usage
-Buttons should be used for important actions that users need to take, such as form submissions, confirming choices,
-or initiating processes. They communicate interactivity and should have clear, action-oriented labels.
+### CTA primario
 
-### Variants
-* Primary Button
-  * Purpose : Used for the main action in a section or page
-  * Visual Style : Bold, filled with the primary brand color
-  * Usage : One primary button per section to guide users toward the most important action
-* Secondary Button
-  * Purpose : Used for alternative or supporting actions
-  * Visual Style : Outlined with the primary color, transparent background
-  * Usage : Can appear alongside a primary button for less important actions
-* Tertiary Button
-  * Purpose : Used for the least important actions
-  * Visual Style : Text-only with no border, using primary color
-  * Usage : For actions that should be available but not emphasized
--->
+Una sola forma. Documentada en `memory.md` sec 20.1. Si tu CTA no encaja en ese shape, probablemente no es un CTA primario.
+
+### Iconografía canónica
+
+`memory.md` sec 20.3. Tabla de "icono → significado". Antes de usar un icono lucide nuevo, comprueba si el significado ya tiene un icono asignado — un significado, un icono.
+
+### Empty states
+
+Usa el `EmptyState` del player (`ConversationPlayerModal.tsx`) como referencia. Props canónicas: `icon`, `title`, `description`, `highlights`, `meta`, `action`, `secondaryHint`. Documentadas en `memory.md` sec 20.4.
+
+### Copy
+
+- Imperativo conversacional para títulos. Gerundio para procesos activos. Lowercase para cost cues / captions. `memory.md` sec 20.9.
+- Si tu CTA dispara coste, añade el cue ("genera coste" o `meta: { intent: 'cost' }`). Sec 20.6.
+
+### Anti-patterns prohibidos
+
+- `border-left: 3px+ solid color` como accent stripe en cards/items. Banned por taste-skill + impeccable.
+- Gradient text (`background-clip: text`). Banned.
+- Pure `#000000` o `#FFFFFF` en text/bg. Usa los tokens `--sc-surface-*` y `--sc-text-*`.
+- Cluster de iconos coloreados apilados (rojo+azul+púrpura). El Repository tenía esto antes; reemplazado por chips inline. No volver.
+- Glassmorphism + glow. Innecesario en un dashboard interno.
+- 3-cards horizontales idénticas. Si tienes 3 elementos equivalentes, usa lista o flex con jerarquía, no grid de cards.
+
+## 4. Datos mock e invariantes
+
+- **Chats siempre tienen transcripción**. **No hay análisis sin transcripción**. Centralizadas en `normalizeChats(list)` de `mockSamples.ts`. Sec 20.8.
+- Si añades una conversación nueva al mock-data, no necesitas marcar `hasTranscription: true` manualmente para chats — el normalizador lo hace.
+
+## 5. Skills disponibles para esta sesión
+
+Si tienes acceso a Claude Code skills, estas están instaladas y son útiles para Memory:
+
+- `impeccable` — apliable para revisar empty states y CTAs.
+- `ui-ux-pro-max` — checklist de accesibilidad y patterns. Usa overrides 4/4/4 (no los defaults 8/6/4 de marketing).
+- `taste-skill` — bias correction. Sus defaults son para SaaS landing, NO para dashboard. Override DENSITY a 4, MOTION a 4-6, VARIANCE a 3-4.
+
+`memory.md` sec 15.16 documenta qué reglas de cada skill aplican y cuáles entran en conflicto con el DS.
+
+## 6. Deploy
+
+- Push a `main` dispara Netlify auto-build (~2 min). NO pushear commit-a-commit; agrupa cambios al final de sesión.
+- Para validar antes de pushear: `npx -y pnpm@latest build` (~2s). Si pasa local, pasa en Netlify.
+- Identidad git locked como `arebury <arebury@users.noreply.github.com>`. Sin `Co-Authored-By: Claude`.
+
+## 7. Cuando no estés seguro
+
+Pregunta antes de:
+
+- Instalar una dependencia nueva.
+- Renombrar un token `--sc-*`.
+- Cambiar un patrón canónico de sec 20 sin debatirlo.
+- Borrar `MockSampleSwitcher` o cualquier código marked como prototype-only.
+- Tocar `src/styles/default_theme.css` (es shadcn/ui sync, no editar).
+
+Para todo lo demás, adelante. El log de sesión sec 15 captura qué hiciste y por qué; si la siguiente sesión necesita context, lo encuentra ahí.
