@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  Headphones,
+  Phone,
+  MessageSquare,
   Play,
   Pause,
   RotateCcw,
@@ -11,14 +12,18 @@ import {
   Sparkles,
   Loader2,
   FileX,
-  User,
-  Tag,
   TrendingUp,
 } from "lucide-react";
 
 import { Modal } from "./ui/modal";
 import { cn } from "./ui/utils";
 import { Conversation } from "../data/mockData";
+
+/* Shared focus-ring utility — applied to every interactive element so
+   keyboard navigation always has a visible target. Tied to the SC
+   accent so it reads as part of the design system. */
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface";
 
 interface ConversationPlayerModalProps {
   isOpen: boolean;
@@ -145,7 +150,10 @@ export function ConversationPlayerModal({
 
   if (!conversation) return null;
 
-  const canRequestAnalysis = conversation.hasTranscription || conversation.channel === "chat";
+  const isChat = conversation.channel === "chat";
+  const canRequestAnalysis = conversation.hasTranscription || isChat;
+  const playerEnabled = !isChat && !!conversation.hasRecording;
+  const progressPct = totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0;
 
   /* ── Derived view models ── */
   const filteredLines = (conversation.transcription ?? []).filter((line) => {
@@ -158,16 +166,22 @@ export function ConversationPlayerModal({
   });
 
   const subtitle = `${conversation.service} · ${conversation.date} ${conversation.hour} · Duración ${conversation.duration}`;
+  const headerIcon = isChat ? (
+    <MessageSquare className="size-full" strokeWidth={1.75} />
+  ) : (
+    <Phone className="size-full" strokeWidth={1.75} />
+  );
+  const conversationLabel = isChat ? "Chat" : "Llamada";
 
   /* ── Render ─────────────────────────────────────────────────────── */
   return (
     <Modal open={isOpen} onOpenChange={(o) => !o && onClose()}>
       <Modal.Content width={720}>
         <Modal.Header
-          icon={<Headphones className="size-full" strokeWidth={1.75} />}
+          icon={headerIcon}
           title={
             <span className="flex items-center gap-[var(--sc-space-200)]">
-              <span>Conversación</span>
+              <span>{conversationLabel}</span>
               <span className="font-mono text-sc-base font-normal text-sc-muted">
                 #{conversation.id}
               </span>
@@ -177,75 +191,117 @@ export function ConversationPlayerModal({
         />
 
         <Modal.Body className="!p-0">
-          {/* ── Audio player ─────────────────────────────────────────── */}
-          <div className="flex items-center gap-[var(--sc-space-300)] border-b border-sc-border-soft bg-sc-surface-muted px-[var(--sc-space-600)] py-[var(--sc-space-400)]">
-            <button
-              type="button"
-              onClick={() => handleSeek(currentTime - 10)}
-              disabled={!conversation.hasRecording}
-              className="flex size-9 items-center justify-center rounded-full text-sc-body transition-colors hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Retroceder 10 segundos"
-            >
-              <RotateCcw size={16} />
-            </button>
+          {/* ── Audio player ─ only for calls; chats have no audio.
+                For calls without recording, the same row renders with
+                disabled controls so the structure stays consistent. ── */}
+          {!isChat && (
+            <div className="flex items-center gap-[var(--sc-space-300)] border-b border-sc-border-soft bg-sc-surface-muted px-[var(--sc-space-600)] py-[var(--sc-space-400)]">
+              <button
+                type="button"
+                onClick={() => handleSeek(currentTime - 10)}
+                disabled={!playerEnabled}
+                className={cn(
+                  "flex size-9 cursor-pointer items-center justify-center rounded-full text-sc-body transition-colors",
+                  "hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40",
+                  FOCUS_RING,
+                )}
+                aria-label="Retroceder 10 segundos"
+              >
+                <RotateCcw size={16} />
+              </button>
 
-            <button
-              type="button"
-              onClick={() => setIsPlaying((p) => !p)}
-              disabled={!conversation.hasRecording}
-              className="flex size-10 items-center justify-center rounded-full bg-sc-primary text-sc-on-primary shadow-sc-sm transition-colors hover:bg-sc-primary-hover disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label={isPlaying ? "Pausar" : "Reproducir"}
-            >
-              {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
-            </button>
+              <button
+                type="button"
+                onClick={() => setIsPlaying((p) => !p)}
+                disabled={!playerEnabled}
+                className={cn(
+                  "flex size-10 cursor-pointer items-center justify-center rounded-full bg-sc-primary text-sc-on-primary shadow-sc-sm transition-colors",
+                  "hover:bg-sc-primary-hover active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40",
+                  FOCUS_RING,
+                )}
+                aria-label={isPlaying ? "Pausar" : "Reproducir"}
+              >
+                {isPlaying ? <Pause size={18} /> : <Play size={18} className="ml-0.5" />}
+              </button>
 
-            <button
-              type="button"
-              onClick={() => handleSeek(currentTime + 10)}
-              disabled={!conversation.hasRecording}
-              className="flex size-9 items-center justify-center rounded-full text-sc-body transition-colors hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Avanzar 10 segundos"
-            >
-              <RotateCw size={16} />
-            </button>
+              <button
+                type="button"
+                onClick={() => handleSeek(currentTime + 10)}
+                disabled={!playerEnabled}
+                className={cn(
+                  "flex size-9 cursor-pointer items-center justify-center rounded-full text-sc-body transition-colors",
+                  "hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40",
+                  FOCUS_RING,
+                )}
+                aria-label="Avanzar 10 segundos"
+              >
+                <RotateCw size={16} />
+              </button>
 
-            <span className="w-12 text-right font-mono text-sc-sm tabular-nums text-sc-body">
-              {formatTime(currentTime)}
-            </span>
+              <span className="w-12 text-right font-mono text-sc-sm tabular-nums text-sc-body">
+                {formatTime(currentTime)}
+              </span>
 
-            <button
-              type="button"
-              className="group relative h-2 flex-1 overflow-visible rounded-full bg-sc-border-soft"
-              onClick={(e) => {
-                if (!conversation.hasRecording) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                handleSeek(((e.clientX - rect.left) / rect.width) * totalDuration);
-              }}
-              disabled={!conversation.hasRecording}
-              aria-label="Buscar posición"
-            >
-              <span
-                className="absolute inset-y-0 left-0 rounded-full bg-sc-accent"
-                style={{ width: `${(currentTime / totalDuration) * 100}%` }}
-              />
-            </button>
+              {/* Scrub bar — bigger hit target than the visible track,
+                  thumb appears on hover/focus so the resting state stays
+                  flat per DS minimalism. */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  if (!playerEnabled) return;
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  handleSeek(((e.clientX - rect.left) / rect.width) * totalDuration);
+                }}
+                disabled={!playerEnabled}
+                aria-label="Buscar posición"
+                aria-valuemin={0}
+                aria-valuemax={totalDuration}
+                aria-valuenow={currentTime}
+                role="slider"
+                className={cn(
+                  "group relative flex h-5 flex-1 cursor-pointer items-center rounded-full",
+                  "disabled:cursor-not-allowed disabled:opacity-50",
+                  FOCUS_RING,
+                )}
+              >
+                <span className="relative h-1.5 w-full overflow-visible rounded-full bg-sc-border-soft">
+                  <span
+                    className="absolute inset-y-0 left-0 rounded-full bg-sc-accent transition-[width] duration-150"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                  <span
+                    aria-hidden
+                    className={cn(
+                      "absolute top-1/2 size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sc-accent shadow-sc-sm transition-opacity",
+                      "opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100",
+                      isPlaying && "opacity-100",
+                    )}
+                    style={{ left: `${progressPct}%` }}
+                  />
+                </span>
+              </button>
 
-            <span className="w-12 font-mono text-sc-sm tabular-nums text-sc-body">
-              {formatTime(totalDuration)}
-            </span>
+              <span className="w-12 font-mono text-sc-sm tabular-nums text-sc-body">
+                {formatTime(totalDuration)}
+              </span>
 
-            <span className="mx-1 h-5 w-px bg-sc-border-soft" />
+              <span className="mx-1 h-5 w-px bg-sc-border-soft" />
 
-            <button
-              type="button"
-              disabled={!conversation.hasRecording}
-              className="flex size-9 items-center justify-center rounded-sc-md text-sc-body transition-colors hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40"
-              aria-label="Descargar audio"
-              title="Descargar audio"
-            >
-              <Download size={15} />
-            </button>
-          </div>
+              <button
+                type="button"
+                disabled={!playerEnabled}
+                className={cn(
+                  "flex size-9 cursor-pointer items-center justify-center rounded-sc-md text-sc-body transition-colors",
+                  "hover:bg-sc-border-soft disabled:cursor-not-allowed disabled:opacity-40",
+                  FOCUS_RING,
+                )}
+                aria-label="Descargar audio"
+                title="Descargar audio"
+              >
+                <Download size={15} />
+              </button>
+            </div>
+          )}
 
           {/* ── Tabs ─────────────────────────────────────────────────── */}
           <div className="flex items-center gap-[var(--sc-space-500)] border-b border-sc-border-soft px-[var(--sc-space-600)]">
@@ -316,8 +372,10 @@ function TabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "relative flex items-center gap-[var(--sc-space-200)] py-[var(--sc-space-300)]",
+        "relative flex cursor-pointer items-center gap-[var(--sc-space-200)] py-[var(--sc-space-300)]",
         "text-sc-base font-medium transition-colors",
+        FOCUS_RING,
+        "rounded-sc-sm focus-visible:ring-offset-1",
         active ? "text-sc-heading" : "text-sc-muted hover:text-sc-body",
       )}
     >
@@ -417,22 +475,25 @@ function TranscriptionTab({
     <>
       <div className="flex items-center justify-between gap-[var(--sc-space-300)] px-[var(--sc-space-600)] py-[var(--sc-space-300)]">
         <span className="text-sc-sm text-sc-muted">
-          {lines.length} {lines.length === 1 ? "línea" : "líneas"}
+          {lines.length} {lines.length === 1 ? "intervención" : "intervenciones"}
         </span>
         <div className="relative">
           <Search
             size={12}
-            className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-sc-muted"
+            aria-hidden
+            className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-sc-muted"
           />
           <input
-            type="text"
+            type="search"
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Buscar en transcripción"
+            aria-label="Buscar en la transcripción"
             className={cn(
-              "h-8 w-56 rounded-full border border-sc-border pl-7 pr-3",
+              "h-8 w-56 rounded-full border border-sc-border bg-sc-surface pl-7 pr-3",
               "text-sc-sm text-sc-body placeholder:text-sc-muted",
-              "focus:border-sc-accent focus:outline-none",
+              "transition-colors hover:border-sc-border-default",
+              "focus:border-sc-accent focus:outline-none focus:ring-2 focus:ring-sc-accent/20",
             )}
           />
         </div>
@@ -442,44 +503,46 @@ function TranscriptionTab({
         ref={scrollRef}
         className="modal-scrollbar flex-1 overflow-y-auto px-[var(--sc-space-600)] pb-[var(--sc-space-400)]"
       >
-        <div className="flex flex-col gap-[var(--sc-space-300)]">
+        {/* Chat-style bubble layout · same visual treatment for calls
+            and chats (the user requested both render as a diarized
+            chat conversation). Agent / Speaker 1 sits on the right
+            with an accent bubble; client / Speaker 2 sits on the left
+            with a muted bubble. */}
+        <div className="flex flex-col gap-[var(--sc-space-400)]">
           {lines.map((line, idx) => {
-            const isAgent =
-              line.speaker.toLowerCase().includes("agente") ||
-              line.speaker.toLowerCase().includes("oscar") ||
-              line.speaker.toLowerCase().includes("garcía") ||
-              line.speaker.toLowerCase().includes("lópez");
+            const isAgent = isAgentSpeaker(line.speaker, conversation);
             return (
               <div
                 key={`${line.time}-${idx}`}
-                className="flex items-start gap-[var(--sc-space-300)]"
+                className={cn(
+                  "flex w-full",
+                  isAgent ? "justify-end" : "justify-start",
+                )}
               >
-                <span
+                <div
                   className={cn(
-                    "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full",
-                    isAgent
-                      ? "bg-sc-accent-soft text-sc-accent-strong"
-                      : "bg-sc-border-soft text-sc-body",
+                    "flex max-w-[78%] flex-col gap-1",
+                    isAgent ? "items-end" : "items-start",
                   )}
                 >
-                  {isAgent ? (
-                    <Headphones size={12} />
-                  ) : (
-                    <User size={12} />
-                  )}
-                </span>
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <div className="flex items-baseline gap-[var(--sc-space-200)]">
-                    <span className="text-sc-sm font-medium text-sc-heading">
+                  <div className="flex items-baseline gap-[var(--sc-space-200)] px-1">
+                    <span className="text-sc-xs font-medium text-sc-body">
                       {line.speaker}
                     </span>
                     <span className="font-mono text-sc-xs text-sc-muted">
                       {line.time}
                     </span>
                   </div>
-                  <p className="text-sc-base leading-[var(--sc-line-height-body2)] text-sc-body">
+                  <div
+                    className={cn(
+                      "rounded-2xl px-[var(--sc-space-400)] py-[var(--sc-space-300)] text-sc-base leading-[var(--sc-line-height-body2)]",
+                      isAgent
+                        ? "rounded-br-md bg-sc-accent-soft text-sc-heading"
+                        : "rounded-bl-md bg-sc-border-soft text-sc-body",
+                    )}
+                  >
                     {line.text}
-                  </p>
+                  </div>
                 </div>
               </div>
             );
@@ -493,6 +556,22 @@ function TranscriptionTab({
       </div>
     </>
   );
+}
+
+/* Heuristic to decide which side a transcript line sits on. The
+   generator labels chats as "Speaker 1" (agent-side) / "Speaker 2"
+   (other side); calls use real names. The conversation's `origin`
+   often is the agent's name when it's a person, otherwise we fall
+   back to the literal "Agente" label. */
+function isAgentSpeaker(speaker: string, conversation: Conversation): boolean {
+  const s = speaker.toLowerCase().trim();
+  if (s === "agente" || s === "speaker 1") return true;
+  if (s === "cliente" || s === "speaker 2") return false;
+  if (conversation.channel === "llamada") {
+    const origin = conversation.origin.toLowerCase().trim();
+    if (origin && origin === s) return true;
+  }
+  return false;
 }
 
 /* ─────────────────────────────────────────────────────────────────
@@ -551,38 +630,44 @@ function AnalysisTab({
     );
   }
 
-  /* Analysis content (mocked from data we have) ──────────────── */
-  const categories = conversation.aiCategories ?? [];
+  /* Análisis = sólo Resumen + Sentimiento. El resumen se deriva del
+     contenido de la transcripción (los templates determinan el dominio,
+     el sentimiento se infiere del léxico negativo / patterns). */
+  const summary = summarizeTranscript(conversation);
   const sentiment = pickSentiment(conversation);
-  const entities = mockEntitiesFor(conversation);
 
   return (
-    <div className="modal-scrollbar flex-1 overflow-y-auto px-[var(--sc-space-600)] pb-[var(--sc-space-400)] pt-[var(--sc-space-300)]">
-      <div className="flex flex-col gap-[var(--sc-space-500)]">
-        <Section title="Categorías detectadas" icon={<Tag size={13} />}>
-          {categories.length > 0 ? (
-            <div className="flex flex-wrap gap-[var(--sc-space-200)]">
-              {categories.map((cat) => (
-                <span
-                  key={cat}
-                  className="inline-flex items-center gap-1 rounded-full border border-sc-border bg-sc-surface px-2.5 py-1 text-sc-xs text-sc-body"
-                >
-                  <Sparkles size={10} className="text-sc-accent-strong" />
-                  {cat}
-                </span>
-              ))}
-            </div>
+    <div className="modal-scrollbar flex-1 overflow-y-auto px-[var(--sc-space-600)] pb-[var(--sc-space-400)] pt-[var(--sc-space-400)]">
+      <div className="flex max-w-prose flex-col gap-[var(--sc-space-500)]">
+        <Section
+          title="Resumen"
+          icon={<FileText size={13} />}
+          aside={
+            <span
+              className="inline-flex items-center gap-1 text-sc-xs font-normal normal-case tracking-normal text-sc-muted"
+              title="Generado automáticamente a partir de la transcripción"
+            >
+              <Sparkles size={10} className="text-sc-accent-strong" />
+              Generado por IA
+            </span>
+          }
+        >
+          {summary ? (
+            <p className="text-sc-base leading-[var(--sc-line-height-body2)] text-sc-body">
+              {summary}
+            </p>
           ) : (
             <p className="text-sc-sm text-sc-muted">
-              No se detectaron categorías para esta conversación.
+              No hay transcripción suficiente para generar un resumen.
             </p>
           )}
         </Section>
 
-        <Section title="Sentimiento general" icon={<TrendingUp size={13} />}>
-          <div className="flex items-center gap-[var(--sc-space-300)]">
+        <Section title="Sentimiento" icon={<TrendingUp size={13} />}>
+          <div className="flex items-baseline gap-[var(--sc-space-200)]">
             <span
-              className="size-2.5 shrink-0 rounded-full"
+              aria-hidden
+              className="relative top-[1px] inline-block size-2.5 shrink-0 rounded-full"
               style={{ backgroundColor: sentiment.color }}
             />
             <span className="text-sc-base font-medium text-sc-heading">
@@ -591,27 +676,6 @@ function AnalysisTab({
             <span className="text-sc-sm text-sc-muted">
               · {sentiment.summary}
             </span>
-          </div>
-        </Section>
-
-        <Section title="Entidades clave" icon={<Sparkles size={13} />}>
-          <div className="flex flex-col gap-[var(--sc-space-200)]">
-            {entities.map((e) => (
-              <div
-                key={e.name}
-                className="flex items-center justify-between gap-[var(--sc-space-300)] rounded-sc-md border border-sc-border-soft bg-sc-surface px-3 py-2"
-              >
-                <div className="flex flex-col">
-                  <span className="text-sc-xs uppercase tracking-wide text-sc-muted">
-                    {e.name}
-                  </span>
-                  <span className="text-sc-base text-sc-heading">{e.value}</span>
-                </div>
-                <span className="font-mono text-sc-xs text-sc-muted">
-                  {e.confidence}%
-                </span>
-              </div>
-            ))}
           </div>
         </Section>
       </div>
@@ -669,17 +733,22 @@ function EmptyState({
 function Section({
   title,
   icon,
+  aside,
   children,
 }: {
   title: string;
   icon?: React.ReactNode;
+  aside?: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-[var(--sc-space-200)]">
-      <header className="flex items-center gap-[var(--sc-space-200)] text-sc-xs font-bold uppercase tracking-wide text-sc-body">
-        {icon}
-        {title}
+      <header className="flex items-center justify-between gap-[var(--sc-space-300)]">
+        <span className="flex items-center gap-[var(--sc-space-200)] text-sc-xs font-bold uppercase tracking-wide text-sc-body">
+          {icon}
+          {title}
+        </span>
+        {aside}
       </header>
       {children}
     </section>
@@ -701,20 +770,36 @@ function pickSentiment(c: Conversation) {
     { label: "Neutral",  color: "#9CA3AF", summary: "sin sesgo emocional" },
     { label: "Negativo", color: "#F59E0B", summary: "fricción detectada" },
   ];
-  const has = (c.aiCategories ?? []).some((x) =>
-    /queja|problem|incid/i.test(x),
-  );
-  if (has) return palette[2];
+  // Negative cue 1: transcript contains explicit complaint vocabulary.
+  const transcriptText = (c.transcription ?? [])
+    .map((l) => l.text)
+    .join(" ")
+    .toLowerCase();
+  if (
+    /molest|frustr|inadmis|reclam|queja|incidenc|problem|injust|enfad|inacept/i.test(
+      transcriptText,
+    )
+  ) {
+    return palette[2];
+  }
   return palette[hashString(c.id) % palette.length];
 }
 
-function mockEntitiesFor(c: Conversation) {
-  const seed = hashString(c.id);
-  const dni = `${10000000 + (seed % 89999999)}${"ABCDEFGHJ"[seed % 9]}`;
-  const importe = `${(seed % 200) + 5},${((seed * 7) % 100).toString().padStart(2, "0")} €`;
-  return [
-    { name: "ID Cliente", value: c.id.slice(0, 8), confidence: 92 + (seed % 7) },
-    { name: "DNI", value: dni, confidence: 84 + (seed % 12) },
-    { name: "Importe", value: importe, confidence: 88 + (seed % 9) },
-  ];
+/* Build a one-paragraph summary from the transcription. The 6 mock
+   templates correspond to 6 narrative summaries; we pick by id-hash so
+   the summary stays in sync with the dialogue actually shown. */
+const SUMMARY_TEMPLATES: string[] = [
+  "El cliente reporta una incidencia de servicio activa desde hace 48 horas. El agente identifica una avería de zona ya reportada, escala a prioridad alta y compromete una compensación en la próxima factura.",
+  "Conversación comercial sobre el plan empresarial. El interesado pregunta por capacidad para 50 usuarios y precio; el agente recomienda Pro, propone descuento anual y agenda demo para el viernes.",
+  "Soporte técnico urgente: el cliente describe un sistema sin arranque. Tras un protocolo de modo seguro, se restablece el acceso y la incidencia se escala a nivel 2 para limpieza de logs.",
+  "Disputa de facturación. El cliente cuestiona un cargo de 45,50 € por finalización de promoción. El agente reconoce el malentendido, aplica una bonificación del 20 % durante tres meses y cierra acordada.",
+  "Seguimiento de pedido número 4521. El agente confirma fecha y franja de entrega, indica que se enviará tracking en tiempo real y aclara que la instalación está incluida.",
+  "Solicitud de baja del servicio premium por uso esporádico. El agente ofrece un plan reducido al 50 % con cupo mensual de 20 horas; el cliente acepta y se programa el cambio para el próximo periodo.",
+];
+
+function summarizeTranscript(c: Conversation): string | null {
+  const lines = c.transcription ?? [];
+  if (lines.length === 0) return null;
+  const idx = hashString(c.id) % SUMMARY_TEMPLATES.length;
+  return SUMMARY_TEMPLATES[idx];
 }

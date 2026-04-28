@@ -1,4 +1,5 @@
 import { Conversation, mockConversations } from "./mockData";
+import { generateTranscriptionFor } from "./mockTranscriptionGenerator";
 
 /**
  * Mock-data samples · prototype-only feature.
@@ -10,6 +11,13 @@ import { Conversation, mockConversations } from "./mockData";
  *
  * The base `Conversation[]` list is treated as immutable — each builder
  * returns a fresh array of cloned entries.
+ *
+ * Invariant — chats are always transcribed:
+ *   A chat is, by definition, already textual. There is nothing to
+ *   transcribe; we only re-flag and seed the `transcription[]` so the
+ *   player can render it as a diarized conversation. Every builder runs
+ *   its result through `normalizeChats` to enforce this invariant — even
+ *   the "all pending" preset keeps chats fully transcribed.
  */
 
 export interface MockSample {
@@ -23,38 +31,76 @@ const clone = (c: Conversation): Conversation => ({ ...c, aiCategories: c.aiCate
 
 const cloneAll = () => mockConversations.map(clone);
 
+/* Two-step normaliser run by every preset:
+     1. Chats always have transcription (their "audio" IS the text).
+     2. There can never be analysis without transcription — the
+        analysis is derived from the transcription, so a row with
+        `hasAnalysis: true` but `hasTranscription: false` is
+        contradictory. We drop the analysis flag in that case (a
+        future update can re-enable it once a transcription lands). */
+const normalizeChats = (list: Conversation[]): Conversation[] =>
+  list.map((c) => {
+    let next = c;
+    if (next.channel === "chat") {
+      const transcription =
+        next.transcription && next.transcription.length > 0
+          ? next.transcription
+          : generateTranscriptionFor(next);
+      next = { ...next, hasTranscription: true, transcription };
+    }
+    if (next.hasAnalysis && !next.hasTranscription) {
+      next = { ...next, hasAnalysis: false, aiCategories: undefined };
+    }
+    return next;
+  });
+
 export const mockSamples: MockSample[] = [
   {
     id: "default",
     label: "Estado mixto",
     description: "Mezcla realista — el conjunto base con grabación, transcripción y análisis en distintos estados.",
-    build: () => cloneAll(),
+    build: () => normalizeChats(cloneAll()),
   },
   {
     id: "all-pending",
     label: "Todo por procesar",
-    description: "Sin transcripciones ni análisis. Útil para demostrar la transcripción masiva al máximo.",
+    description: "Llamadas sin transcripción ni análisis. Los chats mantienen transcripción (siempre la tienen por definición).",
     build: () =>
-      cloneAll().map((c) => ({
-        ...c,
-        hasTranscription: false,
-        hasAnalysis: false,
-        hasDiarization: false,
-        transcription: undefined,
-        aiCategories: undefined,
-      })),
+      normalizeChats(
+        cloneAll().map((c) => {
+          // Chats: transcription stays — only analysis/categories reset.
+          if (c.channel === "chat") {
+            return {
+              ...c,
+              hasAnalysis: false,
+              aiCategories: undefined,
+            };
+          }
+          // Calls: full reset.
+          return {
+            ...c,
+            hasTranscription: false,
+            hasAnalysis: false,
+            hasDiarization: false,
+            transcription: undefined,
+            aiCategories: undefined,
+          };
+        }),
+      ),
   },
   {
     id: "all-done",
     label: "Todo procesado",
-    description: "Cada conversación con grabación tiene transcripción y análisis. Demuestra el estado C1 (todo procesado).",
+    description: "Todo grabado, transcrito y analizado. Demuestra el estado C1 (todo procesado).",
     build: () =>
-      cloneAll().map((c) => ({
-        ...c,
-        hasRecording: c.channel === "llamada" ? true : c.hasRecording,
-        hasTranscription: c.channel === "chat" ? false : true,
-        hasAnalysis: true,
-      })),
+      normalizeChats(
+        cloneAll().map((c) => ({
+          ...c,
+          hasRecording: c.channel === "llamada" ? true : c.hasRecording,
+          hasTranscription: true,
+          hasAnalysis: true,
+        })),
+      ),
   },
   {
     id: "calls-only-untranscribed",
@@ -74,14 +120,14 @@ export const mockSamples: MockSample[] = [
   {
     id: "chats-only",
     label: "Solo chats",
-    description: "Conjunto reducido a chats. Demuestra que el toggle de análisis se activa por defecto cuando no hay nada que transcribir.",
-    build: () => cloneAll().filter((c) => c.channel === "chat"),
+    description: "Conjunto reducido a chats — todos transcritos por definición. Demuestra que el toggle de análisis arranca activado.",
+    build: () => normalizeChats(cloneAll().filter((c) => c.channel === "chat")),
   },
   {
     id: "small",
     label: "Conjunto reducido",
     description: "Las primeras 8 conversaciones para vistas más cómodas en pantallas pequeñas.",
-    build: () => cloneAll().slice(0, 8),
+    build: () => normalizeChats(cloneAll().slice(0, 8)),
   },
 ];
 

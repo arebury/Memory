@@ -1746,3 +1746,86 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - Si el cliente pide subir más el hero (96 / 100 / 112), tocar SOLO `--sc-font-size-display` y `--sc-line-height-display` (mantener 1:1). Si supera 112, subir `--sc-bulk-cell-height` también para que respire.
 - El hairline divider va en el lado derecho del hero (`border-r`). Si en el futuro hay que invertir el orden de las cells, mover el `border-r` → `border-l` al elemento que toque.
 - La regla "padding-top compartido = labels alineadas" depende de que ambas labels sean directamente el primer child de cada `<section>`. Si alguna sesión añade un wrapper antes de la label, romperá la alineación.
+
+### 15.13 · 2026-04-28 · Claude Code · invariante "chats siempre transcritos" + transcripción tipo chat
+
+**Hecho**:
+- Nuevo `normalizeChats(list)` en `src/app/data/mockSamples.ts`: para cada conversación con `channel === "chat"`, fuerza `hasTranscription: true` y siembra `transcription[]` (con `generateTranscriptionFor` si no había script). Aplicado en TODOS los presets — `default`, `all-pending`, `all-done`, `chats-only`, `small`. El preset `calls-only-untranscribed` no necesita normalizar (filtra fuera los chats).
+- `all-pending` reescrito: solo resetea llamadas a `hasTranscription: false`. Chats mantienen transcripción (es su estado natural por definición). Antes el preset borraba transcripciones de chats incluido.
+- `all-done`: ya forzaba `hasTranscription: true`; ahora pasa también por `normalizeChats` para garantizar `transcription[]` no vacío.
+- `ConversationPlayerModal` panel de transcripción reescrito con **layout tipo chat** para AMBOS canales: bubbles alineados a la derecha (agent / Speaker 1, color `bg-sc-accent-soft`) y a la izquierda (cliente / Speaker 2, color `bg-sc-border-soft`). Speaker label + timestamp encima del bubble. Esquinas asimétricas (`rounded-br-md` / `rounded-bl-md`) para look conversacional. Avatares retirados — la disposición en sí ya transmite la diarización.
+- Nueva helper `isAgentSpeaker(speaker, conversation)` que reemplaza el if heurístico anterior basado en substrings. Reglas: "Agente"/"Speaker 1" → derecha; "Cliente"/"Speaker 2" → izquierda; en llamadas, `speaker === conversation.origin` también va a la derecha.
+- Import de `User` retirado de `lucide-react` en `ConversationPlayerModal` — ya no se renderiza avatar.
+
+**Decidido**:
+- Invariante **"chats siempre tienen transcripción"** centralizada en el loader (normalizeChats) en lugar de tocar las 30+ entradas de `mockData.ts`. Razón: si en el futuro se añaden chats sin transcription al mock-data, la normalización los corrige automáticamente. Mantiene `mockData.ts` como fuente de "datos crudos" sin reglas.
+- Mismo layout de bubbles para llamadas y chats. La diarización (quién dijo qué, cuándo) se ve mejor en chat-style; replicarla en llamadas unifica la lectura para el supervisor sin perder información (timestamps siguen ahí).
+- Sin avatares en bubbles. La separación left/right ya identifica al hablante; añadir un círculo con icono de Headphones / User era ruido.
+
+**Descartado**:
+- Editar uno-a-uno cada chat de `mockData.ts` para meterles `hasTranscription: true`. Lento, frágil, no defiende contra futuras adiciones.
+- Mantener el render flat (avatar + texto en línea) y solo cambiar los flags. El usuario pidió explícitamente "diarizado como si fuera una conversación de chat, visualmente" — el layout flat no transmite eso.
+- Usar burbujas distintas para llamada vs chat. Mismo layout = misma lectura.
+
+**Pendiente**: ninguno nuevo.
+
+**Notas para próxima sesión**:
+- Cualquier nuevo chat añadido a `mockData.ts` o a un preset custom queda automáticamente normalizado al pasar por `mockSamples.build()`. Si se introduce una ruta de carga que NO pase por `mockSamples` (por ejemplo, llamando `mockConversations` directamente en otra vista), aplicar `normalizeChats` ahí también.
+- En `BulkTranscriptionModal`, `nTrans = calls.filter(c => c.hasRecording && !c.hasTranscription).length` — los chats están naturalmente fuera de la cuenta de "ready to transcribe". Si se cambiara la fórmula para incluir chats, romper la invariante.
+- El chat icon `IconChat` (bocadillo plano sin transcripción) en `StatusIcons.tsx` ahora es **dead code** porque ningún chat puede llegar a ese estado. Dejar el componente por defensa pero marcar para borrar si la invariante se solidifica en producción.
+
+### 15.14 · 2026-04-28 · Claude Code · análisis = resumen+sentimiento, invariantes globales, player polish, Repositorio rehecho
+
+**Hecho**:
+- Análisis tab del `ConversationPlayerModal` reducido a **Resumen + Sentimiento**: borradas las secciones "Categorías detectadas" y "Entidades clave". Resumen ahora deriva de la transcripción usando `summarizeTranscript(conversation)` que indexa por `hashString(c.id) % 6` — el mismo hash que usa `mockTranscriptionGenerator` para escoger plantilla de diálogo, así resumen y transcripción siempre cuentan la misma historia. Sentimiento ahora detecta léxico negativo en el propio texto de la transcripción (`/molest|frustr|inadmis|reclam|queja|incidenc|problem|injust|enfad|inacept/i`) en lugar de mirar `aiCategories`. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- `Section` del player extendido con prop opcional `aside` para una etiqueta "Generado por IA" junto al título de Resumen (Sparkles + caption muted). Sección Sentimiento usa `items-baseline` para alinear el dot con el texto.
+- **Invariante "no análisis sin transcripción"** centralizada en `normalizeChats(list)` de `mockSamples.ts`: si una row tiene `hasAnalysis: true` pero `hasTranscription: false`, baja `hasAnalysis: false` y limpia `aiCategories`. Se aplica antes de devolver cualquier sample. Refleja la realidad del producto — el análisis se deriva del texto. archivos: `src/app/data/mockSamples.ts`.
+- `handleRequestAnalysis` en `ConversationsView` ahora filtra targets sin transcripción antes de meterlos en `analyzingIds`. Si todos los targets eran inválidos, no se dispara el setTimeout. Defensa frente a UIs futuras que llamen al handler con IDs no elegibles. archivos: `src/app/components/ConversationsView.tsx`.
+- `ConversationPlayerModal` reformado con impeccable + ui-ux-pro-max:
+  - Header icon **channel-aware**: `<Phone>` para llamadas, `<MessageSquare>` para chats. Antes era siempre `<Headphones>` aunque la fila fuera un chat sin audio.
+  - Título contextual: "Llamada · #ID" o "Chat · #ID" en lugar del genérico "Conversación · #ID".
+  - **Audio player oculto para chats** (no hay audio que reproducir). Antes el player se renderizaba con todos los botones disabled.
+  - Constante `FOCUS_RING` aplicada a TODOS los botones del player (back-10, play, fwd-10, scrub, download), tabs y al Section header — anillo `ring-2 ring-sc-accent ring-offset-2 ring-offset-sc-surface` solo en `:focus-visible`.
+  - `cursor-pointer` explícito en cada botón habilitado; `disabled:cursor-not-allowed` se mantiene.
+  - Scrub bar mejorado: hit-target de 20px (antes 8px), `role="slider"` con `aria-valuemin/max/now`, **thumb circular** que aparece en hover/focus o mientras `isPlaying`. Transición de 150ms en el progreso. Easing por defecto.
+  - Botón play tiene `active:scale-[0.97]` para feedback táctil de press.
+  - Search input de la transcripción: `type="search"`, `aria-label`, transición de border-color en hover, ring suave (20% alpha) en focus, `placeholder:text-sc-muted`.
+  - "líneas" → "intervenciones" en el contador encima de la transcripción.
+- **Repositorio LP rehecho** desde cero. Antes era un `Repository.tsx` de 245 líneas con hexes hardcodeados (`#F4F6FC`, `#1C283D`, etc.), 3 iconos coloreados apilados en la card de reglas (rojo+azul+púrpura), grids idénticos repetidos y "estructura del contact center" disfrazada de CTA con `cursor-default`. Ahora:
+  - Tokens `--sc-*` en todos lados, ningún hex literal.
+  - **"Cómo funciona" ribbon** al inicio: 3 pasos numerados (`01 Configuras reglas` / `02 La IA hace el trabajo` / `03 Tú revisas`) con flechas conectoras solo en sm+. Orienta a un supervisor nuevo sin fricción.
+  - **Hero card de Reglas** (no más cluster de 3 iconos): título grande, body ampliado, chips inline `Grabación / Transcripción / Clasificación IA` (texto neutral, icono teal-strong), CTA "Cómo funcionan las reglas" en la esquina derecha del bloque de chips.
+  - **Categorías y Entidades** como dos PrimaryCard en grid 2-col idéntico — un solo color de acento (teal), no purple/teal split.
+  - **Estructura sincronizada** demoted a una **fila inline de pills** (Servicios · Grupos · Agentes) con caption explicando que se gestiona desde el IVR. No mimetiza CTA.
+  - **Próximamente** demoted a `<ul>` con divider hairlines, no card grid.
+  - UX writing expandido: descripciones concretas con ejemplos (`"queja de facturación"`, `"importes, productos, identificadores"`); cada Group tiene un eyebrow + descripción que explica POR QUÉ existe la sección, no solo qué contiene.
+  - `focus-visible` rings consistentes con el player.
+  - `aria-label` en hero card; `role="button"` con `tabIndex={0}` y handler de teclado para Enter/Space. archivos: `src/app/components/Repository.tsx`.
+- `.impeccable.md` creado en raíz del repo con la Design Context completa (Users, Brand Personality, Aesthetic Direction, 5 principios y anti-references). Sintetiza lo que ya estaba disperso en `memory.md` sec 1, 4, 5 y 16 para que `/impeccable craft|extract` futuros no necesiten teach. archivos: `.impeccable.md`.
+
+**Decidido**:
+- **Resumen y transcripción comparten hash**. Mismo `hashString(c.id) % 6` selecciona plantilla de diálogo y plantilla de resumen. Garantiza coherencia narrativa (no puede haber un resumen sobre facturación si la transcripción es de soporte técnico). Trade-off: solo hay 6 historias distintas en la app, pero a cambio nunca hay disonancia entre las dos pestañas.
+- **Sentimiento detecta léxico en el texto** en vez de mirar `aiCategories`. Razón: el sentimiento es independiente de las categorías — una llamada de "Soporte Técnico" puede ser positiva o negativa. Detectarlo en el texto es más fiel y sobrevive si en el futuro `aiCategories` cambia de forma.
+- **Análisis estricto a Resumen + Sentimiento**, sin Categorías ni Entidades. Los entities en el panel daban la falsa impresión de que la IA extraía valores estructurados de cada conversación; en producción real eso requiere configuración explícita (Entidades del repositorio) y no siempre devuelve algo. Mejor no enseñarlo cuando es mock.
+- **Channel-aware header del player**. Mostrar un icono de auriculares en un chat es contradictorio. Phone para llamada, MessageSquare para chat — el icono refuerza el contexto, no lo confunde.
+- **Audio player oculto para chats**, no disabled. Renderizarlo en gris ofrecía algo no funcional con apariencia de funcional. Esconderlo es más honesto.
+- **Repositorio sin cluster de 3 iconos coloreados**. El cluster (rojo grabación / azul transcripción / púrpura IA) era el patrón AI-slop "rainbow KPI tile" que la skill `impeccable` señala. Sustituido por chips inline con el mismo contenido pero peso visual neutral.
+- **"Cómo funciona" ribbon en lugar de muchos textos explicativos por sección**. Tres pasos numerados son más rápidos de leer que 4 párrafos repartidos. Al supervisor le sirve para orientarse 1 vez; luego el ribbon se ignora.
+- **Estructura sincronizada como pill row**, no card grid. Los datos del IVR no son CTAs — convertirlos en cards con border + hover engaña al usuario. Pill row deja claro que son lectura.
+
+**Descartado**:
+- Mostrar contadores reales ("12 reglas activas", "8 categorías") en las cards. Acoplaba Repository al RulesContext / CategoriesContext y rompía si se reseteaba el localStorage. Texto descriptivo es suficiente.
+- Mantener el split purple/teal (Categorías púrpura, Entidades teal). Coherente con la columna Estado de la tabla, sí — pero en el repositorio no hay analogía visual: ambos son configuración, no estado de procesamiento. Un solo acento.
+- Borrar el SUMMARY_TEMPLATES e intentar generar un resumen palabra a palabra del transcript. Demasiado mock para el coste; los 6 templates son más fiables y mantienen el determinismo.
+- Reescribir `mockData.ts` para forzar `hasTranscription: true` en cada chat. Más frágil que normalizar en el loader (`mockSamples.ts`). El loader es el único punto de carga, así la invariante se cumple sin tocar 30+ entradas.
+
+**Pendiente**: ninguno nuevo. Sec 17 sin cambios.
+
+**Notas para próxima sesión**:
+- Las invariantes ahora son **dos**, ambas centralizadas en `normalizeChats` de `mockSamples.ts`:
+  1. Chat → `hasTranscription: true` + `transcription[]` poblado.
+  2. `hasAnalysis: true` ⇒ `hasTranscription: true` (en otro caso se baja `hasAnalysis`).
+  Cualquier código nuevo que mute `Conversation` debe pasar por estas reglas o introducirlas en su propio path.
+- El resumen del Análisis está en un array `SUMMARY_TEMPLATES` dentro de `ConversationPlayerModal.tsx`. Si se añaden plantillas nuevas a `mockTranscriptionGenerator.ts`, añadir el resumen correspondiente en el mismo orden — el match es por índice de hash.
+- `.impeccable.md` y `memory.md` divergirán con el tiempo si no se sincronizan. Política: cualquier cambio en sec 4 (Design System) o sec 16 (estrategia) de `memory.md` debe copiarse al `.impeccable.md` si afecta a Aesthetic Direction o Design Principles.
+- El nuevo Repository LP usa `bg-sc-canvas` (no `bg-[#F4F6FC]`). Si en el futuro se ajusta el canvas en sec 4 del memory.md, todos los hijos del repo se reajustan automáticamente — ya no hay magic numbers que cazar uno a uno.

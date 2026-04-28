@@ -247,15 +247,26 @@ export function ConversationsView({
   };
 
   /* ── Analysis: flips `hasAnalysis` and seeds AI categories so the
-        Análisis tab in the player has visible payload after the run. */
+        Análisis tab in the player has visible payload after the run.
+
+        Invariant: analysis is derived FROM the transcript, so a row
+        without transcription cannot be analyzed. We silently skip
+        those targets — the caller (player or bulk modal) only ever
+        offers the analysis CTA when it's valid, but this guards
+        against bugs that would create contradictory state. */
   const handleRequestAnalysis = (ids: string | string[]) => {
     const idArray = Array.isArray(ids) ? ids : [ids];
-    setAnalyzingIds(prev => [...new Set([...prev, ...idArray])]);
+    const eligible = idArray.filter(id => {
+      const conv = conversations.find(c => c.id === id);
+      return conv ? conv.hasTranscription === true : false;
+    });
+    if (eligible.length === 0) return;
+    setAnalyzingIds(prev => [...new Set([...prev, ...eligible])]);
     setTimeout(() => {
-      setAnalyzingIds(prev => prev.filter(id => !idArray.includes(id)));
+      setAnalyzingIds(prev => prev.filter(id => !eligible.includes(id)));
       setConversations(prev =>
         prev.map(c => {
-          if (!idArray.includes(c.id)) return c;
+          if (!eligible.includes(c.id)) return c;
           return {
             ...c,
             hasAnalysis: true,
