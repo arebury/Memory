@@ -1829,3 +1829,30 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - El resumen del Análisis está en un array `SUMMARY_TEMPLATES` dentro de `ConversationPlayerModal.tsx`. Si se añaden plantillas nuevas a `mockTranscriptionGenerator.ts`, añadir el resumen correspondiente en el mismo orden — el match es por índice de hash.
 - `.impeccable.md` y `memory.md` divergirán con el tiempo si no se sincronizan. Política: cualquier cambio en sec 4 (Design System) o sec 16 (estrategia) de `memory.md` debe copiarse al `.impeccable.md` si afecta a Aesthetic Direction o Design Principles.
 - El nuevo Repository LP usa `bg-sc-canvas` (no `bg-[#F4F6FC]`). Si en el futuro se ajusta el canvas en sec 4 del memory.md, todos los hijos del repo se reajustan automáticamente — ya no hay magic numbers que cazar uno a uno.
+
+### 15.15 · 2026-04-28 · Claude Code · BUG · twMerge colisiona text-{size} + text-{color}
+
+**Hecho**:
+- Bug crítico encontrado y arreglado: el hero number del `BulkTranscriptionModal` se renderizaba a 16px (heredado del body) en lugar de 88/112px porque `twMerge` (vía `cn()`) **agrupa `text-sc-display` (font-size custom token) y `text-sc-emphasis` (color custom token) bajo el mismo bucket `text-*`** y mantiene solo el último — la clase de tamaño se pierde silenciosamente. Confirmado leyendo el HTML que el usuario pegó: `class="relative inline-block font-semibold leading-[var(...)] tabular-nums text-sc-emphasis"` — sin `text-sc-display`. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
+- Fix aplicado: aplicar `font-size` (y `line-height` cuando aplica) vía prop `style` inline en lugar de className. `style` no pasa por `cn()/twMerge`, por lo que la regla CSS sobrevive intacta. Color sigue en className para que cambios condicionales (toggleOn ? 'text-sc-heading' : 'text-sc-disabled') sigan haciendo merge correctamente.
+- Audit del proyecto reveló otros 3 sitios con la misma colisión:
+  - `ConversationPlayerModal.tsx:494` search input — `text-sc-sm` + `text-sc-body`. Tamaño se perdía → input rendereaba a 16px.
+  - `ConversationPlayerModal.tsx:720` botón de EmptyState — `text-sc-sm` + `text-sc-accent-strong`. Idem.
+  - `Repository.tsx:298` link "Cómo funcionan las reglas" — `text-sc-xs` + `text-sc-muted`. Idem.
+  Los tres arreglados con la misma técnica (style inline para font-size, color en className).
+
+**Decidido**:
+- **Política nueva**: cuando `cn()` combina `text-{size}` + `text-{color}` SC tokens, mover el font-size a `style={{ fontSize: 'var(--sc-font-size-X)' }}`. La alternativa (configurar twMerge para que distinga) requiere un wrapper sobre `cn()` y un mapping completo de los tokens — mayor superficie de mantenimiento. La regla simple es más durable.
+- En className **plano** (sin `cn()`) el bug NO ocurre porque twMerge no se ejecuta. Por eso muchos `<span className="text-sc-base text-sc-body">` del proyecto SÍ funcionan — están fuera de cn. La regla aplica solo a clases que pasan por `cn()`.
+- No reescribir `utils.ts` para reemplazar `cn` por una versión con twMerge configurada. Romper una utilidad usada en 238 sitios para arreglar 4 colisiones es desproporcionado.
+
+**Descartado**:
+- Renombrar tokens para evitar la ambigüedad (ej. `--text-sc-display` → `--font-size-sc-display`). Tailwind v4 fija el prefijo `--text-` para que el utility sea `text-{name}`; cualquier otro prefijo no genera clase.
+- Borrar `cn()` de los 4 sitios afectados y usar template literals. Pierde la capacidad de pasar arrays/condiciones a la className y es menos ergonómico que añadir un `style` inline.
+
+**Pendiente**: ninguno nuevo. El audit cubrió todo el repo (`grep cn(` → 238 ocurrencias, manualmente filtradas las que combinan size+color de SC).
+
+**Notas para próxima sesión**:
+- Antes de añadir un `cn(... "text-sc-{size}", "text-sc-{color}" ...)` nuevo, recuerda que **twMerge solo deja una de las dos**. Si necesitas ambas, mueve el size a `style`.
+- Si en algún momento se decide tener un único `cn()` configurado para que distinga estos buckets, hay que extender twMerge con `extendTailwindMerge({ classGroups: { 'font-size': [{ text: ['sc-xs', 'sc-sm', 'sc-base', 'sc-md', 'sc-lg', 'sc-xl', 'sc-display'] }] } })`. Documentar la migración como un cambio coordinado, no parche puntual.
+- Cualquier nuevo display number (ej. dashboards futuros con KPIs grandes) debe usar `style={{ fontSize: 'var(--sc-font-size-display)' }}` desde el día 1, no `text-sc-display` en cn.

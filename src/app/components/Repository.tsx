@@ -293,9 +293,12 @@ function RulesHeroCard({ onClick }: { onClick: () => void }) {
               e.stopPropagation();
               window.open("#", "_blank", "noopener,noreferrer");
             }}
+            /* font-size via style — twMerge collapses `text-sc-xs` and
+               `text-sc-muted` into a single text-* bucket. */
+            style={{ fontSize: "var(--sc-font-size-xs)" }}
             className={cn(
               "inline-flex cursor-pointer items-center gap-1.5 rounded-sc-sm px-2 py-1",
-              "text-sc-xs text-sc-muted transition-colors hover:text-sc-accent-strong",
+              "text-sc-muted transition-colors hover:text-sc-accent-strong",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-1",
             )}
           >

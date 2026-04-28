@@ -489,9 +489,14 @@ function TranscriptionTab({
             onChange={(e) => onSearchChange(e.target.value)}
             placeholder="Buscar en transcripción"
             aria-label="Buscar en la transcripción"
+            /* font-size via style — twMerge collapses `text-sc-sm` (size)
+               with `text-sc-body` (color) into one bucket and drops the
+               size silently. Keeping color in className lets state-based
+               color switches still merge correctly. */
+            style={{ fontSize: "var(--sc-font-size-sm)" }}
             className={cn(
               "h-8 w-56 rounded-full border border-sc-border bg-sc-surface pl-7 pr-3",
-              "text-sc-sm text-sc-body placeholder:text-sc-muted",
+              "text-sc-body placeholder:text-sc-muted",
               "transition-colors hover:border-sc-border-default",
               "focus:border-sc-accent focus:outline-none focus:ring-2 focus:ring-sc-accent/20",
             )}
@@ -715,9 +720,12 @@ function EmptyState({
           type="button"
           onClick={action.onClick}
           disabled={action.disabled}
+          /* See note above: font-size via style to bypass twMerge
+             collapsing `text-sc-sm` and `text-sc-accent-strong`. */
+          style={{ fontSize: "var(--sc-font-size-sm)" }}
           className={cn(
             "mt-1 inline-flex items-center gap-2 rounded-sc-md border border-sc-accent bg-sc-accent-soft px-4 py-2",
-            "text-sc-sm font-medium text-sc-accent-strong transition-colors",
+            "font-medium text-sc-accent-strong transition-colors",
             "hover:bg-sc-accent hover:text-sc-on-primary",
             "disabled:cursor-not-allowed disabled:opacity-60",
           )}

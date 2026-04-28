@@ -204,8 +204,16 @@ export function BulkTranscriptionModal({
               <div className="relative flex w-full flex-1 items-center gap-[var(--sc-space-300)]">
                 <span
                   key={bumpKey}
+                  /* font-size + line-height applied via `style` to bypass
+                     tailwind-merge: it groups `text-sc-display` (font-size)
+                     and `text-sc-emphasis` (color) under the same `text-*`
+                     bucket and silently drops the first. */
+                  style={{
+                    fontSize: "var(--sc-font-size-display)",
+                    lineHeight: "var(--sc-line-height-display)",
+                  }}
                   className={cn(
-                    "relative inline-block text-sc-display font-semibold leading-[var(--sc-line-height-display)] tabular-nums text-sc-emphasis",
+                    "relative inline-block font-semibold tabular-nums text-sc-emphasis",
                     bumpKey > 0 && "animate-sc-pulse",
                   )}
                 >
