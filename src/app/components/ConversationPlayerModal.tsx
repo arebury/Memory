@@ -9,6 +9,7 @@ import {
   Download,
   Search,
   FileText,
+  AlignLeft,
   Sparkles,
   Loader2,
   FileX,
@@ -17,13 +18,8 @@ import {
 
 import { Modal } from "./ui/modal";
 import { cn } from "./ui/utils";
+import { FOCUS_RING } from "./ui/focus";
 import { Conversation } from "../data/mockData";
-
-/* Shared focus-ring utility — applied to every interactive element so
-   keyboard navigation always has a visible target. Tied to the SC
-   accent so it reads as part of the design system. */
-const FOCUS_RING =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface";
 
 interface ConversationPlayerModalProps {
   isOpen: boolean;
@@ -146,6 +142,23 @@ export function ConversationPlayerModal({
     } finally {
       setTimeout(() => setRequestingAnalysis(false), 600);
     }
+  };
+
+  /* Combined CTA — used by the Análisis empty state when there's no
+     transcription yet. Triggers transcription immediately, then waits
+     just past the parent's transcription timer (6 s) so the
+     `handleRequestAnalysis` invariant (`hasTranscription === true`)
+     is satisfied when we kick off the analysis. The button stays
+     visually "requesting" until both runs are queued. */
+  const handleTranscribeAndAnalyze = () => {
+    if (!conversation || !onRequestTranscription) return;
+    setRequestingAnalysis(true);
+    void Promise.resolve(onRequestTranscription(conversation.id));
+    const id = conversation.id;
+    setTimeout(() => {
+      if (onRequestAnalysis) onRequestAnalysis(id);
+      setRequestingAnalysis(false);
+    }, 6500);
   };
 
   if (!conversation) return null;
@@ -317,6 +330,29 @@ export function ConversationPlayerModal({
               icon={<Sparkles size={14} />}
               label="Análisis"
             />
+            {/* Download — channel-agnostic. For calls it sits in the
+                audio player too; for chats this is the only download
+                affordance. Same icon, same tooltip — recognizable. */}
+            <span className="ml-auto pr-[var(--sc-space-300)] py-[var(--sc-space-200)]">
+              <button
+                type="button"
+                aria-label={isChat ? "Descargar conversación como texto" : "Descargar audio y transcripción"}
+                title={isChat ? "Descargar conversación" : "Descargar audio"}
+                className={cn(
+                  "flex size-8 cursor-pointer items-center justify-center rounded-sc-md text-sc-muted transition-colors",
+                  "hover:bg-sc-border-soft hover:text-sc-heading",
+                  FOCUS_RING,
+                )}
+                onClick={() => {
+                  // Mock — wired by the parent in production. Keeping
+                  // local until the real export endpoint exists.
+                  // eslint-disable-next-line no-console
+                  console.log("download", conversation.id);
+                }}
+              >
+                <Download size={15} />
+              </button>
+            </span>
           </div>
 
           {/* ── Tab body — min-h for breathing room (taste-skill VISUAL_DENSITY 4) ── */}
@@ -339,6 +375,7 @@ export function ConversationPlayerModal({
                 requesting={requestingAnalysis || isAnalyzing}
                 isAnalyzing={isAnalyzing}
                 onRequest={handleAnalysisRequest}
+                onRequestBoth={handleTranscribeAndAnalyze}
               />
             )}
           </div>
@@ -588,12 +625,17 @@ function AnalysisTab({
   requesting,
   isAnalyzing,
   onRequest,
+  onRequestBoth,
 }: {
   conversation: Conversation;
   canRequest: boolean;
   requesting: boolean;
   isAnalyzing: boolean;
   onRequest: () => void;
+  /** Combined CTA used when there's no transcription yet — triggers
+   *  transcription, then chains the analysis request once the
+   *  transcription mutation has landed (~6.5 s later). */
+  onRequestBoth: () => void;
 }) {
   if (isAnalyzing && !conversation.hasAnalysis) {
     return (
@@ -607,11 +649,27 @@ function AnalysisTab({
 
   if (!conversation.hasAnalysis) {
     if (!canRequest) {
+      // Dead-end fix: the analysis depends on transcription, but the
+      // user landed on this tab without one. The CTA performs BOTH
+      // steps in sequence (transcribe → analyze) so they don't have to
+      // bounce to the other tab and click again.
       return (
         <EmptyState
           icon={<Sparkles size={22} />}
-          title="Primero transcribe la llamada"
-          description="El análisis se construye sobre el texto. En cuanto la transcripción esté lista, podrás generar el resumen y el sentimiento desde aquí."
+          title="Transcribir + analizar en un paso"
+          description="El análisis necesita texto. Lanza la transcripción y, en cuanto termine, generamos el resumen y el sentimiento automáticamente."
+          highlights={["Búsqueda", "Resumen", "Sentimiento"]}
+          action={{
+            label: requesting ? "Procesando…" : "Transcribir y analizar",
+            icon: requesting ? (
+              <Loader2 size={14} className="animate-spin" />
+            ) : (
+              <Sparkles size={14} />
+            ),
+            onClick: onRequestBoth,
+            disabled: requesting,
+          }}
+          meta={{ text: "Genera coste · tarda unos segundos", intent: "cost" }}
         />
       );
     }
@@ -647,7 +705,11 @@ function AnalysisTab({
       <div className="flex max-w-prose flex-col gap-[var(--sc-space-500)]">
         <Section
           title="Resumen"
-          icon={<FileText size={13} />}
+          /* AlignLeft (líneas de texto) reserved for "this section
+             contains a body of text". Sparkles is reserved exclusively
+             for the "Generado por IA" pill aside. One icon = one
+             meaning across the app. */
+          icon={<AlignLeft size={13} />}
           aside={
             <span
               className="inline-flex items-center gap-1 text-sc-xs font-normal normal-case tracking-normal text-sc-muted"
@@ -758,19 +820,24 @@ function EmptyState({
 
       {action && (
         <div className="mt-1 flex flex-col items-center gap-1.5">
+          {/* Unified primary CTA pattern across the app: navy filled
+              `bg-sc-primary` with white-on-primary text. Same pattern
+              as Modal.Action in BulkTranscriptionModal so the supervisor
+              learns one "primary action" affordance. The teal-soft
+              variant from earlier was reclassified as secondary and is
+              no longer used here. */}
           <button
             type="button"
             onClick={action.onClick}
             disabled={action.disabled}
-            /* font-size via style to bypass twMerge color/size collision. */
             style={{ fontSize: "var(--sc-font-size-sm)" }}
             className={cn(
-              "inline-flex items-center gap-2 rounded-sc-md border border-sc-accent bg-sc-accent-soft px-4 py-2",
-              "font-medium text-sc-accent-strong transition-all",
-              "hover:bg-sc-accent hover:text-sc-on-primary",
+              "inline-flex items-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
+              "font-medium text-sc-on-primary transition-all",
+              "hover:bg-sc-primary-hover",
               "active:scale-[0.98] disabled:active:scale-100",
               "disabled:cursor-not-allowed disabled:opacity-60",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface",
+              FOCUS_RING,
             )}
           >
             {action.icon}

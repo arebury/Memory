@@ -161,20 +161,29 @@ export function BulkTranscriptionModal({
   };
 
   /* ── Render ───────────────────────────────────────────────────── */
-  // Subtitle breakdown — the supervisor wants to know the channel mix
-  // before processing. "5 conversaciones (3 llamadas, 2 chats)" tells
-  // them that some chats won't be transcribed (chats are pre-textual).
+  // Subtitle: tell the supervisor what we ARE going to act on, with a
+  // delta cue if some of their selection isn't actionable. Avoids the
+  // mismatch between "5 seleccionadas" up here and "3" in the hero.
   const nCalls = selectedConversations.filter((c) => c.channel === "llamada").length;
   const nChats = nSel - nCalls;
   const subtitle = (() => {
+    if (nSel === 0) return "Sin selección";
+    const breakdownBits: string[] = [];
+    if (nCalls > 0) breakdownBits.push(`${nCalls} ${nCalls === 1 ? "llamada" : "llamadas"}`);
+    if (nChats > 0) breakdownBits.push(`${nChats} ${nChats === 1 ? "chat" : "chats"}`);
+    const breakdown = breakdownBits.join(", ");
     const head = nSel === 1
       ? "1 conversación seleccionada"
       : `${nSel} conversaciones seleccionadas`;
-    if (nCalls > 0 && nChats > 0) {
-      return `${head} · ${nCalls} ${nCalls === 1 ? "llamada" : "llamadas"}, ${nChats} ${nChats === 1 ? "chat" : "chats"}`;
-    }
-    return head;
+    return breakdown && (nCalls > 0 && nChats > 0) ? `${head} · ${breakdown}` : head;
   })();
+  // Optional delta line under the hero number when not everything in
+  // the selection ends up being processed (typical case: chats can't
+  // be transcribed, so they drop out of nTrans/heroCount).
+  const heroDeltaHint =
+    !isAllProcessed && heroCount !== nSel
+      ? `de ${nSel} ${nSel === 1 ? "seleccionada" : "seleccionadas"}`
+      : null;
 
   return (
     <Modal
@@ -212,50 +221,59 @@ export function BulkTranscriptionModal({
               <span className="text-sc-base font-bold uppercase leading-[var(--sc-line-height-body2)] text-sc-body">
                 Total a procesar
               </span>
-              <div className="relative flex w-full flex-1 items-center gap-[var(--sc-space-300)]">
-                <span
-                  key={bumpKey}
-                  /* font-size + line-height applied via `style` to bypass
-                     tailwind-merge: it groups `text-sc-display` (font-size)
-                     and `text-sc-emphasis` (color) under the same `text-*`
-                     bucket and silently drops the first. */
-                  style={{
-                    fontSize: "var(--sc-font-size-display)",
-                    lineHeight: "var(--sc-line-height-display)",
-                  }}
-                  className={cn(
-                    "relative inline-block font-semibold tabular-nums text-sc-emphasis",
-                    bumpKey > 0 && "animate-sc-pulse",
-                  )}
-                >
-                  {heroCount}
-                  {flash && flash.delta !== 0 && (
-                    <span
-                      key={flash.key}
-                      aria-hidden
-                      className={cn(
-                        "pointer-events-none absolute left-full top-0 ml-2 text-sc-xl font-semibold tabular-nums",
-                        "animate-sc-delta-fly",
-                        flash.delta < 0
-                          ? "text-sc-muted"
-                          : "text-sc-accent-strong",
-                      )}
-                    >
-                      {flash.delta > 0 ? "+" : ""}
-                      {flash.delta}
+              <div className="relative flex w-full flex-1 flex-col justify-center gap-1">
+                <div className="flex items-baseline gap-[var(--sc-space-300)]">
+                  <span
+                    key={bumpKey}
+                    /* font-size + line-height applied via `style` to bypass
+                       tailwind-merge: it groups `text-sc-display` (font-size)
+                       and `text-sc-emphasis` (color) under the same `text-*`
+                       bucket and silently drops the first. */
+                    style={{
+                      fontSize: "var(--sc-font-size-display)",
+                      lineHeight: "var(--sc-line-height-display)",
+                    }}
+                    className={cn(
+                      "relative inline-block font-semibold tabular-nums text-sc-emphasis",
+                      bumpKey > 0 && "animate-sc-pulse",
+                    )}
+                  >
+                    {heroCount}
+                    {flash && flash.delta !== 0 && (
+                      <span
+                        key={flash.key}
+                        aria-hidden
+                        className={cn(
+                          "pointer-events-none absolute left-full top-0 ml-2 text-sc-xl font-semibold tabular-nums",
+                          "animate-sc-delta-fly",
+                          flash.delta < 0
+                            ? "text-sc-muted"
+                            : "text-sc-accent-strong",
+                        )}
+                      >
+                        {flash.delta > 0 ? "+" : ""}
+                        {flash.delta}
+                      </span>
+                    )}
+                  </span>
+                  {/* Cost cue lives next to the hero. We dropped the
+                      "todo procesado" copy from this cell because the
+                      decision cell on the right already carries that
+                      message — we kept only the cost variant here. */}
+                  {!isAllProcessed && (
+                    <span className="text-sc-base font-normal leading-[var(--sc-line-height-body2)] text-sc-cost-warn transition-colors duration-200">
+                      genera coste
                     </span>
                   )}
-                </span>
-                <span
-                  className={cn(
-                    "text-sc-base leading-[var(--sc-line-height-body2)] transition-colors duration-200",
-                    isAllProcessed
-                      ? "font-normal text-sc-muted"
-                      : "font-normal text-sc-cost-warn",
-                  )}
-                >
-                  {isAllProcessed ? "todo procesado" : "genera coste"}
-                </span>
+                </div>
+                {/* Delta hint — surfaces only when the hero number
+                    differs from the selection size, so the supervisor
+                    sees WHY the count shrunk. */}
+                {heroDeltaHint && (
+                  <span className="text-sc-xs text-sc-muted">
+                    {heroDeltaHint}
+                  </span>
+                )}
               </div>
             </section>
 
@@ -335,7 +353,11 @@ export function BulkTranscriptionModal({
         </Modal.Body>
 
         <Modal.Footer>
-          <Modal.Cancel disabled={isLoading}>Cancelar</Modal.Cancel>
+          {/* Pre-submit the dismiss action is just "Cerrar" (we have
+              nothing to cancel yet). While `isLoading` we keep the
+              same button disabled — the SC modal already blocks
+              outside-click and ESC during loading. */}
+          <Modal.Cancel disabled={isLoading}>Cerrar</Modal.Cancel>
           <Modal.Action
             onClick={handleConfirm}
             disabled={!canSubmit}

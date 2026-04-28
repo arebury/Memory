@@ -14,7 +14,11 @@ import {
   FileText,
 } from "lucide-react";
 import { DataExportImport } from "./DataExportImport";
+import { useRules } from "./RulesContext";
+import { useCategories } from "./CategoriesContext";
+import { useEntities } from "./EntitiesContext";
 import { cn } from "./ui/utils";
+import { FOCUS_RING } from "./ui/focus";
 
 interface RepositoryProps {
   onNavigateToRules: () => void;
@@ -47,6 +51,14 @@ export function Repository({
   onNavigateToEntities,
   onNavigateToCategories,
 }: RepositoryProps) {
+  const { rules } = useRules();
+  const { categories } = useCategories();
+  const { entities } = useEntities();
+  // Only show the orientation ribbon to first-time supervisors. Once a
+  // single rule exists, we assume the user has been onboarded and the
+  // ribbon would be redundant noise on every visit.
+  const showHowItWorks = rules.length === 0;
+
   return (
     <div className="flex h-full flex-col overflow-hidden bg-sc-canvas">
       {/* Header */}
@@ -67,15 +79,15 @@ export function Repository({
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto px-8 py-8">
         <div className="mx-auto flex max-w-4xl flex-col gap-10">
-          {/* ─── Cómo funciona · orientation ribbon ─── */}
-          <HowItWorks />
+          {/* ─── Cómo funciona · orientation ribbon · first-run only ─── */}
+          {showHowItWorks && <HowItWorks />}
 
           {/* ─── Automatización ─── */}
           <Group
             eyebrow="Automatización"
             description="Las reglas son el motor. Sin una regla activa, ninguna conversación se procesa."
           >
-            <RulesHeroCard onClick={onNavigateToRules} />
+            <RulesHeroCard onClick={onNavigateToRules} count={rules.length} />
           </Group>
 
           {/* ─── Inteligencia artificial ─── */}
@@ -88,12 +100,14 @@ export function Repository({
                 title="Categorías"
                 description="Los temas y motivos de contacto que la IA etiqueta — por ejemplo, “queja de facturación” o “consulta técnica”."
                 icon={<Tags size={18} strokeWidth={1.6} />}
+                count={categories.length}
                 onClick={onNavigateToCategories}
               />
               <PrimaryCard
                 title="Entidades"
                 description="Datos concretos a extraer del texto: importes, productos, identificadores de cliente, fechas."
                 icon={<Database size={18} strokeWidth={1.6} />}
+                count={entities.length}
                 onClick={onNavigateToEntities}
               />
             </div>
@@ -243,7 +257,7 @@ function Group({
    The three rule kinds are surfaced as labelled chips so the scope
    reads at a glance without a coloured icon stack.
    ──────────────────────────────────────────────────────────────── */
-function RulesHeroCard({ onClick }: { onClick: () => void }) {
+function RulesHeroCard({ onClick, count }: { onClick: () => void; count: number }) {
   return (
     <div
       className={cn(
@@ -265,9 +279,14 @@ function RulesHeroCard({ onClick }: { onClick: () => void }) {
     >
       <div className="flex items-start justify-between gap-6">
         <div className="flex flex-col gap-[var(--sc-space-300)]">
-          <h3 className="text-sc-lg font-semibold leading-[var(--sc-line-height-h4)] text-sc-heading">
-            Reglas de automatización
-          </h3>
+          <div className="flex items-baseline gap-3">
+            <h3 className="text-sc-lg font-semibold leading-[var(--sc-line-height-h4)] text-sc-heading">
+              Reglas de automatización
+            </h3>
+            <span className="font-mono text-sc-xs tabular-nums text-sc-muted">
+              {count} {count === 1 ? "configurada" : "configuradas"}
+            </span>
+          </div>
           <p className="max-w-prose text-sc-base leading-[var(--sc-line-height-body2)] text-sc-body">
             Decide qué conversaciones se graban, se transcriben y se analizan con IA. Las reglas se evalúan por orden de prioridad y aplican el alcance que tú elijas — por servicio, grupo, agente o cualquier combinación.
           </p>
@@ -299,7 +318,7 @@ function RulesHeroCard({ onClick }: { onClick: () => void }) {
             className={cn(
               "inline-flex cursor-pointer items-center gap-1.5 rounded-sc-sm px-2 py-1",
               "text-sc-muted transition-colors hover:text-sc-accent-strong",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-1",
+              FOCUS_RING,
             )}
           >
             <BookOpen size={12} strokeWidth={1.6} />
@@ -331,11 +350,15 @@ function PrimaryCard({
   title,
   description,
   icon,
+  count,
   onClick,
 }: {
   title: string;
   description: string;
   icon: React.ReactNode;
+  /** Optional count rendered as a small mono pill next to the title.
+   *  Skipped when undefined (e.g. for primitives without a list). */
+  count?: number;
   onClick: () => void;
 }) {
   return (
@@ -346,7 +369,7 @@ function PrimaryCard({
         "group flex cursor-pointer flex-col gap-[var(--sc-space-300)] rounded-sc-md",
         "border border-sc-border bg-sc-surface p-5 text-left",
         "transition-all hover:border-sc-accent hover:shadow-sc-sm",
-        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-canvas",
+        FOCUS_RING,
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -361,9 +384,16 @@ function PrimaryCard({
         />
       </div>
       <div className="flex flex-col gap-1">
-        <h3 className="text-sc-md font-semibold leading-[var(--sc-line-height-md)] text-sc-heading">
-          {title}
-        </h3>
+        <div className="flex items-baseline gap-2">
+          <h3 className="text-sc-md font-semibold leading-[var(--sc-line-height-md)] text-sc-heading">
+            {title}
+          </h3>
+          {count !== undefined && (
+            <span className="font-mono text-sc-xs tabular-nums text-sc-muted">
+              {count} {count === 1 ? "definida" : "definidas"}
+            </span>
+          )}
+        </div>
         <p className="text-sc-sm leading-[var(--sc-line-height-body2)] text-sc-body">
           {description}
         </p>

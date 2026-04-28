@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Home, ChevronRight, Download, Columns3, FileText, ArrowUpRight } from "lucide-react";
+import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Tooltip,
@@ -323,55 +323,6 @@ export function ConversationsView({
               currentSampleId={currentSampleId}
               onChange={handleSampleChange}
             />
-
-            {/* Documentation easter-egg button */}
-            <div className="relative group">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center relative cursor-pointer doc-button group-hover:scale-110 transition-transform duration-300"
-                aria-label="¡Ah, esto no es un avatar, pero encontraste la validación de UX!"
-              >
-                <div 
-                  className="absolute inset-0 rounded-full pointer-events-none group-hover:opacity-0 transition-opacity duration-300"
-                  style={{ 
-                    animation: 'glow-gradient 4s ease-in-out infinite',
-                    padding: '2px',
-                    background: 'linear-gradient(45deg, #60D3E4, #4FC3D3, #60D3E4, #7FDBEA)',
-                    backgroundSize: '200% 200%',
-                    WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
-                    WebkitMaskComposite: 'xor',
-                    maskComposite: 'exclude'
-                  }}
-                />
-                <div className="absolute inset-0 rounded-full border-2 border-white shadow-sm bg-[#40A52B] group-hover:bg-[#60D3E4] transition-all duration-300" />
-                <span className="relative z-10 text-xl group-hover:hidden transition-opacity duration-200">🤔</span>
-                <span className="relative z-10 text-xl hidden group-hover:inline-block emoji-surprised">😱</span>
-              </div>
-              <div className="absolute right-0 top-0 w-48 h-20 -translate-y-1 translate-x-4 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-40" />
-              <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto z-50 transition-opacity duration-300">
-                <div className="relative bg-white rounded-xl px-3.5 py-2.5 shadow-2xl border border-[#60D3E4]/30">
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 -ml-px">
-                    <svg width="10" height="16" viewBox="0 0 10 16" fill="none">
-                      <path d="M0 6 L10 8 L0 10 Z" fill="white" stroke="#60D3E4" strokeWidth="1" strokeOpacity="0.3"/>
-                    </svg>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <p className="text-xs text-[#1C283D] whitespace-nowrap">
-                      ¡Ah, esto no es un avatar, pero encontraste la validación de UX!
-                    </p>
-                    <div className="flex items-center gap-2 justify-center">
-                      <button
-                        onClick={() => window.open('https://group-image-51851861.figma.site', '_blank')}
-                        className="flex items-center gap-1.5 bg-[#60D3E4] hover:bg-[#4FC3D3] text-white px-2.5 py-1 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 doc-glow-btn"
-                      >
-                        <FileText size={12} strokeWidth={2} />
-                        <span className="text-xs">Ver documentación</span>
-                        <ArrowUpRight size={12} strokeWidth={2} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -447,7 +398,9 @@ export function ConversationsView({
 
             <div className="h-6 w-px bg-[#E5E7EB]" />
 
-            {/* Transcription icon button */}
+            {/* Bulk transcribe trigger — AlignLeft icon mirrors the
+                BulkTranscriptionModal header so the user maps trigger →
+                destination by recognition. */}
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -462,7 +415,7 @@ export function ConversationsView({
                         : 'text-[#60D3E4] hover:text-[#4FC3D3] hover:bg-[#EEFBFD]'
                     }`}
                   >
-                    <FileText size={18} />
+                    <AlignLeft size={18} strokeWidth={1.75} />
                     {hasSelection && (
                       <span className="absolute -top-1 -right-1 bg-[#233155] text-white text-[9px] rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none font-medium">
                         {selectedIds.length > 99 ? "99+" : selectedIds.length}
@@ -487,7 +440,7 @@ export function ConversationsView({
                     size="icon"
                     className={`h-9 w-9 transition-all ${
                       !hasSelection
-                        ? 'text-[#9CA3AF] cursor-not-allowed hover:bg-transparent' 
+                        ? 'text-[#9CA3AF] cursor-not-allowed hover:bg-transparent'
                         : 'text-[#60D3E4] hover:text-[#4FC3D3] hover:bg-[#EEFBFD]'
                     }`}
                   >
@@ -496,6 +449,28 @@ export function ConversationsView({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Descargar ({selectedIds.length})</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Help / docs — replaces the "avatar emoji" easter-egg.
+                Lives in the toolbar where supervisors look for help. */}
+            <span className="ml-1 h-6 w-px bg-[#E5E7EB]" />
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={() => window.open("https://group-image-51851861.figma.site", "_blank", "noopener,noreferrer")}
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-[#8D939D] transition-all hover:bg-[#F4F6FC] hover:text-[#233155]"
+                    aria-label="Abrir documentación"
+                  >
+                    <HelpCircle size={18} strokeWidth={1.75} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Documentación</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>

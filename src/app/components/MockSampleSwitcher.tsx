@@ -32,20 +32,27 @@ export function MockSampleSwitcher({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
+          /* DEMO-only affordance: dashed border + amber DEMO chip make
+             it visually obvious that this control does not exist in
+             the production app. Keeps stakeholders from mistaking it
+             for shippable functionality. */
           className={cn(
-            "group flex h-10 items-center gap-2 rounded-full border border-[#CFD3DE] bg-white px-3",
-            "text-xs font-medium text-[#5F6776] transition-all",
-            "hover:border-[#60D3E4] hover:bg-[#EEFBFD] hover:text-[#387983]",
+            "group flex h-10 items-center gap-2 rounded-full border border-dashed border-[#D97706]/40 bg-[#FFFBEB] px-3",
+            "text-xs font-medium text-[#92400E] transition-all",
+            "hover:border-[#D97706] hover:bg-[#FEF3C7]",
           )}
-          title="Cambiar conjunto de datos de demo"
+          title="Cambiar conjunto de datos de demo (solo en prototipo)"
           aria-label="Cambiar conjunto de datos de demo"
         >
+          <span className="rounded-sm bg-[#D97706] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+            Demo
+          </span>
           <Database
             size={14}
-            className="text-[#60D3E4] transition-transform group-hover:scale-110"
+            className="text-[#D97706] transition-transform group-hover:scale-110"
           />
-          <span className="hidden sm:inline">Datos demo:</span>
-          <span className="text-[#233155]">{current.label}</span>
+          <span className="hidden sm:inline">Datos:</span>
+          <span className="text-[#92400E]">{current.label}</span>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
