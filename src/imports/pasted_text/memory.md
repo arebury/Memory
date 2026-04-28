@@ -1518,3 +1518,37 @@ Cuando `memory.md` supere ~2500 líneas, la siguiente sesión debe:
 3. Confirmar al usuario qué se archivó.
 
 Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componentes, tokens) se mantiene siempre — esas son las "constantes" del proyecto.
+
+### 15.10 · 2026-04-28 · Claude Code · auditoría visual final + deploy GitHub/Netlify
+
+**Hecho**:
+- `BulkTranscriptionModal` v25 body re-alineado a Figma `289:649`: hero number 56px (era 72), color `text-sc-emphasis` `#3C434D` (era heading), line-height 48px. Labels "TOTAL A PROCESAR" / "ANÁLISIS" pasan a 14px Bold (eran 11px medium tracking). "Genera coste" en `text-sc-cost-warn` `#D97706` capitalizado (era on-secondary minúscula). Título "Incluir análisis" 16px semibold (era 21px medium); color `text-sc-disabled` `#797979` cuando OFF, `text-sc-heading` cuando ON. Caption ON usa `text-sc-accent-strong` `#48B8C9` (era accent-300). Eliminado divider central (Figma: "sin dividers internos"). Cell heights fijos a 200px, paddings 28v/32h hero y 28v/24h decision. archivos: `src/app/components/BulkTranscriptionModal.tsx`, `src/styles/sc-design-system.css`.
+- Nuevos tokens en `sc-design-system.css`: L1 primitives `--sc-surface-500/700`, `--sc-warning-600`, `--sc-accent-600`. L2 semantic `--sc-text-emphasis`, `--sc-text-disabled`, `--sc-accent-strong`, `--sc-cost-warn`. L3 component `--sc-bulk-cell-{height,gap}`, `--sc-bulk-{hero,decision}-padding-{x,y}`. `--sc-font-size-display` cambió 72→56px. Añadido `--sc-line-height-display` 48px y `--sc-line-height-md` 24px.
+- Bug crítico arreglado: colisión de namespace `text-sc-body` (Tailwind v4 mapeaba `--color-sc-body` y `--text-sc-body` a la misma clase, ganaba color, font-size se perdía silenciosamente). Renombrado el token de tamaño a `--text-sc-base`. Todos los consumidores actualizados. archivos: `src/styles/sc-design-system.css`, `src/app/components/ui/modal.tsx`, `src/app/components/BulkTranscriptionModal.tsx`.
+- Eliminados 10 tokens L3 muertos (aliases redundantes de L2): `--sc-modal-{bg,border,radius,shadow,head-divider,head-title-size,head-subtitle-size,foot-divider,button-font-size,button-font-weight}`. archivos: `src/styles/sc-design-system.css`.
+- Optimizaciones de código: lazy `useState` initializer, `isAllProcessed` simplificado (`!canAnalyze` solo), `selectedConversations` memoizado en `ConversationsView` con `useMemo([selectedIds])`, magic number `text-[21px]` → `text-sc-xl`, `min-h-[21px]` → `min-h-[var(--sc-line-height-body2)]`, `<Loader2 size={14} />` matching project convention. archivos: `src/app/components/BulkTranscriptionModal.tsx`, `src/app/components/ConversationsView.tsx`.
+- Footer del Modal con `min-h-` en lugar de `h-` para resilencia con contenido multilínea. archivos: `src/app/components/ui/modal.tsx`.
+- Deploy completo activado: repo privado `arebury/Memory` creado vía `gh` CLI, 9 topics, descripción específica. `netlify.toml` declarativo (Node 20, pnpm 10.33.2, `pnpm build`, redirect SPA). `.gitignore` standard. `package.json`: nombre `memory`, scripts `dev/build/preview`, `pnpm.onlyBuiltDependencies` con `@tailwindcss/oxide` y `esbuild`. Identidad git `arebury <arebury@users.noreply.github.com>` sin `Co-Authored-By` de Claude. archivos: `.gitignore`, `netlify.toml`, `package.json`, `README.md`.
+- Live URL: https://memoryplus3.netlify.app/ — añadida al `README.md` con badge dedicado, a la sidebar de GitHub vía `gh repo edit --homepage`, y a `memory.md` sec 18.
+- README rehecho con 7 badges shields.io (status + 6 stack), emoji por sección (🎯🛠️🚀📁🚢📌👤), título `💬 Memory`, sin lenguaje vago. archivos: `README.md`.
+- `memory.md` con emoji en las 19 secciones top-level para escaneo rápido.
+- Añadidas secciones nuevas a `memory.md`: sec 16 (estrategia prototipo vs producción Angular+PrimeNG), sec 17 (Pendiente, lista plana sin milestones), sec 18 (deploy / pipeline / troubleshooting / rollback), sec 19 (protocolo de session log con plantilla obligatoria + política de compactación a partir de 2500 líneas).
+
+**Decidido**:
+- Mantener stack React (Opción C): el DS evoluciona hacia tokens estilo PrimeNG/Aura sólo cambiando VALORES en `sc-design-system.css`; los nombres `--sc-*` se quedan. La decisión "qué hacer con el prototipo" (rol 1 desechable / rol 2 PrimeReact / rol 3 pivote Angular) se difiere hasta que el DS del cliente esté maduro. Razón: instalar `primereact` o pivotar a Angular hoy con DS "en pañales" cierra puertas innecesariamente.
+- Body de v25 sigue Figma `289:649` como fuente de verdad, no `bulky.html` (era exploración previa con valores diferentes — 72px hero, accent-300, etc.).
+- Auto-deploy Netlify dispara en cada `git push origin main`. Pushear en bloque al final de cada sesión, no commit a commit, para no consumir la cuota de 300 min/mes en builds innecesarios.
+- Topics del repo NO incluyen `primeng` ni `angular` aunque sean el target de producción — describen lo que hay EN el código (React/Vite/etc.), el contexto del target va en descripción y README.
+
+**Pendiente** (todos reflejados en sec 17):
+- Migrar modales legacy al `<Modal>` shell SC. (P1)
+- Consolidar los tres tonos navy en `--sc-navy-600`. (P1)
+- Mover `@import` de Roboto al inicio de `src/styles/index.css` para silenciar warning PostCSS. (P2)
+- Decisión sobre rol del prototipo cuando DS cliente esté maduro. (sin prioridad — reactivo al cliente)
+
+**Notas para próxima sesión**:
+- Repo: https://github.com/arebury/Memory · Live: https://memoryplus3.netlify.app/
+- Vite dev server quedó corriendo en background al puerto 5173 (pid del proceso de la sesión anterior). Si no responde tras reabrir Claude Code, lanzarlo con `npx -y pnpm@latest dev`.
+- ANTES de instalar nada o cambiar stack: leer sec 16. NO añadir `primereact`, `@angular/*` ni renombrar tokens `--sc-*` a `--p-*` sin discusión explícita.
+- Para verificar que un cambio compila antes de pushear: `npx -y pnpm@latest build` (~2s, produce `dist/`). Si falla local, falla en Netlify.
+- `gh auth status` confirma autenticación como `arebury`. No hace falta re-loguear en sesiones futuras.
