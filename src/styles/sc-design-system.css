@@ -99,14 +99,14 @@
   --sc-font-size-md:        16px;   /* DS subtitle1 — decision title */
   --sc-font-size-lg:        18px;   /* DS h4 — modal title */
   --sc-font-size-xl:        21px;   /* lead */
-  --sc-font-size-display:   56px;   /* DS hero display number */
+  --sc-font-size-display:   88px;   /* DS hero display number — Figma 297:2559 */
 
   /* Line heights (paired) */
   --sc-line-height-h4:        28px;  /* with 18px (modal title) */
   --sc-line-height-md:        24px;  /* with 16px (decision title) */
   --sc-line-height-body2:     22px;  /* with 14px (body / labels / caption) */
   --sc-line-height-button:    20px;  /* with 14px medium (button) */
-  --sc-line-height-display:   48px;  /* with 56px (hero number) */
+  --sc-line-height-display:   88px;  /* with 88px (hero number) — 1:1 ratio for tight stack */
 
   /* Weights */
   --sc-weight-regular:      400;
@@ -185,21 +185,22 @@
   --sc-modal-body-padding-x:      var(--sc-space-600);  /* 24 */
   --sc-modal-body-padding-y:      var(--sc-space-400);  /* 16 */
 
-  /* Body · Bulk transcription cells (compact layout, Figma 297:2559)
-     Body is 632×100 split into two equal cells. Hero centers
-     vertically; Decision uses 0 vertical padding because its inner
-     content (label + title+switch + caption) exactly fills 100px. */
-  --sc-bulk-cell-height:          100px;
-  --sc-bulk-cell-gap:             var(--sc-space-300);  /* 12 — between label and content */
-  --sc-bulk-hero-padding-x:       var(--sc-space-600);  /* 24 */
-  --sc-bulk-hero-padding-y:       var(--sc-space-300);  /* 12 */
-  --sc-bulk-decision-padding-x:   var(--sc-space-600);  /* 24 */
-  --sc-bulk-decision-padding-y:   0px;
-  /* Decision section nested gaps:
-     · 24 (--sc-space-600) between Label and Title+switch row
-     · 12 (--sc-space-300) between Title+switch group and Caption */
-  --sc-bulk-decision-gap-inner:   var(--sc-space-600);
-  --sc-bulk-decision-gap-outer:   var(--sc-space-300);
+  /* Body · Bulk transcription cells (Figma 297:2559 final)
+     Body is 720×200 split into two equal cells with a hairline divider
+     down the center. BOTH cells start their content at the top
+     (justify-start + same padding-top) so the labels "TOTAL A
+     PROCESAR" and "ANÁLISIS" sit on the same baseline. The remaining
+     vertical space below each label is owned by a flex-1 wrapper that
+     centers the cell's main content. */
+  --sc-bulk-cell-height:          200px;
+  --sc-bulk-cell-padding-x:       var(--sc-space-600);  /* 24 */
+  --sc-bulk-cell-padding-top:     var(--sc-space-700);  /* 28 — distance from cell top to label baseline */
+  --sc-bulk-cell-padding-bottom:  var(--sc-space-600);  /* 24 */
+  /* Decision-cell intra-gaps:
+     · gap between Title+switch row and Caption (small, content sits together) */
+  --sc-bulk-decision-caption-gap: var(--sc-space-300);  /* 12 */
+  /* Hairline divider between the two cells. */
+  --sc-bulk-divider-color:        var(--sc-border-soft);
 
   /* Footer */
   --sc-modal-foot-height:         68px;

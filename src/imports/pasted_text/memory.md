@@ -425,41 +425,42 @@ canSubmit      = heroCount > 0 && !isLoading
 initialUserOn  = nTrans === 0 && nAnBase > 0    // C2 + C5 default-on
 ```
 
-**Layout v26** (dentro de `<Modal.Body className="!p-0">`, valores extraídos de Figma node `297:2559`):
-- Frame **720×100**, `flex h-[var(--sc-bulk-cell-height)]`, dos cells de `flex-1` cada una. **SIN divider interno**.
-- **Cell hero** (left): padding `12v / 24h` (`--sc-bulk-hero-padding-{x,y}`), justify-center.
-  - Label "Total a procesar": **14px Bold uppercase**, line-height 22px, color `text-sc-body` (#5C616B).
-  - Número: **56px semibold** (`text-sc-display`), line-height 48px, color `text-sc-emphasis` (#3C434D — softened black).
-  - Cost-tag: 14px regular, line-height 22px:
-    - "Genera coste" (capitalizado) → `text-sc-cost-warn` (#D97706 amber).
-    - "todo procesado" (lowercase, en C1) → `text-sc-muted`.
-  - Gap `--sc-bulk-cell-gap` (12) entre label y row.
-- **Cell decision** (right): padding `0v / 24h` (`--sc-bulk-decision-padding-{x,y}`), justify-center, **estructura anidada**:
-  ```
-  Decision (flex col, items-stretch, justify-center)
-  └ Group A (flex col, gap --sc-bulk-decision-gap-outer = 12)
-    ├ Group B (flex col, gap --sc-bulk-decision-gap-inner = 24)
-    │   ├ Label "ANÁLISIS"
-    │   └ Title+switch row (flex justify-between)
-    └ Caption ("X admiten análisis")
-  ```
-  - Label "ANÁLISIS": mismo estilo que label hero (14px Bold uppercase, `text-sc-body`).
-  - Título "Incluir análisis": **16px semibold** (`text-sc-md`), line-height 24px:
-    - Toggle ON → `text-sc-heading` (#181D26).
-    - Toggle OFF / disabled → `text-sc-disabled` (#797979).
-  - Switch: project `<Switch>` con override `data-[state=checked]:bg-sc-accent-strong` (#48B8C9).
-  - Caption: 14px regular, line-height 22px, **siempre teal cuando hay candidatos** (per Figma C3 spec — antes alternaba muted/teal según toggle):
-    - C1 (toggle disabled): "todo procesado" muted.
-    - C2–C6 (independiente del toggle): "{N} admiten análisis" `text-sc-accent-strong` regular.
-  - Caption reserva `min-h-[var(--sc-line-height-body2)]` para evitar layout-shift en C1.
+**Layout v26 — final** (dentro de `<Modal.Body className="!p-0">`, valores extraídos de Figma node `297:2559`):
+- Frame **720×200** (`--sc-bulk-cell-height: 200px`), `flex` row, dos cells `flex-1` separadas por **hairline divider vertical** (`border-r [var(--sc-bulk-divider-color)]` en hero; color `--sc-border-soft` = #F3F4F6).
+- **Estrategia de alineación**: ambas cells comparten `padding-top` (`--sc-bulk-cell-padding-top: 28`), `padding-x: 24` (`--sc-bulk-cell-padding-x`), `padding-bottom: 24` (`--sc-bulk-cell-padding-bottom`). Las dos labels comparten baseline porque cada una es el primer child de su section. El espacio sobrante debajo de cada label se entrega a un wrapper `flex-1` que centra el contenido principal verticalmente.
+- **Cell hero** (left):
+  - Label "TOTAL A PROCESAR": 14px Bold uppercase, line-height 22, color `text-sc-body` (#5C616B).
+  - Wrapper `flex-1 items-center` con:
+    - Número: **88px semibold** (`text-sc-display`), line-height 88, color `text-sc-emphasis` (#3C434D — softened black). Sube de los 56px del borrador previo para dar protagonismo al hero por encima de la columna decisión.
+    - Cost-tag: 14px regular, line-height 22:
+      - "genera coste" (lowercase) → `text-sc-cost-warn` (#D97706 amber).
+      - "todo procesado" (lowercase, en C1) → `text-sc-muted`.
+- **Cell decision** (right):
+  - Label "ANÁLISIS": mismo estilo que label hero.
+  - Wrapper `flex-1 flex-col justify-center gap-[--sc-bulk-decision-caption-gap=12]`:
+    - Title+switch row (`flex justify-between`):
+      - Título "Incluir análisis": **16px semibold** (`text-sc-md`), line-height 24:
+        - Toggle ON → `text-sc-heading` (#181D26).
+        - Toggle OFF / disabled → `text-sc-disabled` (#797979).
+      - Switch project `<Switch>` con override `data-[state=checked]:bg-sc-accent-strong` (#48B8C9).
+    - Caption: 14px regular, line-height 22:
+      - C1 (toggle disabled): "todo procesado" muted.
+      - C2–C6 con toggle **OFF**: "{N} admiten análisis" en `text-sc-muted` (gris).
+      - C2–C6 con toggle **ON**: "{N} admiten análisis" en `text-sc-accent-strong` teal.
+    - Caption reserva `min-h-[var(--sc-line-height-body2)]` para evitar layout-shift en C1.
 
-**Por qué v26**: la altura 200px de v25 dejaba aire excesivo entre celdas; el rediseño en Figma `297:2559` compactó body a 100px y reorganizó el cell decision con gaps anidados (24 entre label↔switch, 12 entre switch↔caption) para que la tipografía respire pegada al límite de 100px sin padding vertical externo.
-
-**Animaciones (`sc-design-system.css`)**:
-- `animate-sc-bump` — hero number escala 1.03 al cambiar `heroCount` (260ms).
-- `animate-sc-pulse` — caption number+text escalan 1.08 al togglear (360ms).
+**Animaciones del hero + caption** (v26 final):
+- Hero number: `animate-sc-pulse` (scale 1.08 / 360ms) re-disparada por `bumpKey` cuando cambia `heroCount`. Antes (borrador v26 inicial) usaba `animate-sc-bump` (1.03 / 260ms), demasiado sutil para un número de 88px.
+- Caption number+text: `animate-sc-pulse` re-disparada por `pulseKey` en cada click del toggle.
+- Como togglear cambia `heroCount` (que altera `bumpKey`), las dos animaciones suceden simultáneamente — hero+caption laten juntos al togglear.
 - `animate-sc-delta-fly` — fantasma `+N`/`−N` flota 34px hacia arriba al togglear (750ms). Color teal si `+`, muted si `−`.
 - `animate-sc-shake` — celda decisión hace shake horizontal 4px al click en toggle disabled (280ms, sólo C1).
+
+**Decisiones revertidas en este pase de fidelidad** (sobre el borrador v26 inicial):
+- Caption "siempre teal" → vuelve a alternar muted-OFF / teal-ON. El comportamiento OFF=gris, ON=teal es el que la dirección de UX quiere y lo que el Figma final confirma.
+- Cell-height 100 → 200. Compactarlo a 100 dejaba el número hero pequeño y rompía la jerarquía: el hero TIENE que dominar la columna izquierda.
+- "Genera coste" capitalizado → "genera coste" lowercase, alineado con el resto del léxico in-cell ("todo procesado", "admiten análisis").
+- Estructura nested `Group A ⊃ (Group B ⊃ Label + Title-row) + Caption` con gaps 24/12 → simplificada a `Label` (top) + `flex-1 wrapper` con Title-row + Caption (gap 12). Los 24 entre label y switch desaparecen porque ahora son el `flex-1` quien decide el espaciado vertical.
 
 **Eligible IDs** enviados a `onConfirm`:
 - toggle OFF → solo `readyToTranscribe.map(c => c.id)`.
@@ -1719,3 +1720,29 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - `mockTranscriptionGenerator.ts` cubre 6 dominios. Si las demos repiten el mismo diálogo, ampliar `dialogues[]`.
 - Para verificar build: `npx -y pnpm@latest build` (~1m45s aquí; varía). Output esperado: `dist/index-*.css` ~137 kB y `dist/index-*.js` ~836 kB. Warning de chunk >500 kB es esperado (sec 17).
 - El modal legacy `PlayerModal.tsx` sigue importado desde `Repository.tsx` y otros — NO borrar todavía. Dependency check: `grep -rn "from .*PlayerModal" src` antes de eliminar.
+
+### 15.12 · 2026-04-28 · Claude Code · v26 · pase de fidelidad sobre el body (alineación + hero 88 + caption muted-OFF)
+
+**Hecho**:
+- `--sc-font-size-display` 56→**88px**, `--sc-line-height-display` 48→**88px**. archivos: `src/styles/sc-design-system.css`.
+- Tokens del bulk body refactorizados: borrados `--sc-bulk-{hero,decision}-padding-{x,y}`, `--sc-bulk-cell-gap`, `--sc-bulk-decision-gap-{inner,outer}`. Nuevos tokens compartidos por ambas cells: `--sc-bulk-cell-height: 200px`, `--sc-bulk-cell-padding-x: 24`, `--sc-bulk-cell-padding-top: 28`, `--sc-bulk-cell-padding-bottom: 24`, `--sc-bulk-decision-caption-gap: 12` (gap title↔caption), `--sc-bulk-divider-color: var(--sc-border-soft)`. archivos: `src/styles/sc-design-system.css`.
+- `BulkTranscriptionModal` body reescrito: ambas cells con mismo padding-top → labels comparten baseline; debajo de cada label un wrapper `flex-1` centra el contenido. Hairline divider vertical entre cells (`border-r`). Hero ahora 88px. Caption alterna muted-OFF / teal-ON (revertida la regla "siempre teal" del borrador v26). "Genera coste" → "genera coste" lowercase. Hero usa `animate-sc-pulse` en lugar de `animate-sc-bump` para que su latido sea visible al tamaño 88px y se sincronice con el de la caption. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
+- JSDoc del componente y sec 5 de `memory.md` reescritas para reflejar el layout final (200px height, divider, padding-top compartido, animación unificada).
+
+**Decidido**:
+- Hero 88px / 1:1 line-height en lugar de 56px / 48. La columna izquierda DEBE dominar visualmente; con 56px la mirada caía primero al texto "Incluir análisis" 16semibold de la columna derecha y se rompía la jerarquía.
+- Padding-top compartido como **mecanismo de alineación de labels**, en lugar de justify-center con gaps anidados que empataran alturas. El padding-top es 1 línea de defensa; cualquier tipografía que cambie de tamaño no rompe la baseline.
+- Hero usa `animate-sc-pulse` (mismo de caption). El usuario pidió "misma animación" — unificar las dos animaciones evita inconsistencia perceptual y no añade complejidad (ambas keys ya existen en el componente).
+- Hairline divider `--sc-border-soft` (#F3F4F6, casi imperceptible) en lugar de `--sc-border-default` (#D3D5DA) para que separe sin gritar. El v25 era "sin divider"; el v26 final lo añade pero muy sutil.
+
+**Descartado**:
+- Mantener `cell-height: 100px` con número 88px. El 88px no respira con 100px de altura — quedaba comprimido contra label.
+- Usar CSS Grid para forzar dos columnas con header row + content row. El `flex` con shared padding-top resuelve el mismo problema sin añadir un primitive nuevo.
+- Animar el hero con `animate-sc-bump` reescalado a 1.08. Cambiar el valor del bump rompería sus otros usos en el sistema; la pulse ya es 1.08 y tiene la misma curva.
+
+**Pendiente**: ninguno nuevo. Sec 17 sin cambios.
+
+**Notas para próxima sesión**:
+- Si el cliente pide subir más el hero (96 / 100 / 112), tocar SOLO `--sc-font-size-display` y `--sc-line-height-display` (mantener 1:1). Si supera 112, subir `--sc-bulk-cell-height` también para que respire.
+- El hairline divider va en el lado derecho del hero (`border-r`). Si en el futuro hay que invertir el orden de las cells, mover el `border-r` → `border-l` al elemento que toque.
+- La regla "padding-top compartido = labels alineadas" depende de que ambas labels sean directamente el primer child de cada `<section>`. Si alguna sesión añade un wrapper antes de la label, romperá la alineación.
