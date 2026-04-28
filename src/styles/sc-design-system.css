@@ -1,0 +1,309 @@
+/* ───────────────────────────────────────────────────────────────────────────
+   Smart Contact · Design System tokens
+   Source of truth: Figma file `Smart-Contact---Design-System` (Dle87qs0Pjq…).
+
+   Three-layer token model:
+     L1  primitives  — raw values, named by what they ARE.
+     L2  semantic    — roles mapped to primitives, named by INTENT.
+     L3  component   — component-scoped tokens, named by USE.
+
+   Consumed two ways:
+     1. CSS custom properties (`var(--sc-…)`) for any consumer.
+     2. Tailwind v4 utilities via the `@theme inline { }` block at the bottom
+        — e.g. `bg-sc-surface`, `text-sc-heading`, `rounded-sc-xl`.
+
+   Adding tokens: extend L1, then expose in L2/L3 with intent-named aliases.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ────────────────────────────────────────────
+     L1 · Primitives
+     ──────────────────────────────────────────── */
+
+  /* Surface scale (neutral) */
+  --sc-surface-0:    #FFFFFF;
+  --sc-surface-50:   #F9FAFB;
+  --sc-surface-100:  #F3F4F6;   /* hairline divider */
+  --sc-surface-200:  #D3D5DA;   /* container border */
+  --sc-surface-400:  #9499A3;   /* muted text */
+  --sc-surface-500:  #797979;   /* OFF / disabled-feel title */
+  --sc-surface-600:  #5C616B;   /* mid text · uppercase labels */
+  --sc-surface-700:  #3C434D;   /* hero display number */
+  --sc-surface-800:  #2F3642;   /* secondary button text */
+  --sc-surface-900:  #181D26;   /* heading text */
+
+  /* Brand · navy (primary action surface) */
+  --sc-navy-500:     #233155;   /* legacy primary text/CTA from memory.md */
+  --sc-navy-600:     #1B273D;   /* DS canonical primary */
+  --sc-navy-700:     #0F1A2B;   /* deeper hover */
+
+  /* Brand · accent (live state, switches) */
+  --sc-accent-50:    #EEFBFD;
+  --sc-accent-300:   #60D3E4;   /* default accent */
+  --sc-accent-400:   #4FC3D3;
+  --sc-accent-500:   #00D7E8;   /* live toggle accent */
+  --sc-accent-600:   #48B8C9;   /* strong accent · ON-state captions */
+
+  /* Status */
+  --sc-success-500:  #10B981;
+  --sc-warning-500:  #F59E0B;
+  --sc-warning-600:  #D97706;   /* deeper amber · "Genera coste" */
+  --sc-danger-500:   #D4183D;
+
+  /* ────────────────────────────────────────────
+     L2 · Semantic
+     ──────────────────────────────────────────── */
+
+  /* Background */
+  --sc-bg-canvas:           #F4F6FC;
+  --sc-bg-surface:           var(--sc-surface-0);
+  --sc-bg-surface-muted:     var(--sc-surface-50);
+  --sc-bg-overlay:           rgba(15, 23, 42, 0.55);
+  --sc-bg-primary:           var(--sc-navy-600);
+  --sc-bg-primary-hover:     var(--sc-navy-700);
+
+  /* Border */
+  --sc-border-default:       var(--sc-surface-200);
+  --sc-border-soft:          var(--sc-surface-100);
+  --sc-border-primary:       var(--sc-navy-600);
+
+  /* Text */
+  --sc-text-heading:         var(--sc-surface-900);  /* #181D26 */
+  --sc-text-body:            var(--sc-surface-600);  /* #5C616B */
+  --sc-text-muted:           var(--sc-surface-400);  /* #9499A3 */
+  --sc-text-disabled:        var(--sc-surface-500);  /* #797979 — OFF/disabled titles */
+  --sc-text-emphasis:        var(--sc-surface-700);  /* #3C434D — softened black for big display numbers */
+  --sc-text-on-primary:      var(--sc-surface-0);
+  --sc-text-on-secondary:    var(--sc-surface-800);
+
+  /* Accent (action highlight) */
+  --sc-accent:               var(--sc-accent-300);   /* default teal */
+  --sc-accent-strong:        var(--sc-accent-600);   /* ON-state caption color */
+  --sc-accent-live:          var(--sc-accent-500);   /* punchy bright cyan (motion) */
+  --sc-accent-soft:          var(--sc-accent-50);
+
+  /* Cost / warning emphasis */
+  --sc-cost-warn:            var(--sc-warning-600);  /* "Genera coste" tag */
+
+  /* ────────────────────────────────────────────
+     Typography
+     Family inherits Roboto from globals.css. Inter (used in DS Figma)
+     is intentionally NOT introduced — project font is Roboto.
+     ──────────────────────────────────────────── */
+  --sc-font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Sizes */
+  --sc-font-size-xs:        11px;
+  --sc-font-size-sm:        12px;
+  --sc-font-size-body:      14px;   /* DS body2 */
+  --sc-font-size-md:        16px;   /* DS subtitle1 — decision title */
+  --sc-font-size-lg:        18px;   /* DS h4 — modal title */
+  --sc-font-size-xl:        21px;   /* lead */
+  --sc-font-size-display:   56px;   /* DS hero display number */
+
+  /* Line heights (paired) */
+  --sc-line-height-h4:        28px;  /* with 18px (modal title) */
+  --sc-line-height-md:        24px;  /* with 16px (decision title) */
+  --sc-line-height-body2:     22px;  /* with 14px (body / labels / caption) */
+  --sc-line-height-button:    20px;  /* with 14px medium (button) */
+  --sc-line-height-display:   48px;  /* with 56px (hero number) */
+
+  /* Weights */
+  --sc-weight-regular:      400;
+  --sc-weight-medium:       500;
+  --sc-weight-semibold:     600;
+
+  /* ────────────────────────────────────────────
+     Spacing scale (4px base)
+     ──────────────────────────────────────────── */
+  --sc-space-50:    2px;
+  --sc-space-100:   4px;
+  --sc-space-150:   6px;
+  --sc-space-200:   8px;
+  --sc-space-250:  10px;
+  --sc-space-300:  12px;
+  --sc-space-400:  16px;
+  --sc-space-500:  20px;
+  --sc-space-600:  24px;
+  --sc-space-700:  28px;
+  --sc-space-800:  32px;
+
+  /* ────────────────────────────────────────────
+     Radii
+     ──────────────────────────────────────────── */
+  --sc-radius-xs:   2px;
+  --sc-radius-sm:   4px;
+  --sc-radius-md:   6px;    /* button */
+  --sc-radius-lg:   8px;
+  --sc-radius-xl:  12px;    /* modal */
+  --sc-radius-full: 9999px;
+
+  /* ────────────────────────────────────────────
+     Elevation
+     ──────────────────────────────────────────── */
+  --sc-shadow-sm:       0 1px 2px rgba(15, 23, 42, 0.06);
+  --sc-shadow-md:       0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  --sc-shadow-popover:  0 8px 24px -8px rgba(15, 23, 42, 0.16);
+  --sc-shadow-modal:    0 16px 40px -8px rgba(15, 23, 42, 0.12);
+
+  /* ────────────────────────────────────────────
+     Motion
+     ──────────────────────────────────────────── */
+  --sc-ease-out:        cubic-bezier(0.22, 1, 0.36, 1);
+  --sc-ease-in-out:     cubic-bezier(0.4, 0, 0.2, 1);
+  --sc-duration-fast:   140ms;
+  --sc-duration-base:   200ms;
+  --sc-duration-slow:   320ms;
+
+  /* ────────────────────────────────────────────
+     L3 · Component · Modal
+     Values come from Figma node 906:2763 (SC DS Modal symbol).
+     Only tokens that hold component-specific dimensions are declared
+     here; visual properties that map 1:1 to a semantic role (bg, color,
+     border, radius, shadow) are consumed via the Tailwind utilities
+     `bg-sc-surface`, `border-sc-border`, `rounded-sc-xl`, etc.
+     ──────────────────────────────────────────── */
+
+  /* Container */
+  --sc-modal-min-width:           680px;
+  --sc-modal-max-width:           1086px;
+  --sc-modal-min-height:          224px;
+  --sc-modal-max-height:          574px;
+  --sc-modal-default-width:       680px;
+
+  /* Header */
+  --sc-modal-head-padding:        var(--sc-space-400);  /* 16 */
+  --sc-modal-head-icon-size:      20px;
+  --sc-modal-head-icon-gap:       var(--sc-space-300);  /* 12 */
+  --sc-modal-head-title-gap:      var(--sc-space-100);  /* 4  */
+  --sc-modal-head-title-lh:       var(--sc-line-height-h4);     /* 28 */
+  --sc-modal-head-subtitle-lh:    var(--sc-line-height-body2);  /* 22 */
+  --sc-modal-head-close-size:     36px;
+  --sc-modal-head-close-icon:     13px;
+
+  /* Body */
+  --sc-modal-body-padding-x:      var(--sc-space-600);  /* 24 */
+  --sc-modal-body-padding-y:      var(--sc-space-400);  /* 16 */
+
+  /* Body · Bulk transcription cells (v25 layout, Figma 289:649)
+     Values in pairs: vertical/horizontal. Hero uses wider horizontal
+     padding to give the 56px display number breathing room. */
+  --sc-bulk-cell-height:          200px;
+  --sc-bulk-cell-gap:             var(--sc-space-300);  /* 12 — between label and content */
+  --sc-bulk-hero-padding-x:       var(--sc-space-800);  /* 32 */
+  --sc-bulk-hero-padding-y:       var(--sc-space-700);  /* 28 */
+  --sc-bulk-decision-padding-x:   var(--sc-space-600);  /* 24 */
+  --sc-bulk-decision-padding-y:   var(--sc-space-700);  /* 28 */
+
+  /* Footer */
+  --sc-modal-foot-height:         68px;
+  --sc-modal-foot-padding:        var(--sc-space-400);  /* 16 */
+  --sc-modal-foot-gap:            var(--sc-space-300);  /* 12 */
+
+  /* Footer buttons */
+  --sc-modal-button-height:       36px;
+  --sc-modal-button-padding-x:    var(--sc-space-400);  /* 16 */
+  --sc-modal-button-padding-y:    var(--sc-space-300);  /* 12 */
+  --sc-modal-button-radius:       var(--sc-radius-md);
+  --sc-modal-button-line-height:  var(--sc-line-height-button); /* 20 */
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Tailwind v4 · expose tokens as utility classes
+   `--color-…`     →  bg-…, text-…, border-…, ring-…
+   `--radius-…`    →  rounded-…
+   `--shadow-…`    →  shadow-…
+   `--text-…`      →  text-… (font-size)
+   ─────────────────────────────────────────────────────────────────────────── */
+@theme inline {
+  /* Color */
+  --color-sc-canvas:            var(--sc-bg-canvas);
+  --color-sc-surface:           var(--sc-bg-surface);
+  --color-sc-surface-muted:     var(--sc-bg-surface-muted);
+  --color-sc-overlay:           var(--sc-bg-overlay);
+  --color-sc-primary:           var(--sc-bg-primary);
+  --color-sc-primary-hover:     var(--sc-bg-primary-hover);
+
+  --color-sc-border:            var(--sc-border-default);
+  --color-sc-border-soft:       var(--sc-border-soft);
+  --color-sc-border-primary:    var(--sc-border-primary);
+
+  --color-sc-heading:           var(--sc-text-heading);
+  --color-sc-body:              var(--sc-text-body);
+  --color-sc-muted:             var(--sc-text-muted);
+  --color-sc-disabled:          var(--sc-text-disabled);
+  --color-sc-emphasis:          var(--sc-text-emphasis);
+  --color-sc-on-primary:        var(--sc-text-on-primary);
+  --color-sc-on-secondary:      var(--sc-text-on-secondary);
+
+  --color-sc-accent:            var(--sc-accent);
+  --color-sc-accent-strong:     var(--sc-accent-strong);
+  --color-sc-accent-live:       var(--sc-accent-live);
+  --color-sc-accent-soft:       var(--sc-accent-soft);
+
+  --color-sc-success:           var(--sc-success-500);
+  --color-sc-warning:           var(--sc-warning-500);
+  --color-sc-cost-warn:         var(--sc-cost-warn);
+  --color-sc-danger:            var(--sc-danger-500);
+
+  /* Radii */
+  --radius-sc-xs:               var(--sc-radius-xs);
+  --radius-sc-sm:               var(--sc-radius-sm);
+  --radius-sc-md:               var(--sc-radius-md);
+  --radius-sc-lg:               var(--sc-radius-lg);
+  --radius-sc-xl:               var(--sc-radius-xl);
+
+  /* Shadow */
+  --shadow-sc-sm:               var(--sc-shadow-sm);
+  --shadow-sc-md:               var(--sc-shadow-md);
+  --shadow-sc-popover:          var(--sc-shadow-popover);
+  --shadow-sc-modal:            var(--sc-shadow-modal);
+
+  /* Font sizes
+     Note: `--text-sc-base` is renamed from `--text-sc-body` to avoid a
+     Tailwind v4 collision with `--color-sc-body` (both would resolve to
+     a `.text-sc-body` class — Tailwind picks the color and silently
+     drops the size). Use `text-sc-base` for 14px font-size,
+     `text-sc-body` for the mid-grey body text COLOR. */
+  --text-sc-xs:                 var(--sc-font-size-xs);
+  --text-sc-sm:                 var(--sc-font-size-sm);
+  --text-sc-base:               var(--sc-font-size-body);  /* 14px */
+  --text-sc-md:                 var(--sc-font-size-md);
+  --text-sc-lg:                 var(--sc-font-size-lg);
+  --text-sc-xl:                 var(--sc-font-size-xl);
+  --text-sc-display:            var(--sc-font-size-display);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Motion · keyframes & utilities
+   These are SC-specific micro-interactions consumed by the v25 transcription
+   modal body and any other component that needs them. Names are prefixed
+   `sc-` to avoid collision with tw-animate-css.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+@keyframes sc-delta-fly {
+  0%   { transform: translateY(0);     opacity: 0; }
+  15%  {                                opacity: 1; }
+  100% { transform: translateY(-34px); opacity: 0; }
+}
+
+@keyframes sc-bump {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.03); }
+}
+
+@keyframes sc-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+
+@keyframes sc-shake {
+  0%, 100% { transform: translateX(0); }
+  25%      { transform: translateX(-4px); }
+  75%      { transform: translateX(4px); }
+}
+
+.animate-sc-delta-fly { animation: sc-delta-fly 750ms var(--sc-ease-out) forwards; }
+.animate-sc-bump      { animation: sc-bump      260ms var(--sc-ease-out); }
+.animate-sc-pulse     { animation: sc-pulse     360ms var(--sc-ease-out); }
+.animate-sc-shake     { animation: sc-shake     280ms ease; }

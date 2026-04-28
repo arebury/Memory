@@ -1,0 +1,18 @@
+# Netlify build configuration
+# Reference: https://docs.netlify.com/configure-builds/file-based-configuration/
+
+[build]
+  command = "pnpm build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+  PNPM_VERSION = "10.33.2"
+
+# SPA fallback: all unknown routes serve index.html so the React app can
+# handle routing client-side. The project doesn't use react-router today
+# but this is harmless and future-proof.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
