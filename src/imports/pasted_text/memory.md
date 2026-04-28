@@ -1856,3 +1856,37 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - Antes de añadir un `cn(... "text-sc-{size}", "text-sc-{color}" ...)` nuevo, recuerda que **twMerge solo deja una de las dos**. Si necesitas ambas, mueve el size a `style`.
 - Si en algún momento se decide tener un único `cn()` configurado para que distinga estos buckets, hay que extender twMerge con `extendTailwindMerge({ classGroups: { 'font-size': [{ text: ['sc-xs', 'sc-sm', 'sc-base', 'sc-md', 'sc-lg', 'sc-xl', 'sc-display'] }] } })`. Documentar la migración como un cambio coordinado, no parche puntual.
 - Cualquier nuevo display number (ej. dashboards futuros con KPIs grandes) debe usar `style={{ fontSize: 'var(--sc-font-size-display)' }}` desde el día 1, no `text-sc-display` en cn.
+
+### 15.16 · 2026-04-28 · Claude Code · README expandido + taste-skill instalada + review de modales
+
+**Hecho**:
+- README.md reescrito con lente de UX writing: arranca con la pregunta "¿Qué problema resuelve?" y enseña las 3 palancas (reglas → IA → revisión) antes que el stack. Tabla "¿Qué encontrarás dentro?" con las 4 vistas y para qué sirven. Sección "Decisiones de producto que el código refleja" expone las 4 invariantes (chats siempre transcritos, no análisis sin transcripción, resumen ligado al transcript, regla sin alcance no guarda) — un visitante del repo entiende el comportamiento sin abrir el código. Stack y estructura quedan abajo (lo técnico no es el gancho). archivos: `README.md`.
+- `taste-skill` (Leonxlnx/taste-skill) instalada en `~/.claude/skills/taste-skill/SKILL.md` vía `curl` desde el repo público de GitHub. Aparece automáticamente en la lista de skills disponibles del runtime.
+- Review de `BulkTranscriptionModal` + `ConversationPlayerModal` aplicando las reglas de la nueva taste-skill. Cambios concretos aplicados:
+  - **Bulk subtitle** ahora muestra breakdown por canal cuando hay mezcla: "5 conversaciones seleccionadas · 3 llamadas, 2 chats". Antes solo el total. Razón (taste-skill rule density-4): el supervisor en bulk necesita saber el mix antes de procesar — los chats no se transcriben.
+  - **Bulk botón Procesar** gana `active:scale-[0.98]` con `transition-transform`. Disabled keeps `disabled:active:scale-100` para que un click bloqueado no haga "press". Razón (taste-skill rule 5 Tactile Feedback): un CTA premium debe responder físicamente al click.
+  - **Player search input** pasa de `w-56` fijo a `w-full max-w-[260px]` dentro de un wrapper. Adapta a contenedores estrechos sin overflow. Razón (taste-skill rule responsiveness).
+  - **Player tab body** pasa de `h-[320px]` fijo a `min-h-[360px]`. Razón: a 320 fijo el contenido se sentía comprimido en empty states con CTA; min-h permite crecer si la transcripción es larga, mantiene piso cómodo.
+
+**Decidido**:
+- **Reglas de taste-skill que NO se aplican en este proyecto** y por qué (escritas explícitamente para que la próxima sesión no intente "corregirlas"):
+  - Font Geist/Outfit/Cabinet/Satoshi → conflicto con Roboto locked por el cliente. Skip.
+  - Iconos `@phosphor-icons/react` o `@radix-ui/react-icons` → conflicto con `lucide-react` (238+ usos). Skip.
+  - Bento paradigm con `rounded-[2.5rem]` y bg `#f9fafb` → conflicto con tokens SC (canvas `#F4F6FC`, radius scale propio). Skip.
+  - Magnetic micro-physics, parallax tilt, holographic foil → conflicto con principio "calmar densidad" del DS. Skip.
+  - 1 accent color max → ✓ ya cumplido (teal). Aplica como confirmación.
+  - tracking-tighter en display → no aplicado al hero 112px porque Roboto natural ya es condensada y `tracking-tighter` la rompe visualmente. Decisión de mantener tracking default.
+- **No tocar el spinner Loader2 del botón Procesar**. taste-skill rule 5 dice "skeletal loaders, avoid generic circular spinners" — aplica a CONTENT placeholders, no a buttons. Spinners en botones de submit son patrón correcto. Defendido por el contexto.
+- **No añadir icono Check/Lock en el toggle disabled del Bulk modal**. La caption "todo procesado" ya comunica el estado. Añadir icono = ruido visual sin información nueva.
+
+**Descartado**:
+- **Migrar de lucide-react a phosphor-icons**. Cuesta tocar 238 callsites para una preferencia estética; los iconos lucide son lo bastante refinados.
+- **Aplicar Geist/Satoshi al hero number solo (overriding Roboto)**. Mezclar fonts en una pieza tan central rompe la coherencia tipográfica del DS; la fuente del cliente manda.
+- **Bento 2.0 layout** para el Bulk modal. El modal es un decision tool, no un dashboard — el 2x1 layout actual (hero + decisión) es óptimo, no necesita asimetría artística.
+
+**Pendiente**: ninguno nuevo.
+
+**Notas para próxima sesión**:
+- **taste-skill** disponible vía Skill tool (`taste-skill review <component>`). Sus defaults (DESIGN_VARIANCE 8, MOTION 6, DENSITY 4) hay que **overrides explícitos a 4/4/4** cuando se aplique al producto Memory — Memory es dashboard interno, no marketing site. Si en una futura sesión la skill empuja hacia masonry / parallax / 3-col-bento, ese empuje hay que rechazarlo: el contexto es contact-center, no SaaS landing.
+- README ahora es la puerta de entrada al repo. Cualquier cambio sustancial al producto (nueva vista, invariante, decisión P0) debe reflejarse en las 4 secciones top: "qué problema resuelve", "qué encontrarás dentro", "decisiones de producto" y "estado actual". Si una de esas secciones queda obsoleta, el visitante no externo se pierde.
+- La política "font-size en `style` cuando se combina con color en cn()" introducida en sec 15.15 sigue activa. taste-skill no la modifica.

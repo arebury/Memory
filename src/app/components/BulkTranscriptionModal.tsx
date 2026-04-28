@@ -161,6 +161,21 @@ export function BulkTranscriptionModal({
   };
 
   /* ── Render ───────────────────────────────────────────────────── */
+  // Subtitle breakdown — the supervisor wants to know the channel mix
+  // before processing. "5 conversaciones (3 llamadas, 2 chats)" tells
+  // them that some chats won't be transcribed (chats are pre-textual).
+  const nCalls = selectedConversations.filter((c) => c.channel === "llamada").length;
+  const nChats = nSel - nCalls;
+  const subtitle = (() => {
+    const head = nSel === 1
+      ? "1 conversación seleccionada"
+      : `${nSel} conversaciones seleccionadas`;
+    if (nCalls > 0 && nChats > 0) {
+      return `${head} · ${nCalls} ${nCalls === 1 ? "llamada" : "llamadas"}, ${nChats} ${nChats === 1 ? "chat" : "chats"}`;
+    }
+    return head;
+  })();
+
   return (
     <Modal
       open={isOpen}
@@ -177,11 +192,7 @@ export function BulkTranscriptionModal({
         <Modal.Header
           icon={<AlignLeft className="size-full" strokeWidth={1.75} />}
           title="Procesar conversaciones"
-          subtitle={
-            nSel === 1
-              ? "1 conversación seleccionada"
-              : `${nSel} conversaciones seleccionadas`
-          }
+          subtitle={subtitle}
         />
 
         <Modal.Body className="!p-0">
@@ -328,7 +339,7 @@ export function BulkTranscriptionModal({
           <Modal.Action
             onClick={handleConfirm}
             disabled={!canSubmit}
-            className="min-w-[120px]"
+            className="min-w-[120px] transition-transform active:scale-[0.98] disabled:active:scale-100"
           >
             {isLoading ? (
               <>

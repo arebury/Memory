@@ -319,8 +319,8 @@ export function ConversationPlayerModal({
             />
           </div>
 
-          {/* ── Tab body ─────────────────────────────────────────────── */}
-          <div className="flex h-[320px] flex-col">
+          {/* ── Tab body — min-h for breathing room (taste-skill VISUAL_DENSITY 4) ── */}
+          <div className="flex min-h-[360px] flex-col">
             {activeTab === "transcription" ? (
               <TranscriptionTab
                 conversation={conversation}
@@ -477,7 +477,7 @@ function TranscriptionTab({
         <span className="text-sc-sm text-sc-muted">
           {lines.length} {lines.length === 1 ? "intervención" : "intervenciones"}
         </span>
-        <div className="relative">
+        <div className="relative w-full max-w-[260px]">
           <Search
             size={12}
             aria-hidden
@@ -495,7 +495,7 @@ function TranscriptionTab({
                color switches still merge correctly. */
             style={{ fontSize: "var(--sc-font-size-sm)" }}
             className={cn(
-              "h-8 w-56 rounded-full border border-sc-border bg-sc-surface pl-7 pr-3",
+              "h-8 w-full rounded-full border border-sc-border bg-sc-surface pl-7 pr-3",
               "text-sc-body placeholder:text-sc-muted",
               "transition-colors hover:border-sc-border-default",
               "focus:border-sc-accent focus:outline-none focus:ring-2 focus:ring-sc-accent/20",
