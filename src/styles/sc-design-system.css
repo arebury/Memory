@@ -99,14 +99,14 @@
   --sc-font-size-md:        16px;   /* DS subtitle1 — decision title */
   --sc-font-size-lg:        18px;   /* DS h4 — modal title */
   --sc-font-size-xl:        21px;   /* lead */
-  --sc-font-size-display:   88px;   /* DS hero display number — Figma 297:2559 */
+  --sc-font-size-display:   112px;  /* DS hero display number — Figma 297:2559 */
 
   /* Line heights (paired) */
-  --sc-line-height-h4:        28px;  /* with 18px (modal title) */
-  --sc-line-height-md:        24px;  /* with 16px (decision title) */
-  --sc-line-height-body2:     22px;  /* with 14px (body / labels / caption) */
-  --sc-line-height-button:    20px;  /* with 14px medium (button) */
-  --sc-line-height-display:   88px;  /* with 88px (hero number) — 1:1 ratio for tight stack */
+  --sc-line-height-h4:        28px;   /* with 18px (modal title) */
+  --sc-line-height-md:        24px;   /* with 16px (decision title) */
+  --sc-line-height-body2:     22px;   /* with 14px (body / labels / caption) */
+  --sc-line-height-button:    20px;   /* with 14px medium (button) */
+  --sc-line-height-display:   112px;  /* with 112px (hero number) — 1:1 ratio for tight stack */
 
   /* Weights */
   --sc-weight-regular:      400;
@@ -192,7 +192,7 @@
      PROCESAR" and "ANÁLISIS" sit on the same baseline. The remaining
      vertical space below each label is owned by a flex-1 wrapper that
      centers the cell's main content. */
-  --sc-bulk-cell-height:          200px;
+  --sc-bulk-cell-height:          240px;
   --sc-bulk-cell-padding-x:       var(--sc-space-600);  /* 24 */
   --sc-bulk-cell-padding-top:     var(--sc-space-700);  /* 28 — distance from cell top to label baseline */
   --sc-bulk-cell-padding-bottom:  var(--sc-space-600);  /* 24 */
