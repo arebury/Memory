@@ -1890,3 +1890,39 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 - **taste-skill** disponible vía Skill tool (`taste-skill review <component>`). Sus defaults (DESIGN_VARIANCE 8, MOTION 6, DENSITY 4) hay que **overrides explícitos a 4/4/4** cuando se aplique al producto Memory — Memory es dashboard interno, no marketing site. Si en una futura sesión la skill empuja hacia masonry / parallax / 3-col-bento, ese empuje hay que rechazarlo: el contexto es contact-center, no SaaS landing.
 - README ahora es la puerta de entrada al repo. Cualquier cambio sustancial al producto (nueva vista, invariante, decisión P0) debe reflejarse en las 4 secciones top: "qué problema resuelve", "qué encontrarás dentro", "decisiones de producto" y "estado actual". Si una de esas secciones queda obsoleta, el visitante no externo se pierde.
 - La política "font-size en `style` cuando se combina con color en cn()" introducida en sec 15.15 sigue activa. taste-skill no la modifica.
+
+### 15.17 · 2026-04-28 · Claude Code · empty states del player rehechos (impeccable + ui-ux-pro-max + taste)
+
+**Hecho**:
+- `EmptyState` del `ConversationPlayerModal` reescrito con API ampliada: ahora acepta `highlights` (lista de pills con valor que se desbloquea), `meta` (línea pequeña bajo el botón con `intent: 'info'|'cost'` para el coste en `text-sc-cost-warn`), y `secondaryHint` (texto secundario tipo "mientras tanto puedes escuchar el audio"). El icono va en una **medallón circular** de 48px con `bg-sc-surface-muted` + `ring-1 ring-sc-border-soft` — anclaje visual sin recurrir a la baldosa filled de marketing. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- Empty state "Sin transcripción disponible" rediseñado en clave de UX writing:
+  - Título: "Esta llamada todavía no se ha transcrito" (conversacional, no estado seco).
+  - Descripción: explica QUÉ desbloquea — búsqueda en audio + resumen + sentimiento — antes de pedir la acción.
+  - **Highlights pills**: `Búsqueda en el audio · Resumen IA · Sentimiento` para que el supervisor vea de un vistazo el value-prop.
+  - **Meta de coste**: "Genera coste · tarda unos segundos" en amber — consistencia con la copy del Bulk modal.
+  - **Hint secundario**: "Mientras tanto, puedes reproducir el audio" — conecta con el reproductor de arriba, evita la sensación de pantalla parada.
+  - Botón con `active:scale-[0.98]` (taste-skill rule 5 Tactile Feedback).
+- Empty state análisis cuando NO se puede pedir (sin transcripción): título "Primero transcribe la llamada" (instructivo, no negativo), description explica la dependencia.
+- Empty state análisis cuando SÍ se puede pedir: título "Lista para analizar con IA", highlights `Resumen · Sentimiento`, meta "Genera coste · tarda unos segundos".
+- Empty state procesando: título "Transcribiendo…" / "Analizando…" en gerundio + descripción que invita a seguir escuchando o esperar.
+- Iconos del medallón pasaron de 28px a 22px porque ahora viven dentro de un círculo de 48px — la proporción icono/medallón pide menos peso del icono.
+
+**Decidido**:
+- **EmptyState con medallón circular** en lugar de icono suelto. Razón (impeccable rule 5 + taste-skill rule 4): un icono solo flotando en el centro de un panel se siente débil; el medallón le da masa visual sin meter una card grande.
+- **Highlights como pills** en lugar de bullet list. Razón: pills se leen de un vistazo en menos de 2 segundos; bullet list pide leer cada línea. Para empty states efectivos (~3-5 segundos de atención antes de que el user decida si actuar), las pills ganan.
+- **Meta `intent: 'cost'`** como mecanismo nuevo. Centraliza el cue de coste en una sola convención reutilizable; cualquier futuro empty state con CTA billable lo recibe sin reinventar copy.
+- **Copy en gerundio para los estados activos** ("Transcribiendo…", "Analizando…"). En vez de "Transcripción en proceso" + descripción larga, el gerundio comunica acción inmediata. La descripción se queda para el "qué hacer mientras".
+- **`secondaryHint` como texto plano**, no botón. El reproductor ya está visible arriba; el hint solo necesita señalarlo. Convertirlo en botón duplica la acción que ya está en el header del modal.
+
+**Descartado**:
+- **Banner con icono grande + título XL al estilo "Welcome empty state"** que la skill taste-skill sugeriría a DESIGN_VARIANCE 8. Razón: el modal vive dentro de un dashboard denso; un banner grande rompe la jerarquía local. La skill defaults (8/6/4) hay que adaptarlos a 4/4/4 para Memory.
+- **Skeleton loader** en el isProcessing. Loader2 spinning ya comunica "in progress" y los skeletons piden conocer la forma del contenido (líneas de transcript), que no tenemos a mano. Spinner es honesto.
+- **Onboarding tour** o tooltips contextuales en el empty state. Demasiado para un dashboard interno usado por supervisores que ya conocen el sistema.
+- **Acción "Solicitar transcripción + análisis en una pasada"** desde el empty del análisis. El bulk modal ya cubre ese flujo combinado; aquí mantenemos las dos solicitudes atómicas para que el progreso sea claro.
+
+**Pendiente**: ninguno nuevo.
+
+**Notas para próxima sesión**:
+- La API nueva del `EmptyState` (`highlights`, `meta`, `secondaryHint`) es candidata a extraerse a `src/app/components/ui/EmptyState.tsx` y reutilizarse en otras vistas (Repository sin reglas, Conversaciones con filtros vacíos). Mover cuando aparezca el segundo callsite, no antes — premature abstraction.
+- Política copy del proyecto (consolidar en notas estables): **gerundio para estados activos**, **conversacional para títulos**, **descripción explica el "por qué" antes que el "cómo"**, **highlights como pills triple-eje** (qué pasa / qué desbloquea / qué cuesta).
+- `meta.intent: 'cost'` usa `text-sc-cost-warn` (#D97706 amber). Si en el futuro el DS introduce más intents (warn, info, danger), añadirlos al type union antes de tener que parchearlos.

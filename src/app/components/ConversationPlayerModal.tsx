@@ -419,9 +419,9 @@ function TranscriptionTab({
   if (isProcessing) {
     return (
       <EmptyState
-        icon={<Loader2 size={28} className="animate-spin text-sc-accent" />}
-        title="Transcripción en proceso"
-        description="La transcripción se está generando. Estará disponible en breve."
+        icon={<Loader2 size={22} className="animate-spin" />}
+        title="Transcribiendo…"
+        description="Estamos generando la transcripción. Puedes seguir escuchando el audio mientras tanto."
       />
     );
   }
@@ -429,9 +429,9 @@ function TranscriptionTab({
   if (!conversation.hasRecording && conversation.channel === "llamada") {
     return (
       <EmptyState
-        icon={<FileX size={28} className="text-sc-muted" />}
-        title="Sin grabación disponible"
-        description="Esta conversación no tiene grabación de audio asociada."
+        icon={<FileX size={22} />}
+        title="No hay grabación de esta llamada"
+        description="Sin audio no podemos transcribir. Revisa las reglas de grabación si esperabas que esta llamada se hubiese guardado."
       />
     );
   }
@@ -439,13 +439,10 @@ function TranscriptionTab({
   if (!conversation.hasTranscription) {
     return (
       <EmptyState
-        icon={<FileText size={28} className="text-sc-muted" />}
-        title="Sin transcripción disponible"
-        description={
-          conversation.channel === "chat"
-            ? "Este chat aún no se ha procesado para extraer texto estructurado."
-            : "Esta grabación no ha sido transcrita. Puedes solicitarla individualmente."
-        }
+        icon={<FileText size={22} />}
+        title="Esta llamada todavía no se ha transcrito"
+        description="Solicita la transcripción para activar la búsqueda dentro del audio y desbloquear el resumen y el sentimiento por IA."
+        highlights={["Búsqueda en el audio", "Resumen IA", "Sentimiento"]}
         action={{
           label: requesting ? "Solicitando…" : "Solicitar transcripción",
           icon: requesting ? (
@@ -456,6 +453,8 @@ function TranscriptionTab({
           onClick: onRequest,
           disabled: requesting,
         }}
+        meta={{ text: "Genera coste · tarda unos segundos", intent: "cost" }}
+        secondaryHint="Mientras tanto, puedes reproducir el audio."
       />
     );
   }
@@ -463,9 +462,9 @@ function TranscriptionTab({
   if (!conversation.transcription || conversation.transcription.length === 0) {
     return (
       <EmptyState
-        icon={<FileText size={28} className="text-sc-muted" />}
+        icon={<FileText size={22} />}
         title="Transcripción vacía"
-        description="No hay líneas de transcripción para mostrar."
+        description="El procesado terminó sin extraer líneas de diálogo. Suele pasar con audios muy cortos o con silencios largos."
       />
     );
   }
@@ -599,9 +598,9 @@ function AnalysisTab({
   if (isAnalyzing && !conversation.hasAnalysis) {
     return (
       <EmptyState
-        icon={<Loader2 size={28} className="animate-spin text-sc-accent" />}
-        title="Análisis en proceso"
-        description="Estamos generando el análisis IA. Estará disponible en breve."
+        icon={<Loader2 size={22} className="animate-spin" />}
+        title="Analizando…"
+        description="Generamos el resumen y el sentimiento a partir de la transcripción. Tarda unos segundos."
       />
     );
   }
@@ -610,17 +609,18 @@ function AnalysisTab({
     if (!canRequest) {
       return (
         <EmptyState
-          icon={<Sparkles size={28} className="text-sc-muted" />}
-          title="Análisis no disponible"
-          description="Necesitas transcribir esta llamada antes de poder analizarla."
+          icon={<Sparkles size={22} />}
+          title="Primero transcribe la llamada"
+          description="El análisis se construye sobre el texto. En cuanto la transcripción esté lista, podrás generar el resumen y el sentimiento desde aquí."
         />
       );
     }
     return (
       <EmptyState
-        icon={<Sparkles size={28} className="text-sc-muted" />}
-        title="Sin análisis disponible"
-        description="Aún no se ha generado análisis IA para esta conversación. Puedes solicitarlo individualmente."
+        icon={<Sparkles size={22} />}
+        title="Lista para analizar con IA"
+        description="Solicita el análisis para obtener un resumen accionable y la valoración de sentimiento de esta conversación."
+        highlights={["Resumen", "Sentimiento"]}
         action={{
           label: requesting ? "Solicitando…" : "Solicitar análisis",
           icon: requesting ? (
@@ -631,6 +631,7 @@ function AnalysisTab({
           onClick: onRequest,
           disabled: requesting,
         }}
+        meta={{ text: "Genera coste · tarda unos segundos", intent: "cost" }}
       />
     );
   }
@@ -696,43 +697,100 @@ function EmptyState({
   icon,
   title,
   description,
+  highlights,
+  meta,
   action,
+  secondaryHint,
 }: {
   icon: React.ReactNode;
   title: string;
   description: string;
+  /** Optional value-prop list rendered as horizontal pills under
+   *  the description. Each pill is one short noun phrase
+   *  (e.g. "Búsqueda en el audio", "Resumen IA"). Use to teach
+   *  users WHAT activating this state unlocks. */
+  highlights?: string[];
+  /** Optional small line under the action (e.g. cost cue,
+   *  expected duration). Surfaced in `text-sc-cost-warn` if it
+   *  signals a billable side-effect. */
+  meta?: { text: string; intent?: "info" | "cost" };
   action?: {
     label: string;
     icon: React.ReactNode;
     onClick: () => void;
     disabled?: boolean;
   };
+  /** Optional secondary affordance under the primary action
+   *  (e.g. "Mientras tanto, puedes escuchar el audio"). Plain text
+   *  hint, no button. */
+  secondaryHint?: string;
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-[var(--sc-space-300)] px-[var(--sc-space-600)] text-center">
-      {icon}
+    <div className="flex flex-1 flex-col items-center justify-center gap-[var(--sc-space-400)] px-[var(--sc-space-600)] py-[var(--sc-space-500)] text-center">
+      {/* Icon medallion — soft surface tint anchors the empty state
+          without resorting to a heavy filled tile. */}
+      <span className="flex size-12 items-center justify-center rounded-full bg-sc-surface-muted text-sc-accent-strong ring-1 ring-sc-border-soft">
+        {icon}
+      </span>
+
       <div className="flex flex-col gap-[var(--sc-space-100)]">
-        <p className="text-sc-md font-medium text-sc-heading">{title}</p>
-        <p className="max-w-sm text-sc-sm text-sc-muted">{description}</p>
+        <p className="text-sc-md font-medium leading-[var(--sc-line-height-md)] text-sc-heading">
+          {title}
+        </p>
+        <p className="mx-auto max-w-[42ch] text-sc-sm leading-[var(--sc-line-height-body2)] text-sc-body">
+          {description}
+        </p>
       </div>
+
+      {highlights && highlights.length > 0 && (
+        <ul className="flex flex-wrap items-center justify-center gap-1.5">
+          {highlights.map((h) => (
+            <li
+              key={h}
+              className="inline-flex items-center gap-1.5 rounded-full border border-sc-border-soft bg-sc-surface px-2.5 py-1 text-sc-xs font-medium text-sc-body"
+            >
+              <span className="size-1 rounded-full bg-sc-accent-strong" aria-hidden />
+              {h}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {action && (
-        <button
-          type="button"
-          onClick={action.onClick}
-          disabled={action.disabled}
-          /* See note above: font-size via style to bypass twMerge
-             collapsing `text-sc-sm` and `text-sc-accent-strong`. */
-          style={{ fontSize: "var(--sc-font-size-sm)" }}
-          className={cn(
-            "mt-1 inline-flex items-center gap-2 rounded-sc-md border border-sc-accent bg-sc-accent-soft px-4 py-2",
-            "font-medium text-sc-accent-strong transition-colors",
-            "hover:bg-sc-accent hover:text-sc-on-primary",
-            "disabled:cursor-not-allowed disabled:opacity-60",
+        <div className="mt-1 flex flex-col items-center gap-1.5">
+          <button
+            type="button"
+            onClick={action.onClick}
+            disabled={action.disabled}
+            /* font-size via style to bypass twMerge color/size collision. */
+            style={{ fontSize: "var(--sc-font-size-sm)" }}
+            className={cn(
+              "inline-flex items-center gap-2 rounded-sc-md border border-sc-accent bg-sc-accent-soft px-4 py-2",
+              "font-medium text-sc-accent-strong transition-all",
+              "hover:bg-sc-accent hover:text-sc-on-primary",
+              "active:scale-[0.98] disabled:active:scale-100",
+              "disabled:cursor-not-allowed disabled:opacity-60",
+              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface",
+            )}
+          >
+            {action.icon}
+            {action.label}
+          </button>
+          {meta && (
+            <span
+              className={cn(
+                "text-sc-xs",
+                meta.intent === "cost" ? "text-sc-cost-warn" : "text-sc-muted",
+              )}
+            >
+              {meta.text}
+            </span>
           )}
-        >
-          {action.icon}
-          {action.label}
-        </button>
+        </div>
+      )}
+
+      {secondaryHint && (
+        <p className="text-sc-xs text-sc-muted">{secondaryHint}</p>
       )}
     </div>
   );
