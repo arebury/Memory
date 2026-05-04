@@ -298,9 +298,7 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
               ¿Eliminar {entityToDelete?.name}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {/* TODO: Check if used in rules and display warning */}
-              Esta acción eliminará la entidad permanentemente. 
-              {/* Mock warning about usage */}
+              Esta acción eliminará la entidad permanentemente.
               <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md text-yellow-800 text-xs">
                 <span className="font-bold">Nota:</span> Si esta entidad está siendo usada en reglas activas, dejará de extraerse.
               </div>

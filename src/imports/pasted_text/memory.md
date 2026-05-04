@@ -1520,7 +1520,7 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 ### Pendiente
 
-- Migrar al `<Modal>` shell SC los modales legacy: `TranscriptionRequestModal`, `DiarizationRequestModal`, `RetranscriptionConfirmModal`, `PlayerModal` (legacy oscuro), `RuleSelectionModal`, `CreateEntityModal`, `DeleteCategoryDialog`. (P1)
+- Migrar al `<Modal>` shell SC los modales legacy todavía pendientes: `CreateEntityModal`, `DeleteCategoryDialog`. (`TranscriptionRequestModal` y `RetranscriptionConfirmModal` migrados en 15.23. `DiarizationRequestModal`, `PlayerModal` legacy y `RuleSelectionModal` borrados — el primero en 15.23 como concepto deprecado, los otros dos en 15.26 como dead code.) (P1)
 - Consolidar los tres tonos de navy en circulación (`#1B273D` / `#1C283D` / `#233155`) en el token canónico `--sc-navy-600`. (P1)
 - Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS. (P2)
 - Audio real en `ConversationPlayerModal` (hoy reproducción simulada con `setInterval`). El `PlayerModal` legacy queda muerto en el repo — borrar cuando todos los callers se hayan movido al nuevo. (P1)
@@ -1537,6 +1537,14 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
+- Reemplazar `alert()` de `handleDownload` (`ConversationsView.tsx:249-251`) por `scToast.info` o cablear a download real. (P3)
+- Wire del link "Cómo funcionan las reglas" en `Repository.tsx:299` — hoy `window.open("#", ...)`. Apuntar a docs reales o reusar la URL de Figma site del help button. (P2)
+- Wire o eliminar el botón Search decorativo en `ConversationFilters.tsx:91-95` — los filtros se aplican en `onChange` así que el botón no hace nada. (P3)
+- Eliminar `Conversation.hasDiarization` del modelo y de los presets (`mockData.ts`, `mockSamples.ts`) — la diarización es concepto deprecado (15.23) pero el campo persiste. Pasada de schema cleanup. (P3)
+- Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
+- Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
+- 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled aun con aria-label "Próximamente: …"). (P3)
+- ~22 archivos shadcn primitives en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). Mantenidos como kit reutilizable; auditar si una pasada de bundle-size lo requiere o si un feature concreto los necesita. (P3)
 
 ### Decisiones del audit 15.18 — estado actual
 
@@ -2418,3 +2426,76 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - Probar el flujo "Conversaciones multi-grabación": click en una fila con badge (4) → abre player → se ve `<RecordingPicker>` arriba → click → dropdown dark con las 4 grabaciones → seleccionar una → audio bar refleja la duración nueva.
 - Para A4/A5: verificar que cuando hay filas en proceso, el "select all" del header **no** las incluye (toggleAll opera solo sobre selectableConvs).
 - Para A6: simular un error desde `handleBulkConfirm` (por ejemplo `throw new Error("...")` antes del setTimeout) para ver el banner inline de error y comprobar que el modal queda abierto.
+
+### 15.26 · 2026-05-04 · Claude Code · audit cleanup · dead code purge + Sidebar a11y + AUDIT_REPORT.md
+
+**Hecho**:
+- **Auditoría completa Code+UX+UI** sobre todo `src/` con tags estandarizados (CODE: DEAD_CODE / UNUSED_IMPORT / UNUSED_VAR / UNUSED_COMPONENT / UNUSED_TOKEN / DUPLICATE / MAGIC_VALUE / COMPLEXITY / TODO_ORPHAN / COMMENTED_CODE; UX: MISSING_STATE / BROKEN_FLOW / INCONSISTENT_BEHAVIOR / MISSING_FEEDBACK / OVERFLOW_RISK / MODAL_TRAP / FORM_GAP / RULE_VIOLATION; UI: TOKEN_BYPASS / SPACING_INCONSISTENCY / RADIUS_MISMATCH / SHADOW_MISMATCH / DARK_MODE_GAP / CONTRAST_FAIL / MISSING_A11Y / TOUCH_TARGET / FONT_VIOLATION / ANIMATION_RISK). Reporte completo en `AUDIT_REPORT.md` (raíz). archivos: `AUDIT_REPORT.md`.
+- **Phase 1 · safe removals**:
+  - `Sidebar.tsx`: removed unused imports `Home`, `FileText`, `ArrowUpRight` de lucide-react. archivos: `src/app/components/Sidebar.tsx`.
+  - `EntityManagement.tsx`: borrado el comment `{/* TODO: Check if used in rules and display warning */}` (TODO orphan sin owner) y el comment hermano `{/* Mock warning about usage */}`. archivos: `src/app/components/EntityManagement.tsx`.
+- **Phase 2 · dead code purge** (zero importers verified vía `grep -rE`):
+  - Borrado: `src/app/components/ApplyRulesButton.tsx` (157 líneas, sustituido hace tiempo por `BulkTranscriptionModal`).
+  - Borrado: `src/app/components/RuleSelectionModal.tsx` (282 líneas, sólo lo importaba `ApplyRulesButton`).
+  - Borrado: `src/app/components/ConversationTypeFilters.tsx` (183 líneas, sustituido por `TypeFilterPanel`+`TypeFilterButton`).
+  - Borrado: `src/app/components/EntityResults.tsx` (~140 líneas).
+  - Borrado: leftover Figma Make exports en `src/app/imports/`: `Container.tsx`, `Container-4137-2200.tsx`, `Frame892.tsx`, `Frame892-6004-9029.tsx`, `Group1.tsx`, `Group1-4130-808.tsx` y los 7 `svg-*.ts` que solo ellos consumían (`svg-rules-icon`, `svg-4o4ubnq2lw`, `svg-9g7mphu0h7`, `svg-kfes9f4ja4`, `svg-ogve5xtgww`, `svg-w9xvvuth13`, `svg-ys09cyf8ya`). El único `svg-*` que sobrevive es `svg-hka34i4qsi.ts` que sí consume `ScLogo.tsx`.
+  - Borrado: `src/app/imports/pasted_text/bulk-transcription-modal.tsx` y `bulk-transcription-modal-1.tsx` — eran **spec docs** shipados en formato `.tsx` (con `# headers` markdown dentro de comments JSX). Cero importers, cero render path. Los `.md` siblings (`bulk-transcription-modal.md`, `rule-constructor-update.md`, `rule-constructor-update-1.md`) se mantienen — son referencia textual.
+- **Phase 3 · token consistency**: **skipped intencionalmente**. Los hex literales en `Sidebar.tsx`, `ConversationsView.tsx`, `ConversationTable.tsx`, `ConversationFilters.tsx` (~80 ocurrencias entre los 4) están explícitamente en el roadmap como dos sweeps dedicados (sec 17 P1 "Consolidar los tres tonos navy" + P2 "Hex literales pendientes en ConversationTable y ConversationsView"). Tocarlos en este audit hubiera duplicado trabajo y arriesgado regresiones visuales sin coordinación con el siguiente impeccable pass.
+- **Phase 4 · a11y mechanical wins**:
+  - `Sidebar.tsx`: cada uno de los 10 botones del menú (icon-only) ahora lleva `aria-label`. Los activos (`MessageSquare`/`FolderOpen`) usan el nombre de la vista ("Conversaciones", "Repositorio") + `aria-current="page"`. Los disabled usan "Próximamente: dashboard | búsqueda | analítica | llamadas | usuarios | herramientas | configuración | historial". Antes los screen readers anunciaban "button" sin contexto. archivos: `src/app/components/Sidebar.tsx`.
+- **shadcn ui primitives mantenidos con `@audit-flag` conceptual**: ~22 archivos en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). NO se borran porque son boilerplate del kit shadcn — futuras features pueden necesitarlos y el coste de re-instalar > el coste de retenerlos. Documentado en `AUDIT_REPORT.md`.
+
+**Decidido**:
+- **No tocar `mockData.ts` ni `mockSamples.ts` por la presencia de `hasDiarization`**. memory.md sec 15.23 dice "diarización eliminada del producto entero", pero el campo persiste en el modelo `Conversation`. La instrucción del audit prohíbe explícitamente cambiar mock-data structure. Marcado como `[RULE_VIOLATION]` en el reporte; cuando llegue backend real, eliminar el campo del modelo y de los presets en una pasada coordinada.
+- **No remover `IconChat` de `StatusIcons.tsx`** aunque memory.md 15.13 lo declara dead code (la invariante `chats siempre transcritos` lo hace inalcanzable). Sigue como defensa documentada — borrar sólo cuando la invariante se solidifique en backend real.
+- **No tocar la migración hex→tokens en este pass**. Roadmap items P1/P2 son dedicados; mezclarlos con la limpieza de dead code hubiera contaminado el diff y dificultado revisión.
+- **El "Cómo funcionan las reglas" link en `Repository.tsx:294-313`** apunta a `#` — `[BROKEN_FLOW]` real. NO se reemplaza en este audit (decisión de URL pertenece al equipo). Reportado.
+- **`alert()` en `handleDownload` (`ConversationsView.tsx:249`)** sigue usando alert nativo en lugar de `scToast`. NO se cambia: la decisión "wire to scToast vs wire to real download endpoint" es un product call (P3 en sec 17 nuevo).
+
+**Pendiente** (añadidos a sec 17):
+- Reemplazar `alert()` de `handleDownload` por `scToast.info` o wire a download real (ver `ConversationsView.tsx:249`). (P3)
+- Reemplazar el `console.log("download", id)` placeholder de `ConversationPlayerModal.tsx:425` cuando exista endpoint de exportación real. (P1, ya implícito en sec 17 "audio real / exportación")
+- Wire del link "Cómo funcionan las reglas" (`Repository.tsx:299`) — hoy `window.open("#", ...)`. (P2)
+- Wire del botón Search (`ConversationFilters.tsx:91-95`) sin `onClick` — los filtros se aplican en `onChange` de los inputs, así que el botón es decorativo. Decidir: o quitar el botón o dispararlo manualmente (P3).
+- Eliminar `Conversation.hasDiarization` del modelo + de todos los presets en `mockSamples.ts`/`mockData.ts` cuando se haga pasada de schema cleanup. (P3)
+- Resolver discusión sobre **`<Sparkles>` como icono de tab** en `ConversationPlayerModal.tsx:389`. memory.md 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'", pero el tab Análisis lo usa. Estricto vs práctico — flagged en reporte. (P3)
+- Añadir `@media (prefers-reduced-motion: reduce)` fallback para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
+- 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled). (P3)
+
+**Notas para próxima sesión**:
+- **Reporte completo**: ver `AUDIT_REPORT.md` en raíz del repo. Resumen final: 84 findings, 16 fixes aplicados, 0 `@audit-flag` añadidos como comments en código (los shadcn primitives se documentan en el reporte en lugar de ensuciar 22 archivos con headers).
+- **Borrados esta sesión** (lista completa para searches futuras): ApplyRulesButton.tsx, RuleSelectionModal.tsx, ConversationTypeFilters.tsx, EntityResults.tsx, Container*.tsx (×2), Frame892*.tsx (×2), Group1*.tsx (×2), svg-{rules-icon,4o4ubnq2lw,9g7mphu0h7,kfes9f4ja4,ogve5xtgww,w9xvvuth13,ys09cyf8ya}.ts (×7), pasted_text/bulk-transcription-modal{,-1}.tsx (×2). Total: 19 archivos.
+- **No se ejecutó `tsc --noEmit`**: no existe `tsconfig.json` (ya en sec 17 como item P2 "Añadir tsconfig.json"). Las verificaciones se hicieron por inspección manual + `grep -rE` para confirmar zero references antes de cada delete. La build de Vite/esbuild seguirá compilando porque sólo se borraron archivos sin importers.
+- **No se corrió `pnpm build/dev`**: per instrucción explícita "Don't run npm run dev or any build (sandbox issues)". La verificación real se hace en el deploy de Netlify al pushear.
+- **Guidelines.md de la skill**: el audit aplicado es un Code+UX+UI sweep en una pasada — documenta el patrón en `AUDIT_REPORT.md`. Próximas auditorías similares pueden reutilizar el formato + tabla de tags.
+
+### 15.27 · 2026-05-04 · Claude Code · /impeccable craft · empty states + multi-recording timeline
+
+**Hecho**:
+- **Empty states del player rediseñados** — el patrón antiguo `<EmptyState>` (medallón centrado + 3 pills + CTA + meta) se descarta por "AI Slop". Sustituido por una familia de 3 componentes específicos:
+  - `<DecisionState>`: split 60/40. Izquierda = preview enmascarado (skeleton de bubbles o de summary card) que muestra la forma del entregable. Derecha = card vertical con título + descripción + CTA + coste inline (punto + texto `text-sc-cost-warn`). Usado en "Sin transcripción", "Lista para analizar", "Pendiente de transcribir y analizar".
+  - `<ProcessingState>`: misma arquitectura split, preview con `animate-sc-pulse` shimmer, lado derecho = Loader + título + caption. Sin CTA. Usado en "Transcribiendo", "Analizando".
+  - `<TerminalNote>`: centrado simple text-only para estados sin acción. Usado en "No hay grabación", "Transcripción vacía".
+  - Tres skeletons compartidos: `<TranscriptSkeleton>` (3 bubbles alternando lado, mismo shape que la transcripción real), `<AnalysisSkeleton>` (resumen + sentimiento card), `<CombinedSkeleton>` (transcript + análisis stacked) para el caso "transcribir y analizar en un paso".
+  archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Multi-recording: dropdown reemplazado por timeline inline** — `<RecordingTimeline>` sustituye al antiguo `<RecordingPicker>` (mismo archivo, export renombrado). Todas las grabaciones son visibles inline como cards horizontales sobre el audio bar. Cada card: header (Tramo N + chip play cuando seleccionado), label del leg (truncate), duration bar relativa (width = duración tramo / duración del más largo) + duration text. Selected: `border-sc-info-strong` + `bg-sc-info-soft` + `shadow-sc-sm` + chip play azul. Hover: borde más fuerte + sombra + play icon revealed (group-hover). Header de la sección: contador + "transferencias entre grupos vía IVR" + "Reproduciendo X de Y". Para 5+ grabaciones: scroll horizontal con `modal-scrollbar`. archivos: `src/app/components/RecordingPicker.tsx`.
+- **Wireado en player**: import actualizado a `RecordingTimeline`. El bloque previo con banner+dropdown se reemplaza por `<RecordingTimeline>` directo. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Microcopy ajustado**: "Esta conversación todavía no se ha transcrito" → "Sin transcripción". Coste pasa de "Genera coste · tarda unos segundos" → variante específica por contexto: "Genera coste · ~30 s" / "Genera coste · ~10 s" / "Genera coste · transcripción + análisis".
+
+**Decidido**:
+- **Skeletons informan, pills no.** Las pills ("Búsqueda en el audio", "Resumen IA", "Sentimiento") se procesaban como decoración. El skeleton mismo enseña la forma — el supervisor ve bubbles izquierda/derecha = "vas a tener una conversación diarizada" sin tener que leer una pill. Pills eliminadas.
+- **Coste inline al lado del CTA, no como footnote.** Punto · texto amber. Pequeño, pero junto al click — imposible de ignorar antes de pulsar.
+- **No medallón con icono.** Esa fingerprint AI fuera. Para terminal states sí queda un icono pequeño centrado, pero al peso de un caption (`text-sc-muted`), no como hero.
+- **Cards inline, no dropdown** para multi-recording. La duration bar relativa permite leer la forma de la conversación de un vistazo: tramo IVR corto, tramo largo de soporte. Mejor que números en un dropdown.
+- **`role="radiogroup"` + `role="radio"`** en cada card. Selección semántica correcta para teclado.
+- **`<RecordingPicker>` queda como nombre de archivo** pero exporta `RecordingTimeline`. Cambiar el nombre del archivo requeriría actualizar imports sin valor real; `git log` traza la historia.
+
+**Pendiente** (no añadidos a sec 17 — son nice-to-have, no bloqueantes):
+- Scroll-fade shadow left/right en el rail de RecordingTimeline cuando hay 5+ items y el scroll está en posición intermedia. (P3)
+- Connector visual explícito entre el card seleccionado y el audio bar (línea o triangle pointer). Hoy la proximidad + el header "Reproduciendo X de Y" basta. (P3)
+
+**Notas para próxima sesión**:
+- **Probar visualmente**: estado mixto → click conv sin transcripción → ver "Sin transcripción" con skeleton de bubbles izquierda + card decision derecha. Click "Transcribir" → ver ProcessingState con shimmer. Resultado: chat bubbles reales.
+- **Probar multi-rec**: sample "Conversaciones multi-grabación" → click conv con badge → ver el timeline con N tramos visibles, tramo 1 seleccionado (border azul + chip play). Click otro tramo → audio bar refleja nueva duración.
+- **TypeScript**: este proyecto NO tiene `typescript` instalado como dep ni `tsconfig.json`. Las "verificaciones tsc" anteriores fueron no-ops silenciosos. Sigue como item P2 en sec 17. Hasta entonces, la build de Vite es la única verificación real (Netlify auto-deploy).

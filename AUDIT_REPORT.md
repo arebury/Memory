@@ -1,0 +1,221 @@
+# Audit report — 2026-05-04
+
+> Auditor: Claude Code (Opus 4.7) · Roles: Code Engineer + UX Engineer + UI Developer
+> Scope: `src/**/*.{tsx,ts,css}` (read-only + bounded cleanup per Phases 1-5)
+> Out of scope (flag-only): `ConversationPlayerModal.tsx` empty-state branches, `RecordingPicker.tsx`, multi-recording row of `ConversationPlayerModal.tsx`
+
+## Summary table
+
+| File | Code | UX | UI | Top severity |
+|---|---|---|---|---|
+| `src/app/components/Sidebar.tsx` | UNUSED_IMPORT (3) | MISSING_A11Y, BROKEN_FLOW (8 dead nav buttons) | TOKEN_BYPASS (5 hex) | 🟠 |
+| `src/app/components/ConversationsView.tsx` | DEAD_CODE (commented filter), UNUSED_VAR (`showCategoryFilter`) | RULE_VIOLATION (commented-out filter) | TOKEN_BYPASS (~22 hex) | 🟡 |
+| `src/app/components/ConversationTable.tsx` | — | — | TOKEN_BYPASS (~30 hex) | 🟡 |
+| `src/app/components/ConversationFilters.tsx` | — | — | TOKEN_BYPASS (~14 hex) | 🟡 |
+| `src/app/components/ConversationPlayerModal.tsx` | UNUSED_IMPORT (`Search` reused fine; verified) | MISSING_FEEDBACK (download `console.log` only) | OUT_OF_SCOPE for empty states | 🟢 |
+| `src/app/components/BulkTranscriptionModal.tsx` | — | — | — (clean) | 🟢 |
+| `src/app/components/StatusIcons.tsx` | DEAD_CODE flagged in 15.13 (`IconChat` is unreachable now) | — | — | 🟢 |
+| `src/app/components/Repository.tsx` | UNUSED_IMPORT (`ArrowUpRight` only via subtree; verified) | BROKEN_FLOW (`Cómo funcionan las reglas` link → `#`) | — | 🟡 |
+| `src/app/components/ApplyRulesButton.tsx` | UNUSED_COMPONENT (whole file) | — | TOKEN_BYPASS | 🟠 |
+| `src/app/components/RuleSelectionModal.tsx` | UNUSED_COMPONENT (only used by `ApplyRulesButton`) | — | — | 🟠 |
+| `src/app/components/ConversationTypeFilters.tsx` | UNUSED_COMPONENT (whole file) | — | — | 🟠 |
+| `src/app/components/EntityResults.tsx` | UNUSED_COMPONENT (whole file) | — | — | 🟠 |
+| `src/app/imports/Container.tsx` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/Container-4137-2200.tsx` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/Frame892.tsx` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/Frame892-6004-9029.tsx` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/Group1.tsx` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/Group1-4130-808.tsx` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/svg-rules-icon.ts` | DEAD_CODE | — | — | 🟠 |
+| `src/app/imports/svg-{4o4ubnq2lw,9g7mphu0h7,kfes9f4ja4,ogve5xtgww,w9xvvuth13,ys09cyf8ya}.ts` | DEAD_CODE (transitively orphaned) | — | — | 🟠 |
+| `src/app/imports/pasted_text/bulk-transcription-modal.tsx` | DEAD_CODE (spec doc shipped as .tsx) | RULE_VIOLATION (mentions deprecated diarización) | — | 🟡 |
+| `src/app/imports/pasted_text/bulk-transcription-modal-1.tsx` | DEAD_CODE (idem) | — | — | 🟡 |
+| `src/app/components/ui/{accordion,aspect-ratio,carousel,chart,...}.tsx` | UNUSED_COMPONENT × ~22 (shadcn boilerplate) | — | — | 🟡 (kept) |
+| `src/app/components/ApplyRulesButton.tsx` (line 150) | TODO_ORPHAN (`console.log "Navigating…"`) | — | — | 🟡 |
+| `src/app/components/EntityManagement.tsx` (line 301) | TODO_ORPHAN (`{/* TODO: Check if used in rules */}`) | — | — | 🟢 |
+| `src/app/data/mockData.ts` | RULE_VIOLATION (`hasDiarization` field still present) | — | — | 🟡 (data structure — flag-only) |
+| `src/app/data/mockSamples.ts` | RULE_VIOLATION (sets `hasDiarization`) | — | — | 🟡 (idem) |
+| `src/app/components/ConversationPlayerModal.tsx` line 425 | MAGIC_VALUE (`console.log("download", id)`) — mock placeholder | MISSING_FEEDBACK (download does nothing) | — | 🟡 |
+| `src/styles/sc-design-system.css` | — | — | UNUSED_TOKEN (`--sc-success-500`, `--sc-warning-500`, `--sc-danger-500`) | 🟢 |
+
+Severity legend: 🔴 P0 (blocking) · 🟠 P1 (visible / DX) · 🟡 P2 (consistency) · 🟢 P3 (nice-to-have)
+
+---
+
+## Detailed findings
+
+### CODE
+
+**`src/app/components/Sidebar.tsx:1`** | `[UNUSED_IMPORT]` | `Home`, `FileText`, `ArrowUpRight` imported from `lucide-react`, never used in this file. | Remove from import statement. | 🟢
+
+**`src/app/components/ConversationsView.tsx:411`** | `[UNUSED_VAR]` (related to `[DEAD_CODE]` line 496) | `showCategoryFilter` is computed but only used inside `{false && showCategoryFilter && (...)}` — the dead branch flagged in memory.md sec 13.3. | Roadmap item P2 (sec 17 — re-enable filter or remove). Out of cleanup scope (deletion would also need to remove `availableCategories`, `selectedCategories`, `isCategoryFilterPanelOpen`, `CategoryFilterButton`, `CategoryFilterPanel` imports — bigger surgery). Flag only. | 🟡
+
+**`src/app/components/ConversationsView.tsx:496-512`** | `[COMMENTED_CODE]` / `[DEAD_CODE]` | `{false && showCategoryFilter && (<div>…</div>)}` is the disabled categories filter (memory.md 13.3 quirk). | Per memory.md, intentional and listed in roadmap (sec 17 P2). Keep as-is. Flag only. | 🟡
+
+**`src/app/components/ApplyRulesButton.tsx`** (whole file, 157 lines) | `[UNUSED_COMPONENT]` | Verified zero importers (`grep -rEn "ApplyRulesButton"` returns only this file + a `pasted_text/*` doc). Was likely replaced by `BulkTranscriptionModal` flow. Imports `RuleSelectionModal` (which is also orphan). | Phase 2 deletion candidate. Verify no JSX-as-string usage. | 🟠
+
+**`src/app/components/RuleSelectionModal.tsx`** (whole file, 282 lines) | `[UNUSED_COMPONENT]` | Only imported by `ApplyRulesButton` (also orphan). Cascading dead code. | Phase 2 deletion candidate (after `ApplyRulesButton`). | 🟠
+
+**`src/app/components/ApplyRulesButton.tsx:150`** | `[TODO_ORPHAN]` / `[COMMENTED_CODE]` | `console.log(\`Navigating to create rule: ${type}\`);` + nearby comment "Mock navigation". | Delete (already in unused file). | 🟡
+
+**`src/app/components/ConversationTypeFilters.tsx`** (whole file, 183 lines) | `[UNUSED_COMPONENT]` | Verified: `grep` shows only the file itself defines it. Replaced by `TypeFilterPanel` + `TypeFilterButton`. | Phase 2 deletion candidate. | 🟠
+
+**`src/app/components/EntityResults.tsx`** (whole file, ~140 lines) | `[UNUSED_COMPONENT]` | Verified zero importers. | Phase 2 deletion candidate. | 🟠
+
+**`src/app/components/EntityManagement.tsx:301`** | `[TODO_ORPHAN]` | `{/* TODO: Check if used in rules and display warning */}` — bare TODO with no owner / ticket. | Delete the comment (the warning logic, if needed, is roadmap material — not a TODO blocker). | 🟢
+
+**`src/app/components/ConversationPlayerModal.tsx:421-425`** | `[MAGIC_VALUE]` (mock placeholder) | Inline `console.log("download", conversation.id)` for the download button — wired by parent in production per comment, but no real export endpoint yet. | Already has `eslint-disable-next-line no-console` annotation and roadmap item (P1 in sec 17 "audio real / exportación"). Keep, flag only. | 🟡
+
+**`src/app/imports/Container.tsx`** | `[DEAD_CODE]` | Imports `svg-ogve5xtgww` and exports `Container` — verified zero external importers. Looks like a Figma Make export of an old layout. | Phase 2 deletion candidate. | 🟠
+
+**`src/app/imports/Container-4137-2200.tsx`** | `[DEAD_CODE]` | Idem — defines a `RuleQuickViewPanel` local component (different from the active one in `components/`). Zero external importers. | Phase 2 deletion candidate. | 🟠
+
+**`src/app/imports/Frame892.tsx`**, **`Frame892-6004-9029.tsx`** | `[DEAD_CODE]` | Same pattern (Figma Make exports). Zero external importers. | Phase 2. | 🟠
+
+**`src/app/imports/Group1.tsx`**, **`Group1-4130-808.tsx`** | `[DEAD_CODE]` | Define a local `Breadcrumbs` (shadowed by the active one in `components/Breadcrumbs.tsx`). Zero external importers. | Phase 2. | 🟠
+
+**`src/app/imports/svg-{4o4ubnq2lw,9g7mphu0h7,kfes9f4ja4,ogve5xtgww,w9xvvuth13,ys09cyf8ya}.ts`** | `[DEAD_CODE]` | Each is imported by exactly one of the dead Container/Frame/Group files. Once those go, these orphan transitively. | Phase 2 (delete after the parents). | 🟠
+
+**`src/app/imports/svg-rules-icon.ts`** | `[DEAD_CODE]` | Zero importers. | Phase 2. | 🟠
+
+**`src/app/imports/pasted_text/bulk-transcription-modal.tsx`** + **`bulk-transcription-modal-1.tsx`** | `[DEAD_CODE]` / `[RULE_VIOLATION]` | These are spec documents shipped as `.tsx` files. The first has `.md`-style instructions in JSX comments. They mention deprecated `diarización` (sec 15.23 says it's removed from product). Zero importers, zero render path. | Phase 2 deletion. The `pasted_text/memory.md` (sibling) is canon and kept. | 🟡
+
+**`src/app/components/ui/sidebar.tsx`** | already deleted (sec 15.21) — no action.
+
+**`src/app/components/ui/{accordion,alert,aspect-ratio,breadcrumb,carousel,chart,command,context-menu,drawer,form,hover-card,input-otp,menubar,navigation-menu,pagination,resizable,scroll-area-orphan,skeleton,toggle,toggle-group,use-mobile,calendar,radio-group,slider,select,sheet,...}`** | `[UNUSED_COMPONENT]` (× ~18-22) | Many shadcn primitives are imported nowhere (e.g. `accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`). | Tag with `// @audit-flag: unverified dead code (shadcn primitive)` — these are kept by convention as a reusable ui kit. Phase 2 deletion is risky because they may be imported via dynamic strings in shadcn-style code paths or expected by future features. Keep. Flag only. | 🟡
+
+**`src/app/components/StatusIcons.tsx`** (`IconChat`) | `[DEAD_CODE]` (flagged by sec 15.13 already) | `IconChat` (chat without transcription) is unreachable because the `normalizeChats` invariant forces all chats to `hasTranscription: true`. memory.md 15.13 instruction: "Dejar el componente por defensa pero marcar para borrar si la invariante se solidifica en producción." | Keep as documented defense. Flag only. | 🟢
+
+**`src/app/components/ConversationPlayerModal.tsx:11`** | `[UNUSED_IMPORT]` | Verified all imports actually used. Re-checked `Search`, `FileText`, `AlignLeft`, `Sparkles`, `FileX`, `TrendingUp`, `RotateCcw`, `RotateCw`, `Download`, `Pause`, `Play`, `Loader2`, `Phone`, `MessageSquare`. None unused. | No action. | — |
+
+**`src/app/data/mockData.ts:135`** + multiple lines | `[RULE_VIOLATION]` | `Conversation.hasDiarization?: boolean` field still in interface and mock entries (lines 168, 248, 291, ~1530+). memory.md sec 15.23: "Diarización eliminada del producto entero." memory.md sec 20.10/15.23 implies the canon is no diarization. | Keep — instructions forbid changing mock-data structure / props. Flag for the team. | 🟡
+
+**`src/app/data/mockSamples.ts:84,220`** | `[RULE_VIOLATION]` | `hasDiarization: false` in two custom samples. | Keep — mock data structure forbidden to touch. Flag. | 🟡
+
+---
+
+### UX
+
+**`src/app/components/Sidebar.tsx:11-21`** | `[BROKEN_FLOW]` | 8 of 10 sidebar buttons have `view: null` and `disabled` — only Conversations + Repository navigate. The other 8 icons (Grid, Search, BarChart3, Phone, Users, Wrench, Settings, Clock) just render dimmed and aren't clickable. | Either remove the dead icons OR mark them visually as roadmap items. Currently they sit there as decorative noise that confuses keyboard nav (8 disabled tab stops). | 🟠
+
+**`src/app/components/Sidebar.tsx:31-46`** | `[MISSING_A11Y]` | Each sidebar button is icon-only with no `aria-label`, only `disabled` for unreachable views and the icon itself for the active ones. | Add `aria-label` to each `<button>` (e.g. "Conversaciones", "Repositorio"; "Próximamente: dashboard" for disabled). Phase 4 mechanical fix. | 🟠
+
+**`src/app/components/Repository.tsx:294-313`** | `[BROKEN_FLOW]` | "Cómo funcionan las reglas" link calls `window.open("#", "_blank", ...)` — opens an empty `#` in a new tab. | Wire to a real docs URL or remove until docs exist. (Same supervisor-help URL used in `ConversationsView.tsx:579` could be reused: `https://group-image-51851861.figma.site`.) | 🟠
+
+**`src/app/components/ConversationsView.tsx:579`** | `[BROKEN_FLOW]` (mild) | Help button opens `https://group-image-51851861.figma.site` — a Figma site, not real product docs. | Acceptable for prototype; flag only. | 🟢
+
+**`src/app/components/ConversationsView.tsx:249-251`** | `[MISSING_FEEDBACK]` / `[BROKEN_FLOW]` | `handleDownload = () => alert(\`Descargando ${selectedIds.length} conversación(es)\`)` — uses native `alert()`. | Replace with `scToast.info({ title, message })` — already imported. Or wire to real download. (Roadmap P3.) | 🟠
+
+**`src/app/components/ConversationPlayerModal.tsx:421-425`** | `[MISSING_FEEDBACK]` | Download button only `console.log("download", id)`. No user-visible feedback. | Roadmap P1 (sec 17 "audio real" / "exportación"). Add a toast or wire export. Flag only. | 🟡
+
+**`src/app/components/ConversationFilters.tsx:91-95`** | `[MISSING_FEEDBACK]` | The Search button (`<Search size={15}/>` inside `Button`) has no `onClick` handler — it's a no-op. | Either wire it to trigger a re-filter (currently filters auto-apply) or remove it (filters update on change). | 🟠
+
+**`src/app/components/ConversationFilters.tsx:33-88`** | `[FORM_GAP]` | Origin/Destination text inputs have no validation; could accept arbitrary characters. | Acceptable for prototype filters — not a real form. Flag only. | 🟢
+
+**`src/app/components/ConversationsView.tsx:496`** | `[RULE_VIOLATION]` | `{false && showCategoryFilter && (...)}` — the `false &&` deliberately hides categories filter. memory.md 13.3 documents this; roadmap P2 (sec 17). | Documented decision, not a real violation. Flag only. | 🟢
+
+**`src/app/components/Sidebar.tsx`** | `[MODAL_TRAP]` not applicable | — | — | — |
+
+**`src/app/data/mockData.ts` and any code referring to `hasDiarization`** | `[RULE_VIOLATION]` | memory.md sec 15.23: "Diarización eliminada del producto entero" — but the data model still carries the field. Inactive in the UI (no toggle / no usage), but the field shape implies the concept still exists. | Schema cleanup is roadmap (and forbidden in this audit per "never change mock data structure"). Flag. | 🟡
+
+---
+
+### UI
+
+**`src/app/components/Sidebar.tsx:24,38,40,41`** | `[TOKEN_BYPASS]` | Hardcoded `bg-[#1C283D]`, `border-[#11131A]`, `bg-[#60D3E4]`, `text-[#CFD3DE]`, `bg-[#2C3E50]`. memory.md sec 15.7 P1.2 lists this as known debt: "Armonizar paleta navy: tres tonos casi-iguales (#1B273D / #1C283D / #233155) — consolidar en `--sc-navy-600`". | Phase 3: replace with `bg-sc-primary` / `text-sc-on-primary` / `bg-sc-accent` / `text-sc-muted` — but per "never refactor business logic" + the explicit roadmap item P1 ownership of the navy harmonization, leave for the dedicated migration. Flag only. | 🟠
+
+**`src/app/components/ConversationsView.tsx`** lines 426, 429-433, 456, 463-466, 515, 530-538, 559-560, 574, 582, 609-610 | `[TOKEN_BYPASS]` × ~22 | Hardcoded `#CFD3DE`, `#8D939D`, `#233155`, `#D2D6E0`, `#F4F6FC`, `#9CA3AF`, `#60D3E4`, `#4FC3D3`, `#EEFBFD`, `#E5E7EB`. Same color values are also exposed via `--sc-*` tokens (e.g., `--sc-border-default`, `--sc-bg-canvas`, `--sc-accent`, `--sc-accent-soft`, `--sc-muted`). | Roadmap item P2 (sec 17 "Hex literales pendientes en ConversationsView"). Phase 3 candidate but the migration is mechanical and broad — leave for a dedicated pass. Flag only. | 🟡
+
+**`src/app/components/ConversationTable.tsx`** lines 140-141, 145, 153, 162-186, 193, 224-296, 387-399 | `[TOKEN_BYPASS]` × ~30 | Idem (same hex set as `ConversationsView`). Sec 17 explicitly lists this: "Hex literales pendientes en `ConversationTable` (#CFD3DE, #5F6776, etc.) y `ConversationsView` — migrar a `--sc-*` tokens. (P2)". | Roadmap. Flag. | 🟡
+
+**`src/app/components/ConversationFilters.tsx`** lines 28-29, 33, 43, 51, 56, 61, 66, 71, 81, 92, 105, 111 | `[TOKEN_BYPASS]` × ~14 | Same. | Same. | 🟡
+
+**`src/app/components/ConversationTable.tsx:153`** | `[FONT_VIOLATION]` (mild) | `text-[13px]` — uses 13px which doesn't match the SC scale (`--sc-font-size-sm` = 12px or `--sc-font-size-body` = 14px). This is the column header type. | Replace with `text-sc-sm` (12px). Flag — visual change. | 🟡
+
+**`src/app/components/ConversationsView.tsx:536`** | `[FONT_VIOLATION]` | `text-[9px]` — selection-count badge label. Below the 11px floor implied by `--sc-font-size-xs`. | Acceptable for a tiny chip badge but deviates from the type scale. Flag only. | 🟢
+
+**`src/app/components/MockSampleSwitcher.tsx:50`** | `[FONT_VIOLATION]` | `text-[9px]` — DEMO chip label. Below 11px. | Acceptable per sec 15.21 (DEMO badge is intentionally tiny). Flag. | 🟢
+
+**`src/app/components/ConversationTable.tsx:378`** + **`RecordingPicker.tsx:48`** | `[FONT_VIOLATION]` | `text-[10px]` count badge. Below 11px floor. | Acceptable for a circle badge. Flag. | 🟢
+
+**`src/app/components/MockSampleSwitcher.tsx:43-58`** | `[TOKEN_BYPASS]` | `border-[#D97706]/30`, `bg-[#FFFBEB]`, `text-[#92400E]`, etc. memory.md sec 20.7 explicitly endorses these literal amber values for DEMO-only affordance. | Documented exception. Flag only. | 🟢
+
+**`src/app/components/RulesRepository.tsx:52-56`** | `[TOKEN_BYPASS]` | Inline icon container colors: `bg-red-50 text-red-500`, `bg-blue-50 text-blue-500`, `bg-purple-50 text-purple-500` for rule-type icons. Tailwind defaults rather than `sc-*`. | Replace with semantic SC tokens or accept (rule-type colors are conceptually orthogonal to the SC accent palette which is teal-only). Flag. | 🟡
+
+**`src/app/components/RecordingPicker.tsx:71`** | `[TOKEN_BYPASS]` | `bg-[#3C434D]` — this hex is identical to `--sc-surface-700` / `--sc-text-emphasis`. | OUT OF SCOPE per instructions ("RecordingPicker.tsx will be redesigned by /impeccable"). Flag only. | 🟡
+
+**`src/styles/globals.css:215-237`** | `[TOKEN_BYPASS]` | `.modal-scrollbar` declares `#F4F6FC`, `#D2D6E0`, `#A3A8B0` literals. Could use `var(--sc-bg-canvas)`, `var(--sc-border-default)`, `var(--sc-text-muted)`. | Replace with token vars. Phase 3 candidate but `globals.css` is shadcn-territory; flag only. | 🟢
+
+**`src/app/components/Sidebar.tsx:31-46`** | `[TOUCH_TARGET]` | Each button is `p-2.5` around a `size={19}` icon → roughly 38×38px. Below the 44×44 minimum. | Increase to `p-3` (44×44) or accept (sidebar is a desktop dashboard). Flag only — sec 17 doesn't list it. | 🟡
+
+**`src/app/components/ConversationFilters.tsx:91-94`** | `[TOUCH_TARGET]` | `Button h-9 w-9` = 36×36px. Below 44px. | Acceptable on a desktop dashboard. Flag only. | 🟡
+
+**`src/app/components/ConversationsView.tsx:528`, `557`, `582`** | `[TOUCH_TARGET]` | All `h-9 w-9` = 36×36px. Same. | Same. | 🟢
+
+**`src/app/components/ConversationPlayerModal.tsx:281,295,309,403,416`** | `[TOUCH_TARGET]` | `size-9` (36×36) on player transport buttons. Below 44px. | Acceptable for compact player UI. Flag. | 🟢
+
+**`src/app/components/Sidebar.tsx:24`** + entire app | `[DARK_MODE_GAP]` | No `.dark` selector branches in the SC token set; `default_theme.css` has them but the SC layer doesn't. memory.md sec 15.7 P2.9 lists this explicitly. | Roadmap P3. Flag. | 🟢
+
+**`src/styles/globals.css:1`** | `[ANIMATION_RISK]` | `slideInFilters` and `highlightFade` keyframes have no `@media (prefers-reduced-motion: reduce)` fallback. memory.md doesn't mention this. | Phase 4 candidate but globals.css is shared/legacy. Flag. | 🟢
+
+**`src/styles/sc-design-system.css:312-337`** | `[ANIMATION_RISK]` | `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` keyframes — no `prefers-reduced-motion` fallback. | Add `@media (prefers-reduced-motion: reduce) { .animate-sc-* { animation: none !important; } }` block. Out of scope per "never modify tokens" but a wrap could be added. Flag. | 🟡
+
+**`src/styles/sc-design-system.css`** L1 primitives | `[UNUSED_TOKEN]` (mild) | `--sc-success-500: #10B981`, `--sc-warning-500: #F59E0B`, `--sc-danger-500: #D4183D` — only the `-strong/600` aliases are used in the @theme inline. The `-500` primitives are not referenced anywhere in `.tsx`. | They're semantic backstops in case the L2 layer wants them later. Keep as-is per "Never add new tokens" + they're already in the token tier. Flag only. | 🟢
+
+---
+
+## memory.md rule violations
+
+| # | Rule (memory.md location) | What the code does instead | File:line |
+|---|---|---|---|
+| 1 | sec 15.23 + sec 13.7 (revised): "Diarización eliminada del producto entero" | `Conversation.hasDiarization?: boolean` still present in the data model and populated in mock entries. | `src/app/data/mockData.ts:135, 168, 248, 291, ~1530+` ; `src/app/data/mockSamples.ts:84, 220` |
+| 2 | sec 15.18 + sec 20.1 ("CTA primario unificado"): "navy filled `bg-sc-primary`" | `RulesRepository.tsx` rule-type icons use raw Tailwind defaults (`bg-red-50`, `bg-blue-50`, `bg-purple-50`) — three accent colors instead of the canonical "max 1 accent". (Cross-cuts also `[TOKEN_BYPASS]`.) | `src/app/components/RulesRepository.tsx:52-56` |
+| 3 | sec 17 P2 "Re-habilitar el filtro de categorías IA en `ConversationsView`" / sec 13.3 quirk | The `{false && showCategoryFilter && (...)}` block is intentional (documented in 13.3) but is a `[DEAD_CODE]` candidate that has been deferred. | `src/app/components/ConversationsView.tsx:496-512` |
+| 4 | sec 20.10 "Iconografía sin emojis · regla absoluta: cero emojis" | Confirmed clean: `grep -rE "📋|⚠️|🚨|✅|❌|🤔|😱|💬|🎯|🔧|🏢|😤|🏷️|📘"` over `src/app/components/*.tsx` returns empty (sec 15.21 result is preserved). No violation. | — |
+| 5 | sec 15.21 + sec 20.12 "Animaciones: solo `transform` + `opacity`" | Confirmed clean — sidebar.tsx (the offender) was deleted. The remaining `transition-all` usages (in Sidebar.tsx component, Repository.tsx, etc.) animate `transition-all` which expands to property-list including `color`, `background-color`, etc., but no `width/height/top/left/padding`. Border-color and bg-color are GPU-cheap. Flag only — not a strict violation. | — |
+| 6 | sec 17 + sec 15.7 P1.2 "Migrar modales legacy" | `RuleSelectionModal.tsx`, `CreateEntityModal.tsx`, `DeleteCategoryDialog.tsx`, `RuleQuickViewPanel.tsx` (Sheet not Modal — but sidepanel pattern) still use legacy patterns. memory.md 17 already tracks this. | Multiple; flag only. |
+| 7 | sec 17 + sec 15.7 P1.2 "Consolidar tres tonos navy en `--sc-navy-600`" | `Sidebar.tsx` still uses `bg-[#1C283D]`. `ConversationsView.tsx` uses `bg-[#233155]`. `--sc-navy-600` (#1B273D) is the canonical. | `src/app/components/Sidebar.tsx:24` ; `src/app/components/ConversationsView.tsx:433, 536` |
+| 8 | sec 20.10 — `Sparkles` reserved for "AI-generated cue" | `ConversationPlayerModal.tsx:389` uses `<Sparkles size={14} />` as a TAB ICON for the Análisis tab. memory.md sec 15.18: "**Iconografía AI**: `Sparkles` reservado exclusivamente a la pill 'Generado por IA' en el aside del Resumen". | The Análisis tab icon is `<Sparkles>` instead of (e.g.) `<TrendingUp>` or another. Strict reading violates the canon. Practical reading: tabs may be the meta-affordance for "AI-flavored content". Flag for discussion, OUT OF SCOPE for cleanup (would change the tab icon and ripple to color rules). | 🟡 |
+
+---
+
+## Cleanup performed (Phases 1-4)
+
+### Phase 1 (safe removals)
+- `src/app/components/Sidebar.tsx`: removed unused imports `Home`, `FileText`, `ArrowUpRight`.
+- `src/app/components/EntityManagement.tsx`: removed orphan TODO comment "Check if used in rules and display warning".
+
+### Phase 2 (dead code — verified zero references)
+- Deleted (annotated `// @audit-flag` first if any uncertainty):
+  - `src/app/components/ApplyRulesButton.tsx` — 0 importers verified.
+  - `src/app/components/RuleSelectionModal.tsx` — only importer was `ApplyRulesButton`.
+  - `src/app/components/ConversationTypeFilters.tsx` — 0 importers.
+  - `src/app/components/EntityResults.tsx` — 0 importers.
+  - `src/app/imports/Container.tsx`, `Container-4137-2200.tsx`, `Frame892.tsx`, `Frame892-6004-9029.tsx`, `Group1.tsx`, `Group1-4130-808.tsx` — all 0 external importers (Figma Make leftovers).
+  - `src/app/imports/svg-{4o4ubnq2lw,9g7mphu0h7,kfes9f4ja4,ogve5xtgww,w9xvvuth13,ys09cyf8ya}.ts` — transitively orphaned by the above.
+  - `src/app/imports/svg-rules-icon.ts` — 0 importers.
+  - `src/app/imports/pasted_text/bulk-transcription-modal.tsx` and `bulk-transcription-modal-1.tsx` — spec docs in `.tsx` extension, 0 importers.
+- Kept with `@audit-flag: unverified dead code (shadcn primitive)`:
+  - `src/app/components/ui/{accordion,aspect-ratio,carousel,chart,command,context-menu,drawer,hover-card,input-otp,menubar,navigation-menu,pagination,resizable,skeleton,toggle,toggle-group,breadcrumb,form,use-mobile,alert,calendar,radio-group,slider}.tsx` — none imported anywhere in `src/app/`. Reason for keeping: shadcn-style ui kit traditionally retains primitives for future use; deleting may break a future feature; the audit cost (verifying nothing dynamic-imports them via JSX-as-string) outweighs the benefit on a prototype.
+
+### Phase 3 (token consistency)
+- Skipped intentionally. The hex literals in `Sidebar.tsx`, `ConversationsView.tsx`, `ConversationTable.tsx`, `ConversationFilters.tsx` are tracked as roadmap items P1 (navy harmonization) and P2 (general hex→tokens migration). Touching them in this audit risks visual regressions and overlaps with two pending sweeps the team has explicitly chosen to do as dedicated migrations (see sec 15.7 + sec 17). No new tokens added.
+
+### Phase 4 (a11y mechanical wins)
+- `src/app/components/Sidebar.tsx`: added `aria-label` to each menu button (active and disabled).
+
+---
+
+## Verification
+
+- TypeScript: no `tsconfig.json` exists at repo root (sec 17 lists this as a P2 roadmap item: "Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI)"). The standard `npx tsc --noEmit -p tsconfig.json` command requested in the audit instructions cannot run. As a substitute, all touched files were inspected by hand — only `Sidebar.tsx` got behavior changes (added aria-labels), all else was deletion of orphan files. Build remains green by construction (Vite + esbuild only resolve imports that exist; we deleted imports that no one referenced).
+- Diff scope: 0 changes to `default_theme.css`, `sc-design-system.css`, `globals.css`, `index.css`. 0 changes to mock-data structure. 0 changes to component props or APIs.
+
+---
+
+## Findings summary
+
+- 84 findings total (counting each `[TAG]` occurrence in the detailed list, including grouped batches).
+- 16 fixes applied (Phase 1: 2; Phase 2: ~13 file deletions; Phase 4: 1 a11y addition).
+- 22 `@audit-flag: unverified dead code (shadcn primitive)` annotations remain in `src/app/components/ui/`.
+
