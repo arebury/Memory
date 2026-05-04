@@ -252,3 +252,187 @@ html {
   border-radius: 8px;
   transition: background-color 2s ease-out;
 }
+
+/* ─────────────────────────────────────────────────────────────────
+   Documentation viewer · markdown rendering + print stylesheet
+   Used by DocumentationModal.tsx for /docs/*.md.
+   ───────────────────────────────────────────────────────────────── */
+
+.doc-prose {
+  color: var(--sc-text-body);
+  font-size: var(--sc-font-size-base);
+  line-height: 1.6;
+}
+
+.doc-prose h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--sc-text-heading);
+  margin-top: var(--sc-space-600);
+  margin-bottom: var(--sc-space-400);
+  letter-spacing: -0.01em;
+}
+.doc-prose h1:first-child { margin-top: 0; }
+
+.doc-prose h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--sc-text-heading);
+  margin-top: var(--sc-space-800);
+  margin-bottom: var(--sc-space-300);
+  padding-bottom: var(--sc-space-200);
+  border-bottom: 1px solid var(--sc-border-soft);
+}
+
+.doc-prose h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--sc-text-heading);
+  margin-top: var(--sc-space-600);
+  margin-bottom: var(--sc-space-300);
+}
+
+.doc-prose h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--sc-text-heading);
+  margin-top: var(--sc-space-400);
+  margin-bottom: var(--sc-space-200);
+}
+
+.doc-prose p {
+  margin-bottom: var(--sc-space-300);
+}
+
+.doc-prose blockquote {
+  border-left: 3px solid var(--sc-border);
+  padding-left: var(--sc-space-400);
+  margin: var(--sc-space-400) 0;
+  color: var(--sc-text-muted);
+  font-style: normal;
+}
+
+.doc-prose ul,
+.doc-prose ol {
+  margin: var(--sc-space-300) 0;
+  padding-left: var(--sc-space-600);
+}
+
+.doc-prose li {
+  margin-bottom: var(--sc-space-150);
+}
+
+.doc-prose li > p { margin-bottom: var(--sc-space-150); }
+
+.doc-prose code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 0.875em;
+  background-color: var(--sc-surface-muted);
+  color: var(--sc-text-emphasis);
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.doc-prose pre {
+  background-color: var(--sc-surface-muted);
+  border: 1px solid var(--sc-border-soft);
+  border-radius: 6px;
+  padding: var(--sc-space-400);
+  margin: var(--sc-space-400) 0;
+  overflow-x: auto;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.doc-prose pre code {
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  color: var(--sc-text-body);
+  font-size: inherit;
+}
+
+.doc-prose a {
+  color: var(--sc-accent-strong);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.doc-prose a:hover { color: var(--sc-primary); }
+
+.doc-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: var(--sc-space-400) 0;
+  font-size: 13px;
+}
+
+.doc-prose thead {
+  background-color: var(--sc-surface-muted);
+}
+
+.doc-prose th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--sc-text-heading);
+  padding: var(--sc-space-250) var(--sc-space-300);
+  border-bottom: 1px solid var(--sc-border);
+}
+
+.doc-prose td {
+  padding: var(--sc-space-250) var(--sc-space-300);
+  border-bottom: 1px solid var(--sc-border-soft);
+  vertical-align: top;
+}
+
+.doc-prose tr:last-child td {
+  border-bottom: none;
+}
+
+.doc-prose hr {
+  border: none;
+  border-top: 1px solid var(--sc-border-soft);
+  margin: var(--sc-space-600) 0;
+}
+
+.doc-prose strong { color: var(--sc-text-heading); font-weight: 600; }
+
+.doc-prose small { font-size: 12px; color: var(--sc-text-muted); }
+
+/* Print stylesheet · only the doc-print-target is visible.
+   Activates when body.printing-doc is set by DocumentationModal. */
+@media print {
+  body.printing-doc * {
+    visibility: hidden;
+  }
+  body.printing-doc .doc-print-target,
+  body.printing-doc .doc-print-target * {
+    visibility: visible;
+  }
+  body.printing-doc .doc-print-target {
+    position: absolute;
+    inset: 0;
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 16mm !important;
+    color: #000 !important;
+    background: #fff;
+  }
+  body.printing-doc .doc-print-target h1,
+  body.printing-doc .doc-print-target h2,
+  body.printing-doc .doc-print-target h3,
+  body.printing-doc .doc-print-target strong {
+    color: #000 !important;
+  }
+  body.printing-doc .doc-print-target a {
+    color: #000 !important;
+    text-decoration: underline;
+  }
+  body.printing-doc .doc-print-target table {
+    page-break-inside: avoid;
+  }
+  body.printing-doc .doc-print-target h1,
+  body.printing-doc .doc-print-target h2,
+  body.printing-doc .doc-print-target h3 {
+    page-break-after: avoid;
+  }
+}
