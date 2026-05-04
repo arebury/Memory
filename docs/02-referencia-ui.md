@@ -1,631 +1,650 @@
----
-title: Referencia de UI · estructura, interacción y tokens
-subtitle: Anatomía, reglas de interacción, copy, animaciones, a11y y QA por componente
-audience: UI dev, designer y QA
-author: Rafael Areses
-project: Memory · Smart Contact
-updated: 2026-05-04
+# Memory · Referencia de UI
+
+*Memory · Smart Contact · Por Rafael Areses*
+
 ---
 
-# Referencia de UI · estructura, interacción y tokens
+## Sobre este documento
 
-> Cómo se ve, cómo se comporta, qué dice y cómo se verifica cada componente. Audiencia: quien implementa la UI o la valida visualmente. Para inputs/derivación/lógica de negocio, ver `01-logica-de-conteo.md`.
+Memory es un dashboard para supervisores de contact center. Esta referencia describe **cómo se ve cada componente clave del producto, cómo se comporta, qué texto emite y cómo se valida visualmente**. La parte de lógica de negocio —qué datos consume, qué deriva, qué dispatcha— vive en el documento hermano *Memory · Lógica de conteo y reglas de negocio*.
 
-<small>Memory · Smart Contact · Por Rafael Areses</small>
+Cuatro componentes principales se documentan, en este orden:
+
+| Componente | Para qué sirve |
+|---|---|
+| `BulkTranscriptionModal` | Modal de confirmación para procesar conversaciones en bloque. |
+| `ConversationPlayerModal` | Modal por conversación: audio, transcripción tipo chat, panel de análisis. |
+| `RecordingTimeline` | Selector de tramo dentro de una conversación con varias grabaciones. |
+| `scToast` | Toasts canónicos del producto (5 severities × 2 estilos × 2 layouts). |
+
+Al final del documento hay dos secciones transversales: los **tokens compartidos del Smart Contact Design System** y las **reglas de UI que aplican a todo el producto** (iconografía, política de copy, anti layout-shift, etc.).
 
 ---
 
 ## 1. BulkTranscriptionModal
 
-### 1.1 · Anatomía
+### Anatomía
+
+El modal se monta sobre el shell oficial del Smart Contact Design System (`Modal` con compound API: header, body, footer). Mide 720 píxeles de ancho con un fondo blanco y bordes redondeados de 12 píxeles.
 
 ```
-Modal (width 720px, surface bg-sc-surface, radius 8px)
+Modal (720px de ancho, surface blanca, radius 12px)
 ├── Header
-│   ├── Icon AlignLeft (text-sc-primary)
+│   ├── Icon (AlignLeft, navy, 24×24)
 │   ├── Title "Transcripciones masivas"
-│   ├── Subtitle "{nSelected} conversaciones seleccionadas[, breakdown por canal]"
+│   ├── Subtitle "{nSelected} conversaciones seleccionadas[ · breakdown opcional]"
 │   └── Close (×, top-right)
-├── Body (2 columnas, divider hairline central)
-│   ├── Hero cell (left, 50%)
-│   │   ├── Label "TOTAL A PROCESAR" (sc-base, font-semibold, uppercase)
-│   │   ├── Number heroCount (112px, leading 112px, text-sc-emphasis, tabular-nums, animate-sc-pulse al cambiar)
-│   │   ├── HeroDeltaHint "(de N seleccionadas)" si heroCount !== nSelected
-│   │   └── Cost tag "genera coste" | "todo procesado" (text-sc-cost-warn lowercase)
-│   └── Decision cell (right, 50%)
-│       ├── Label "ANÁLISIS" (sc-base, font-semibold, uppercase)
-│       ├── Title "Incluir análisis" (sc-md, semibold, color condicional)
-│       ├── Switch checked × disabled (Radix Switch)
-│       └── Caption "+{nAnBase} pendientes · genera coste" | "No hay nada que analizar"
+├── Body — dos columnas con un divider hairline central
+│   ├── Hero cell (50% del ancho)
+│   │   ├── Label "TOTAL A PROCESAR" (uppercase, semibold)
+│   │   ├── Number heroCount (112 píxeles, leading 112, tabular-nums,
+│   │   │                     animación de pulse al cambiar)
+│   │   ├── HeroDeltaHint "(de {nSelected} seleccionadas)" cuando aplica
+│   │   └── Cost tag "genera coste" o "todo procesado" (amber, lowercase)
+│   └── Decision cell (50% del ancho)
+│       ├── Label "ANÁLISIS" (uppercase, semibold)
+│       ├── Title "Incluir análisis" (16px, semibold, color condicional)
+│       ├── Switch (con dos dimensiones: checked y disabled)
+│       └── Caption "+{nAnBase} pendientes · genera coste" o
+│                   "No hay nada que analizar"
 └── Footer
-    ├── Modal.Cancel "Cerrar" (ghost)
-    └── Modal.Action "Procesar" (navy primary, deshabilitado si !canSubmit)
+    ├── Cancelar/Cerrar (botón ghost)
+    └── Procesar (botón primario navy filled, deshabilitado si no hay nada)
 ```
 
-### 1.2 · Reglas de interacción
+### Reglas de interacción
 
-**Switch "Incluir análisis"**
+**Interruptor "Incluir análisis"**
 
-| Condición | Click |
-|---|---|
-| `disabled === false` | `checked` se invierte. Ghost `+N`/`-N` sube sobre el número. Caption hace `animate-sc-pulse`. |
-| `disabled === true` | `animate-sc-shake` 280ms. `checked` no cambia. |
+Solo dos resultados posibles cuando el usuario hace clic:
+
+- Si el switch está activo (`disabled === false`), `checked` se invierte. Aparece un ghost flotante "+N" o "−N" sobre el número grande para señalar el delta, y la caption hace un pulse. Es feedback visual de que la decisión tuvo efecto.
+- Si el switch está deshabilitado (`disabled === true`), el knob hace un pequeño shake de 280 ms y `checked` no cambia. El shake comunica "no se puede" sin necesidad de un tooltip explícito.
 
 **Botón "Procesar"**
 
-- Click con `canSubmit === true` → dispatch `{ ids, doTranscription, includeAnalysis }` y cierra el modal.
-- Click con `canSubmit === false` → ignorado (disabled).
-- **No hay confirmación adicional**. El propio modal es la confirmación.
+- Click con `canSubmit === true` → dispatcha la acción al padre y cierra el modal inmediatamente.
+- Click con `canSubmit === false` → ignorado (el botón está disabled visualmente).
+- No hay un segundo paso de confirmación. El propio modal es la confirmación.
 
-**Cierre**
+**Cierre del modal**
 
-X, "Cerrar", clic fuera del modal y Escape cierran sin lanzar nada.
+Cuatro maneras de cerrarlo sin ejecutar nada: el botón ×, el botón "Cerrar" del footer, hacer clic fuera del modal, y la tecla Escape. Las cuatro tienen el mismo efecto.
 
-**Post-submit**
+**Después del submit (fire-and-forget)**
 
-Fire-and-forget (ver Doc A §1.6). El modal se cierra inmediatamente. Feedback vía `scToast` desde el padre.
+El modal se cierra de inmediato, sin esperar la respuesta del backend. El feedback (éxito o fallo) llega vía `scToast` desde la vista de listado, no desde el modal. El supervisor vuelve al listado y puede seguir trabajando mientras el batch se procesa.
 
-**Manejo de errores**
+### Copia exhaustiva
 
-`scToast.error({ title: "No se ha podido completar la acción", message: razón })`. El modal ya está cerrado; no reaparece. Reintento desde la pantalla.
-
-### 1.3 · Copia exhaustiva
+Las strings que el componente emite. Solo cuatro son dinámicas; el resto son literales.
 
 | Lugar | Texto | Notas |
 |---|---|---|
 | Title | `Transcripciones masivas` | Estática. |
-| Subtitle | `{nSelected} conversaciones seleccionadas` | Si hay mezcla de canales: `{nSelected} conversaciones seleccionadas · {N} llamadas, {M} chats`. |
+| Subtitle | `{nSelected} conversaciones seleccionadas` | Si hay mezcla de canales: `... · {N} llamadas, {M} chats`. Si hay multi-grabación: `... · {Y} con varias grabaciones`. |
 | Label izquierda | `TOTAL A PROCESAR` | Uppercase. |
-| Hero number | `{heroCount}` | Tabular-nums. |
-| HeroDeltaHint | `de {nSelected} seleccionadas` | Solo si `heroCount !== nSelected`. Reservado con `min-h` cuando ausente para evitar layout shift. |
-| Cost tag (normal) | `genera coste` | Lowercase. Reservado con `opacity-0` cuando `isAllProcessed` para evitar shift. |
-| Cost tag (vacío) | `todo procesado` | Solo cuando `isAllProcessed`. |
+| Hero number | `{heroCount}` | Tabular-nums para que no salte de ancho al cambiar de dígitos. |
+| HeroDeltaHint | `de {nSelected} seleccionadas` | Solo cuando `heroCount !== nSelected`. Espacio reservado con `min-h` cuando ausente para evitar layout-shift. |
+| Cost tag (normal) | `genera coste` | Lowercase. Espacio reservado con `opacity-0` cuando es C1 (todo procesado), no removido del DOM, también para evitar shift. |
+| Cost tag (vacío) | `todo procesado` | Solo en C1. |
 | Label derecha | `ANÁLISIS` | Uppercase. |
-| Decision title | `Incluir análisis` | Semibold. Color: `text-sc-disabled` si `disabled`, `text-sc-heading` si activo. |
-| Caption activa | `+{nAnBase} pendientes · genera coste` | Teal `text-sc-accent-strong`. |
-| Caption disabled | `No hay nada que analizar` | Muted. |
-| Botón ghost | `Cerrar` | (Era "Cancelar"; cambiado en 15.18 — pre-submit no hay nada que cancelar.) |
-| Botón primario | `Procesar` | Navy filled. |
+| Decision title | `Incluir análisis` | Semibold. Color disabled cuando el switch lo está; color heading cuando activo. |
+| Caption activa | `+{nAnBase} pendientes · genera coste` | Color teal (`text-sc-accent-strong`). |
+| Caption disabled | `No hay nada que analizar` | Color muted. |
+| Botón ghost | `Cerrar` | Es "Cerrar", no "Cancelar". Pre-submit no hay nada que cancelar (la acción no ha empezado), así que "Cerrar" es más honesto. |
+| Botón primario | `Procesar` | Navy filled. Cuando el supervisor pulsa, muestra spinner + texto "Procesando…" hasta cerrar. |
 
-### 1.4 · Animaciones
+### Especificación de animaciones
 
-| Animación | Detalle | Token |
-|---|---|---|
-| Bump del número al cambiar | `scale(1.03)` · 260ms · `--sc-ease-out` | `animate-sc-bump` |
-| Pulse del hero | `scale(1.08)` · 360ms · `--sc-ease-out` | `animate-sc-pulse` |
-| Ghost +N / -N | 21px semibold, cyan (positivo) o gris (negativo). 750ms. Sube 34px y fade out. | `animate-sc-delta-fly` |
-| Pulse de la caption | `scale(1.08)` · 360ms al cambiar `checked` | `animate-sc-pulse` |
-| Shake del switch (disabled) | `translateX` ±4px · 280ms · ease | `animate-sc-shake` |
-| Apertura modal | Fade backdrop 200ms + `translateY(8→0)` 280ms | Radix Dialog default |
-| Active scale del CTA | `active:scale-[0.98]` · `transition-transform` | — |
+Cinco animaciones en el modal, todas con duraciones y easings consistentes con el resto del producto:
 
-**Regla repo-wide** (sec 20.12 del canon): solo `transform` + `opacity`. NUNCA `width`, `height`, `top`, `left`, `padding`, `margin` con transition.
+| Animación | Detalle |
+|---|---|
+| Bump del número grande al cambiar | Escala 1.03 durante 260 ms, easing `ease-out`. |
+| Pulse del hero (cambio significativo) | Escala 1.08 durante 360 ms, easing `ease-out`. |
+| Ghost +N / −N flotando sobre el hero | 21 píxeles, semibold, cyan (delta positivo) o gris (delta negativo). Sube 34 píxeles y se desvanece en 750 ms. Solo aparece en clic real del switch, no al cambiar de escenario externo. |
+| Pulse de la caption del análisis | Escala 1.08 durante 360 ms, sincronizada con el cambio de `checked`. |
+| Shake del switch deshabilitado | Translación horizontal ±4 píxeles durante 280 ms. |
+| Apertura/cierre del modal | Fade del backdrop en 200 ms + un translateY de 8 a 0 píxeles en 280 ms. |
 
-`prefers-reduced-motion`: desactivar ghost y pulse; dejar solo cambios de color y fade breve. (Pendiente como item del roadmap.)
+Las animaciones del producto siempre usan **transform y opacity, nunca propiedades de layout** como width, height, top o padding. Mover el knob del switch es `translateX`, no cambiar `left`. Esto evita reflows y mantiene 60 fps.
 
-### 1.5 · Tokens usados
+Pendiente: añadir un fallback para `prefers-reduced-motion` que desactive el ghost y el pulse, dejando solo el cambio de color y un fade muy breve.
+
+### Tokens usados
 
 | Categoría | Token | Valor |
 |---|---|---|
-| Surface modal | `--sc-surface` | `#FFFFFF` |
-| Primary | `--sc-primary` (navy) | `#1B273D` |
-| Hero text | `--sc-text-emphasis` | `#3C434D` |
-| Cost warn | `--sc-cost-warn` | `#D97706` |
-| Accent strong | `--sc-accent-strong` | `#48B8C9` |
-| Border soft | `--sc-border-soft` | hairline divider |
-| Hero font-size | `--sc-font-size-display` | `112px` |
-| Hero line-height | `--sc-line-height-display` | `112px` (1:1 con el font-size) |
-| Cell height | `--sc-bulk-cell-height` | `240px` |
-| Cell padding-top | `--sc-bulk-cell-padding-top` | `28px` |
-| Cell padding-x | `--sc-bulk-cell-padding-x` | `24px` |
+| Surface del modal | `--sc-surface` | `#FFFFFF` |
+| Color CTA primario | `--sc-primary` (navy 600) | `#1B273D` |
+| Color del hero number | `--sc-text-emphasis` | `#3C434D` (negro ablandado) |
+| Cost cue | `--sc-cost-warn` (warning 600) | `#D97706` (amber) |
+| Caption activa del análisis | `--sc-accent-strong` (teal 600) | `#48B8C9` |
+| Hairline divider central | `--sc-border-soft` (surface 100) | `#F3F4F6` |
+| Tamaño de fuente del hero | `--sc-font-size-display` | 112 px |
+| Line-height del hero | `--sc-line-height-display` | 112 px (1:1) |
+| Altura de cada cell | `--sc-bulk-cell-height` | 240 px |
+| Padding-top de cada cell | `--sc-bulk-cell-padding-top` | 28 px |
+| Padding-x de cada cell | `--sc-bulk-cell-padding-x` | 24 px |
 
-### 1.6 · A11y
+### Accesibilidad
 
-- Container: `role="dialog" aria-modal="true" aria-labelledby` apuntando al título.
-- Hero number: `aria-live="polite"` para que los lectores anuncien cambios al togglear el switch.
-- Switch: `role="switch"`, `aria-checked`, `aria-disabled` cuando aplica.
-- Trap de foco dentro del modal mientras esté abierto (Radix gratis).
-- Escape cierra (Radix gratis). Si `isLoading`, ESC bloqueado vía `onEscapeKeyDown`.
+- El contenedor es un `<div role="dialog" aria-modal="true">` con `aria-labelledby` apuntando al título. Esto lo gestiona Radix Dialog por debajo.
+- El número grande tiene `aria-live="polite"` para que los lectores de pantalla anuncien los cambios cuando el supervisor toca el switch.
+- El switch tiene `role="switch"`, `aria-checked` reflejando el estado, y `aria-disabled` cuando aplica.
+- Mientras el modal está abierto, el foco se atrapa dentro (tab y shift+tab no salen). Lo gestiona Radix.
+- Escape cierra el modal. Si en algún flujo futuro hay una operación async, el componente puede bloquear Escape pasando `onEscapeKeyDown={e => isLoading && e.preventDefault()}`.
 - Orden de tabulación: × → switch → Cerrar → Procesar.
 
-### 1.7 · QA checklist
+### Fuera de alcance
 
-Por cada caso C1…C6 (y cada estado del toggle en C4/C6), verificar:
+Lo que el modal no hace, deliberadamente:
 
-- [ ] El número grande coincide con la tabla de casuísticas (Doc A §1.3).
-- [ ] Cost tag lee `genera coste` salvo en C1 (`todo procesado`).
-- [ ] Switch interactivo solo en C2/C4/C5/C6. C1/C3 hacen shake al clicarlo.
-- [ ] Procesar deshabilitado solo en C1.
-- [ ] Subtítulo `{nSelected} conversaciones seleccionadas` correcto. Breakdown por canal cuando hay mezcla.
-- [ ] HeroDeltaHint visible cuando `heroCount !== nSelected`.
-- [ ] Ghost +N / -N aparece solo al togglear, no al cambiar de escenario.
-- [ ] Cost tag no genera layout shift cuando se vacía (espacio reservado).
-- [ ] Escape y clic fuera cierran el modal sin lanzar acción.
-- [ ] Animaciones desactivadas con `prefers-reduced-motion: reduce`. *(Pendiente en código.)*
+- No muestra progreso del procesado. Para eso está el toast persistente "Procesando N conversaciones" que vive arriba a la derecha mientras dura el batch.
+- No permite excluir conversaciones individuales desde dentro. La selección se ajusta en la tabla antes de abrir el modal.
+- No gestiona errores post-submit. El modal está cerrado cuando llega la respuesta; el feedback lo asume la pantalla que disparó la acción (típicamente vía toast).
+- No muestra coste monetario real (€). Solo cuenta items y advierte de "genera coste". El cálculo de coste real lo hace el backend aparte, fuera del scope del modal.
+- No soporta multi-idioma todavía. Las strings están en español hardcoded.
+
+### Checklist de QA
+
+Por cada caso C1-C6, y por cada estado del switch en C4 y C6, verificar:
+
+- [ ] El número grande coincide con el caso esperado (ver el documento *Lógica de conteo*).
+- [ ] El cost tag dice `genera coste` salvo en C1, donde dice `todo procesado`.
+- [ ] El switch es interactivo solo en C2, C4, C5, C6. En C1 y C3 hace shake al clicarlo.
+- [ ] El botón Procesar está deshabilitado solo en C1.
+- [ ] El subtítulo lee `{nSelected} conversaciones seleccionadas` correctamente. Cuando hay mezcla de canales, añade el desglose. Cuando hay multi-grabación, también.
+- [ ] El HeroDeltaHint aparece solo cuando `heroCount` difiere de `nSelected`.
+- [ ] El ghost +N / −N aparece solo al togglear, no al cambiar de escenario externo.
+- [ ] El cost tag no genera layout-shift cuando se vacía (espacio reservado).
+- [ ] Escape, clic fuera y "Cerrar" cierran el modal sin lanzar acción.
+- [ ] Las animaciones se desactivan correctamente con `prefers-reduced-motion: reduce`.
 
 ---
 
 ## 2. ConversationPlayerModal
 
-### 2.1 · Anatomía
+### Anatomía
+
+Modal por conversación, también de 720 píxeles de ancho. Su estructura cambia según el canal (llamada o chat) y según el estado de la conversación.
 
 ```
-Modal (width 720px, surface blanca)
+Modal (720px, surface blanca)
 ├── Header
-│   ├── Icon channel-aware: <Phone> (llamada) | <MessageSquare> (chat)
-│   ├── Title "{Llamada|Chat} · #{id}"
+│   ├── Icon channel-aware: Phone (llamada) o MessageSquare (chat)
+│   ├── Title "Llamada · #{id}" o "Chat · #{id}"
 │   └── Subtitle "{servicio} · {fecha} {hora} · Duración {duración}"
 ├── Body
-│   ├── RecordingTimeline (solo si recordings.length > 1) — ver §3
-│   ├── Audio bar (solo llamadas)
-│   │   └── back-10 · play · fwd-10 · timestamp · scrub · timestamp
-│   ├── Tab row (Transcripción / Análisis + actions: re-transcribir, descargar)
-│   └── Tab body (min-h 360px)
+│   ├── RecordingTimeline (solo si hay multi-grabación) — ver sección 3
+│   ├── Audio bar (solo en llamadas, oculta del todo en chats)
+│   │   └── back-10 · play · fwd-10 · timestamp · scrub bar · timestamp
+│   ├── Tab row "Transcripción" / "Análisis" + acciones a la derecha
+│   │   (re-transcribir si aplica, descargar)
+│   └── Tab body (mínimo 360 píxeles de alto para que no se sienta apretado)
 │       ├── Tab Transcripción
-│       │   ├── Header: "{N} intervenciones" + search input
-│       │   ├── Bubbles (chat-style: agente derecha, cliente izquierda)
-│       │   └── Empty states: <DecisionState> | <ProcessingState> | <TerminalNote>
+│       │   ├── Header con "{N} intervenciones" + buscador
+│       │   ├── Bubbles de chat (agente derecha, cliente izquierda)
+│       │   └── Empty states (ver más abajo)
 │       └── Tab Análisis
-│           ├── Section Resumen (icon AlignLeft + aside "Generado por IA")
-│           ├── Section Sentimiento (icon TrendingUp + dot color)
-│           └── Empty states: <DecisionState> | <ProcessingState>
+│           ├── Sección Resumen (con badge "Generado por IA")
+│           ├── Sección Sentimiento
+│           └── Empty states
 └── Footer
-    └── Modal.Cancel "Cerrar"
+    └── Cerrar (botón ghost, sin acción primaria)
 ```
 
-### 2.2 · Empty states · una columna centrada
+### Reglas de interacción
 
-Tres componentes hermanos en `ConversationPlayerModal.tsx`. Patrón unificado tras 15.28 (canon sec 20.13):
+**Tabs**
 
-**`<DecisionState>`** — empty state con acción.
+Las dos tabs son siempre visibles. La activa se marca con un underline accent debajo del label y un cambio sutil de peso/color del texto. El supervisor puede saltar entre ellas libremente sin perder el estado del audio.
 
-```
-Sección flex-col centrada vertical
-├── Icon (24px, sc-muted)
-├── Title (sc-md font-semibold, sc-heading)
-├── Description (sc-sm sc-body, max-w 44ch)
-├── CTA primario (navy filled, min-w 200px)
-└── Cost cue (sc-xs sc-cost-warn, dot + texto)
-```
+**Audio bar**
 
-**`<ProcessingState>`** — estado de procesamiento.
+Solo se renderiza para llamadas. Para chats, no existe. Las llamadas sin grabación muestran la barra con todos los controles deshabilitados (no se oculta) — la posición vacía comunica "esto debería ser un audio pero no hay" mejor que esconderlo.
 
-```
-Sección flex-col centrada vertical
-├── Loader2 24px spinning (text-sc-accent-strong)
-├── Title (sc-md font-semibold)
-└── Caption (sc-sm sc-body, max-w 44ch)
-```
+Los controles transport (back-10, play, fwd-10) son botones circulares de 36 píxeles. La barra de scrub tiene una zona clickable de 20 píxeles de alto para que el thumb sea fácil de agarrar, aunque visualmente la barra es de 6 píxeles. El thumb circular aparece en hover, focus o mientras se reproduce; en estado inactivo, la barra se queda como un track simple.
 
-**`<TerminalNote>`** — estado terminal sin acción ("no hay grabación", "transcripción vacía").
+Detalle técnico de la animación del fill: usa `transform: scaleX()` con origen a la izquierda, no `transition: width`. La diferencia importa: animar `width` cada segundo durante toda la reproducción dispara reflow continuo; `scaleX` solo afecta a la composición.
 
-```
-Sección flex-col centrada vertical
-├── Icon (24px, sc-muted)
-├── Title (sc-md font-medium)
-└── Description (sc-sm sc-body, max-w 42ch)
-```
+**Tab row · acciones a la derecha**
 
-**Decisión validada (sec 20.13)**: NO usar split-layout con preview/skeleton al lado. Si el usuario ya sabe qué tipo de contenido va a aparecer (transcripción, análisis), el preview es ornamento decorativo. Una sola columna centrada lee mejor.
+A la derecha de las dos tabs viven las acciones globales del modal:
 
-### 2.3 · Audio bar (solo llamadas)
+- **Re-transcribir** (icono `RotateCcw`, low-key): aparece solo si la conversación ya tiene transcripción. Es destructivo (sobrescribe lo que hay), así que va con un modal de confirmación adicional al pulsarlo.
+- **Descargar** (icono `Download`): visible siempre, paridad chat/llamada. El tooltip cambia: "Descargar audio" para llamadas, "Descargar conversación" para chats.
 
-Layout horizontal:
+**Empty states de la pestaña Transcripción**
 
-```
-[← back 10s] [▶ play] [→ fwd 10s] [00:24] [━━━━━━━━━━━━━━] [01:43]
-```
+Tres formas posibles cuando no hay transcripción para mostrar:
 
-- Botones transport: `size-9` (36×36px), iconos lucide.
-- Scrub bar: hit target 20px, `role="slider"` con `aria-valuemin/max/now`. Thumb circular aparece en hover/focus o mientras `isPlaying`.
-- Fill animado vía `transform: scaleX()` con `transform-origin: left` (NO `transition-[width]`, evita reflow continuo).
-- Thumb usa `left: %` SIN transition (snap instant).
-- Botón download fuera del audio bar — vive en la tab row para paridad chat/llamada.
+- **`<DecisionState>` — empty state con acción.** Una columna centrada vertical: icono pequeño, título, descripción, CTA primario y cost cue inline. Aparece cuando se puede pedir la transcripción ("Sin transcripción") o el análisis ("Lista para analizar"), o el caso combinado del dead-end resuelto ("Pendiente de transcribir y analizar").
+- **`<ProcessingState>` — estado de procesamiento.** Una columna centrada con un spinner Loader2 girando, título corto en gerundio ("Transcribiendo", "Analizando") y un caption breve.
+- **`<TerminalNote>` — estado terminal sin acción.** Para casos donde no hay nada que el supervisor pueda hacer ("No hay grabación de esta llamada", "Transcripción vacía"). Solo icono, título y descripción.
 
-### 2.4 · Tab row · acciones a la derecha
+Decisión cerrada del producto: estos tres componentes son **una columna centrada**, no split-layout con preview o skeleton al lado. Si el supervisor ya sabe qué tipo de contenido va a aparecer (una transcripción, un análisis), un preview enmascarado al lado es decoración, no información.
 
-```
-[FileText Transcripción] [Sparkles Análisis]                  [↻ Re-transcribir] [↓ Descargar]
-```
+**Bubbles tipo chat (en la pestaña Transcripción activa)**
 
-- Tabs: underline accent al activo (`bg-sc-accent`).
-- Re-transcribir (icon `<RotateCcw>`, low-key): aparece solo si `hasTranscription`. Click abre `RetranscriptionConfirmModal` (gate destructivo — sobrescribe transcript + análisis).
-- Descargar (icon `<Download>`): paridad chat/llamada. Tooltip: "Descargar audio" (llamada) | "Descargar conversación" (chat).
-
-### 2.5 · Bubbles tipo chat
-
-Layout para AMBOS canales (decisión 15.13 — chats y llamadas se leen igual visualmente):
+Tanto chats como llamadas se renderizan con el mismo layout: bubbles alineados a izquierda y derecha, identificando al hablante por la posición.
 
 | Lado | Quién | Background | Esquina asimétrica |
 |---|---|---|---|
-| Derecha | Agente / Speaker 1 / `conversation.origin` | `bg-sc-accent-soft` | `rounded-br-md` |
-| Izquierda | Cliente / Speaker 2 | `bg-sc-border-soft` | `rounded-bl-md` |
+| Derecha | Agente, Speaker 1, o `conversation.origin` cuando se reconoce | Accent-soft (teal muy tintado) | `rounded-br-md` |
+| Izquierda | Cliente o Speaker 2 | Border-soft (gris muy tintado) | `rounded-bl-md` |
 
-Speaker label + timestamp encima del bubble. `max-w-[78%]`. Sin avatares (la disposición ya carga la diarización).
+El speaker label y el timestamp aparecen pequeños encima del bubble. Los bubbles tienen un máximo de 78% del ancho disponible. No hay avatares: la disposición ya transmite la diarización sin necesidad de añadir un círculo con icono.
 
-### 2.6 · Sección Análisis
+**Sección Análisis**
 
-**Resumen**:
-- Icon `<AlignLeft>` (líneas de texto = body of text).
-- Aside "Generado por IA" con `<Sparkles>` pequeño (sec 20.10: Sparkles SOLO para "AI-generated cue", nunca como icono de sección principal).
-- Párrafo de resumen derivado del hash del id (mismo hash que la transcripción → coherencia narrativa garantizada).
+- **Resumen.** Icono `<AlignLeft>` (líneas de texto). A la derecha del header de la sección, una pill discreta "Generado por IA" con un `<Sparkles>` muy pequeño. El resumen se deriva determinísticamente del id de la conversación (mismo hash que la transcripción), así que el resumen y el texto siempre cuentan la misma historia.
+- **Sentimiento.** Icono `<TrendingUp>`. Un pequeño dot de color (verde / gris / amarillo) acompañando el label y un summary breve. La detección del sentimiento mira el léxico negativo dentro del propio texto de la transcripción, no las categorías IA.
 
-**Sentimiento**:
-- Icon `<TrendingUp>`.
-- Dot color (verde / gris / amarillo) + label + summary.
-- Detección de léxico negativo en el texto de la transcripción (no en `aiCategories` — sec 15.14).
-
-### 2.7 · Copia exhaustiva (extracto)
+### Copia exhaustiva (extracto representativo)
 
 | Lugar | Texto |
 |---|---|
-| Title llamada | `Llamada · #{id}` |
-| Title chat | `Chat · #{id}` |
+| Title (llamada) | `Llamada · #{id}` |
+| Title (chat) | `Chat · #{id}` |
 | Subtitle | `{servicio} · {fecha} {hora} · Duración {duración}` |
 | Tab 1 | `Transcripción` |
 | Tab 2 | `Análisis` |
 | Search placeholder | `Buscar en transcripción` |
 | Counter | `{N} intervenciones` |
-| Empty no recording | `No hay grabación de esta llamada` / `Sin audio no podemos transcribir. Revisa las reglas de grabación si esperabas que se hubiera guardado.` |
-| Empty no transcripción | `Sin transcripción` / `Genera el texto para buscar dentro de la conversación y dejar el análisis disponible.` / CTA `Transcribir` / cost `Genera coste · ~30 s` |
-| Empty no análisis (canRequest) | `Lista para analizar` / `Resumen accionable y valoración de sentimiento sobre la transcripción existente.` / CTA `Solicitar análisis` / cost `Genera coste · ~10 s` |
-| Empty dead-end | `Pendiente de transcribir y analizar` / `El análisis necesita texto. Lanzamos la transcripción y, en cuanto termine, generamos resumen y sentimiento.` / CTA `Transcribir y analizar` / cost `Genera coste · transcripción + análisis` |
-| Procesando transcripción | `Transcribiendo` / `Procesa el audio y separa los hablantes. Tarda unos segundos.` |
-| Procesando análisis | `Analizando` / `Genera resumen y sentimiento a partir de la transcripción.` |
+| Empty sin grabación | Title `No hay grabación de esta llamada` / desc `Sin audio no podemos transcribir. Revisa las reglas de grabación si esperabas que se hubiera guardado.` |
+| Empty sin transcripción | Title `Sin transcripción` / desc `Genera el texto para buscar dentro de la conversación y dejar el análisis disponible.` / CTA `Transcribir` / cost `Genera coste · ~30 s` |
+| Empty con análisis disponible | Title `Lista para analizar` / desc `Resumen accionable y valoración de sentimiento sobre la transcripción existente.` / CTA `Solicitar análisis` / cost `Genera coste · ~10 s` |
+| Empty dead-end resuelto | Title `Pendiente de transcribir y analizar` / desc `El análisis necesita texto. Lanzamos la transcripción y, en cuanto termine, generamos resumen y sentimiento.` / CTA `Transcribir y analizar` / cost `Genera coste · transcripción + análisis` |
+| Procesando transcripción | Title `Transcribiendo` / caption `Procesa el audio y separa los hablantes. Tarda unos segundos.` |
+| Procesando análisis | Title `Analizando` / caption `Genera resumen y sentimiento a partir de la transcripción.` |
 | Footer | `Cerrar` |
 
-### 2.8 · A11y
+### Accesibilidad
 
-- Container: `role="dialog" aria-modal="true"`.
-- Audio scrub: `role="slider"` + `aria-valuemin/max/now`.
-- Tabs: foco con anillo `FOCUS_RING`. Subrayado accent al activo no es el único marcador (color heading + weight).
-- StatusIcon (en tabla) como `<button>` con `aria-label` específico por estado.
-- Botones icon-only del audio bar tienen `aria-label` explícito.
+- Modal con `role="dialog"`, `aria-modal="true"` y descripciones apropiadas vía Radix.
+- La barra de scrub es un `role="slider"` con `aria-valuemin`, `aria-valuemax` y `aria-valuenow` actualizándose con la posición.
+- Las tabs reciben el patrón estándar (Radix Tabs) con focus visible y subrayado claro al activo. El subrayado no es el único marcador: el peso y el color del texto también cambian, para no depender de color solo.
+- Los botones icon-only del audio bar (back-10, play, fwd-10, download) tienen `aria-label` explícito describiendo su acción.
 
-### 2.9 · QA checklist
+### Fuera de alcance
 
-- [ ] Apertura desde tabla: click en `<StatusIcon>` o en row abre el modal con la conversación correcta.
-- [ ] Tab default: Transcripción si hay, Análisis si solo hay análisis.
-- [ ] Audio bar oculto para chats. Visible para llamadas (con o sin grabación).
-- [ ] Empty states: rendered según state machine (Doc A §2.2 / §2.3).
-- [ ] Re-transcribir abre confirm modal con caja roja destructiva.
-- [ ] Descargar accesible para chat y llamada (tab row).
-- [ ] Bubbles: agente derecha (accent-soft), cliente izquierda (border-soft).
+- No persiste posición del audio entre sesiones.
+- No permite editar la transcripción inline.
+- No exporta a otros formatos (solo descarga el audio o el texto crudo).
+- No tiene control de volumen ni velocidad de reproducción. Es un reproductor mínimo.
+
+### Checklist de QA
+
+- [ ] El icono del header es `<Phone>` para llamadas y `<MessageSquare>` para chats.
+- [ ] Para llamadas con grabación, el audio bar tiene controles activos. Para llamadas sin grabación, controles disabled (visibles).
+- [ ] Para chats, el audio bar no se renderiza en absoluto.
+- [ ] La tab por defecto es Transcripción si la hay; Análisis si solo hay análisis.
+- [ ] Los empty states siguen el state machine descrito (ver el documento *Lógica de conteo*).
+- [ ] Re-transcribir abre el modal de confirmación destructivo.
+- [ ] Descargar es accesible para chat y llamada (paridad).
+- [ ] Bubbles: agente a la derecha (accent-soft), cliente a la izquierda (border-soft).
 - [ ] Search filtra intervenciones en vivo.
-- [ ] RecordingTimeline solo si `recordings.length > 1`.
-- [ ] Cierre: ESC, clic fuera, "Cerrar" funcionan.
+- [ ] El RecordingTimeline aparece solo si hay más de una grabación.
+- [ ] Cierre con ESC, clic fuera y "Cerrar" funcionan.
 
 ---
 
 ## 3. RecordingTimeline
 
-### 3.1 · Anatomía
+### Anatomía
+
+Una sola barra horizontal segmentada, montada sobre la barra de audio del reproductor cuando la conversación tiene varias grabaciones.
 
 ```
-Section (border-b, bg-sc-surface, padding 24/16)
-└── Strip horizontal (h 56px, rounded-md, border)
-    ├── Segment 1 (flex-grow: fraction[0], min-w 56px)
-    │   ├── Label (truncate, sc-sm font-medium) | Index number (fallback < 12%)
-    │   └── Duration (font-mono sc-xs sc-muted)
-    ├── Segment 2 (...)
-    └── Segment N (...)
+Section (border-bottom hairline, padding 24/16)
+└── Strip (56 píxeles de alto, rounded 6px, border 1px)
+    ├── Segment 1 (anchura proporcional a su duración, mínimo 56px)
+    │   ├── Label completo o número índice (según anchura disponible)
+    │   └── Duration en font monoespacio
+    ├── Segment 2
+    └── Segment N
 ```
 
-### 3.2 · Estados visuales
+El strip es una sola unidad visual, no una rejilla de cards. Esto es deliberado: una conversación con tres tramos no es "tres cosas separadas" sino "una conversación con tres partes". El strip único transmite esa unidad.
 
-| Estado | Background | Label color | Duration color |
+### Estados visuales de cada segmento
+
+Cuatro estados posibles, con colores tomados directamente del DS:
+
+| Estado | Background | Color del label | Color de la duración |
 |---|---|---|---|
-| Inactive | `bg-sc-surface` | `text-sc-heading` | `text-sc-muted` |
-| Hover (inactive) | `bg-sc-surface-muted` | `text-sc-heading` | `text-sc-muted` |
-| Active | `bg-sc-info-soft` | `text-sc-info-strong` | `text-sc-info-strong/80` |
-| Focus (kbd) | + `FOCUS_RING` | — | — |
+| Inactivo | Surface blanca | Heading (texto principal) | Muted |
+| Hover sobre inactivo | Surface-muted (gris muy sutil) | Heading | Muted |
+| Activo | Info-soft (azul tintado) | Info-strong (azul) | Info-strong al 80% |
+| Focus por teclado | Cualquiera de las anteriores + ring de focus accent | — | — |
 
-Divider entre segmentos: `border-r border-sc-border` 1px en todos menos el último.
+Entre segmentos, un divider de 1 píxel en color border ayuda a separar visualmente cuando dos segmentos consecutivos están inactivos. Cuando uno está activo, el cambio de background ya separa por sí solo, pero el divider se mantiene por consistencia.
 
-### 3.3 · Comportamiento
+### Reglas de interacción
 
-- **Click** en segmento: dispatch `onSelect(id)` al padre. El padre actualiza `selectedRecordingId` + reset transport del audio bar.
-- **Hover** en inactivo: cambia bg a `surface-muted`. Cursor pointer.
-- **Keyboard**: ←/→/↑/↓ navegan + seleccionan. `tabIndex={0}` solo en activo.
-- **Tooltip** (`title=`): solo en segmentos con label fallback (< 12%) — muestra label completo.
+- **Click en un segmento.** Notifica al padre (`onSelect(id)`). El padre cambia el tramo activo y resetea el transporte del audio (`isPlaying: false`, `currentTime: 0`).
+- **Hover sobre un segmento inactivo.** Background a surface-muted. Cursor pointer.
+- **Navegación por teclado.** Con foco dentro del strip, las flechas izquierda/derecha (y arriba/abajo) cambian la selección al segmento adyacente. No hay wrap-around: en el primer segmento, izquierda no hace nada; en el último, derecha no hace nada. Coherente con que es una secuencia temporal, no una rueda.
+- **Tooltip.** Solo aparece en segmentos cuyo label está reemplazado por un número (porque el segmento es muy estrecho). Muestra el label completo. Esto evita el ruido visual de tooltips redundantes en los segmentos donde el label ya se lee.
 
-### 3.4 · Copia
+### Copia
 
-Cero copy estático. Todos los textos vienen del modelo (`label`, `duration`, `startTime`).
+El componente no tiene texto estático propio. Todos los textos vienen del modelo de la conversación: el label de cada grabación (que describe el grupo o paso del IVR — por ejemplo "Comercial", "Retención", "IVR menú principal") y la duración en formato `mm:ss`.
 
-`aria-label` por segmento: `Tramo {N}: {label}, {duración}, comienza a las {startTime}`.
+El `aria-label` de cada segmento, sin embargo, sí está construido por el componente y siempre incluye toda la información disponible:
 
-### 3.5 · A11y
+```
+Tramo {N}: {label completo}, {duración}, comienza a las {startTime}
+```
 
-- `role="radiogroup"` en el contenedor con `aria-label="Selecciona un tramo"`.
-- `role="radio"` + `aria-checked` en cada segmento.
-- `aria-label` completo siempre (incluso cuando el label visible es solo el número).
-- `tabIndex={0}` solo en el activo (patrón W3C — el resto es navegable con flechas, no con Tab).
-
-### 3.6 · Tokens usados
+### Tokens usados
 
 | Categoría | Token |
 |---|---|
-| Active bg | `--sc-info-soft` |
-| Active text | `--sc-info-strong` |
-| Inactive bg | `--sc-surface` |
-| Hover bg | `--sc-surface-muted` |
-| Border | `--sc-border` (segmentos), `--sc-border-soft` (sección) |
-| Heading | `--sc-text-heading` |
-| Muted | `--sc-text-muted` |
+| Background activo | `--sc-info-soft` (#EEF4FF) |
+| Color del label/duración cuando activo | `--sc-info-strong` (#1464FE) |
+| Background inactivo | `--sc-surface` (blanco) |
+| Background hover | `--sc-surface-muted` |
+| Border entre segmentos | `--sc-border` (#D3D5DA) |
+| Border de la sección | `--sc-border-soft` (#F3F4F6) |
+| Color del label inactivo | `--sc-text-heading` (#181D26) |
+| Color de la duración inactiva | `--sc-text-muted` (#9499A3) |
 
-### 3.7 · QA checklist
+### Accesibilidad
 
-- [ ] Solo se renderiza si `recordings.length > 1`.
-- [ ] Segmento activo cambia bg + text color.
-- [ ] Anchura de cada segmento es proporcional a su duración real.
-- [ ] Segmentos con `fraction < 12%` muestran solo número + tooltip + aria-label completo.
-- [ ] Hover en inactivo cambia bg.
-- [ ] Click cambia `selectedRecordingId` + reset audio transport.
-- [ ] Flechas ←/→/↑/↓ navegan + seleccionan.
-- [ ] No wrap-around (primero ← no hace nada; último → no hace nada).
+- El contenedor es `<div role="radiogroup" aria-label="Selecciona un tramo">`.
+- Cada segmento es un `<button role="radio">` con `aria-checked` reflejando si es el seleccionado.
+- El `aria-label` por segmento incluye el label completo siempre, incluso cuando el visible es solo el número índice. Un usuario de lector de pantalla nunca pierde información por la decisión visual.
+- El `tabIndex` es 0 solo en el segmento activo; el resto vale -1. Esto sigue el patrón W3C de radiogroup: la navegación por Tab entra al grupo en el activo, y dentro del grupo se usa flechas. Estándar.
+
+### Fuera de alcance
+
+- No agrupa segmentos por color o por tipo de grupo. Todos los segmentos visualmente iguales en estructura.
+- No muestra waveform del audio. Es un selector de tramo, no un editor.
+- No permite reordenar tramos. El orden es el orden cronológico real de la conversación.
+
+### Checklist de QA
+
+- [ ] El componente solo se renderiza si hay más de una grabación.
+- [ ] El segmento activo cambia background y color de texto.
+- [ ] La anchura de cada segmento es proporcional a la duración real (un tramo de 3 minutos es claramente más ancho que uno de 30 segundos).
+- [ ] Los segmentos con menos del 12% de anchura muestran solo el número índice; el label completo está accesible vía tooltip y `aria-label`.
+- [ ] Hover sobre inactivo cambia el background.
+- [ ] Click cambia el tramo activo y resetea el transporte del audio.
+- [ ] Las flechas izquierda/derecha/arriba/abajo navegan entre segmentos.
+- [ ] No hay wrap-around: las flechas en los extremos no hacen nada.
 
 ---
 
 ## 4. scToast
 
-### 4.1 · Anatomía
+### Anatomía
 
-**Layout horizontal** (default, 1 acción o 0):
+Dos layouts según número de acciones.
 
-```
-[Icon] [Title         ] [Action] [×]
-       [Message       ]
-```
-
-**Layout vertical** (auto si 2 acciones):
+**Layout horizontal (default — para 0 o 1 acción)**
 
 ```
-[Icon] [Title         ]                [×]
-       [Message       ]
-              [secondaryAction] [action]
+[Icon en wrap circular] [Title         ] [Action label] [×]
+                        [Message       ]
 ```
 
-### 4.2 · Variantes visuales
+**Layout vertical (auto cuando hay dos acciones)**
 
-5 severities × 2 appearances.
+```
+[Icon] [Title              ]                              [×]
+       [Message            ]
+                              [secondaryAction]  [action]
+```
 
-**Light** (default):
-- Background: `bg-sc-{severity}-soft` (tinted soft)
-- Border: `border-sc-{severity}-{strong|base}`
-- Title: `text-sc-heading`
-- Message: `text-sc-body`
-- Icon wrap: `bg-sc-{severity}-strong/12`
-- Icon: `text-sc-{severity}-strong`
+El componente decide automáticamente qué layout usar — el consumidor no tiene que pensarlo.
 
-**Solid** (filled fuerte):
-- Background: `bg-sc-{severity}-strong` + `shadow-sc-md`
-- Title/Icon: white
-- Message: white/90
+### Variantes visuales
 
-| Severity | Color base | Icon |
+Cinco severidades por dos apariencias = diez variantes posibles. Todas usan el mismo patrón: fondo tintado (light) o sólido (solid), icono dentro de un wrap circular pequeño, contenido a la derecha, acciones inline o debajo según layout.
+
+| Severity | Color base | Icono usado |
 |---|---|---|
-| `success` | green/teal | `<CheckCircle2>` |
-| `error` | red | `<XCircle>` |
-| `warning` | amber | `<AlertTriangle>` |
-| `info` | blue/info | `<Info>` |
-| `indigo` | indigo | `<Sparkles>` |
+| `success` | Verde / teal | `<CheckCircle2>` |
+| `error` | Rojo | `<XCircle>` |
+| `warning` | Amber | `<AlertTriangle>` |
+| `info` | Azul | `<Info>` |
+| `indigo` | Indigo | `<Sparkles>` |
 
-### 4.3 · Dimensiones
+En **light**, el background es una versión muy tintada de la severity (por ejemplo, `--sc-error-soft` es un rojo muy claro, casi rosa) y el icono va en su color fuerte. En **solid**, el background es el color fuerte saturado y todos los textos van en blanco. Light se usa por defecto; solid se reserva para toasts que merecen llamar más la atención (típicamente errores críticos o estados sticky).
 
-```
-width: var(--sc-toast-width, 400px);
-max-width: 480px;
-padding: var(--sc-space-400);   /* 16px */
-gap: var(--sc-space-300);        /* 12px entre icon y content */
-gap (title/message): var(--sc-space-200);  /* 8px */
-border-radius: rounded-sc-xl;
-```
+### Dimensiones y spacing
 
-Ancho 400/480 introducido en 15.28 — el original (360) hacía wrappear demasiado los mensajes largos de error.
+- Ancho default: **400 píxeles** (variable CSS `--sc-toast-width`).
+- Ancho máximo: **480 píxeles**.
+- Padding en todos los lados: 16 píxeles.
+- Gap entre el icono y el contenido: 12 píxeles.
+- Gap entre title y message: 8 píxeles.
+- Border radius: 12 píxeles.
 
-### 4.4 · Comportamiento
+El ancho actual se eligió tras un ajuste: el ancho inicial (360) hacía que mensajes de error largos (típicamente "No se ha podido completar la acción: razón muy larga…") wrappeasen demasiadas veces y subían visualmente la altura del toast más de lo deseable. 400 con techo de 480 da margen sin convertir el toast en un cartel.
 
-- Auto-dismiss después de `duration` ms (default 3000).
-- `Infinity` → sticky.
-- Botón X de cerrar visible si `dismiss !== false`.
-- Acción inline (horizontal): cierra el toast tras invocar el handler.
-- Auto-promote a vertical si hay `secondaryAction`.
+### Comportamiento
 
-### 4.5 · Copia
+- **Auto-dismiss.** Por defecto a los 3000 ms. Pasar `Infinity` lo hace sticky.
+- **Botón X.** Visible si `dismiss !== false`. Cierra el toast inmediatamente.
+- **Acción inline.** Cierra el toast tras invocar el handler. El supervisor pulsa "Ver fallidas", el toast desaparece y la tabla se filtra.
+- **Auto-promote a vertical.** Si hay `secondaryAction`, el layout pasa a vertical sin que el consumidor tenga que pedirlo.
+
+### Copia
+
+El componente no tiene strings propias — todo viene del consumidor. Sí define convenciones para los strings que recibe:
 
 | Lugar | Convención |
 |---|---|
-| Title | Sentence case. Empieza por verbo o sustantivo concreto. Ejemplo: "Transcripción lista", "No se ha podido completar la acción". |
-| Message | Frase completa. Una sola línea idealmente. |
-| Action label | Verbo corto. Ejemplo: "Ver fallidas", "Reintentar", "Deshacer". |
+| Title | Sentence case. Empieza por verbo o sustantivo concreto. Ejemplos: "Transcripción lista", "No se ha podido completar la acción". |
+| Message | Frase completa, idealmente una sola línea. Si la línea es larga, debe wrappear con buen ritmo. |
+| Action label | Verbo corto. Ejemplos: "Ver fallidas", "Reintentar", "Deshacer". |
 
-### 4.6 · A11y
+### Accesibilidad
 
-- Container: `role="status" aria-live="polite"`.
-- Botón cerrar: `aria-label="Cerrar"`.
-- Auto-dismiss respeta `prefers-reduced-motion` (sonner gratis).
+- El toast es un `<div role="status" aria-live="polite">`. Polite (no assertive) porque la mayoría de los toasts son confirmaciones, no alertas críticas que interrumpen.
+- El botón de cerrar tiene `aria-label="Cerrar"`.
+- El motor (sonner) respeta `prefers-reduced-motion` automáticamente para la entrada/salida del toast.
 
-### 4.7 · QA checklist
+### Fuera de alcance
 
-- [ ] Las 5 severities renderizan con su color correcto en light y solid.
-- [ ] `duration: 3000` cierra solo a los 3s.
-- [ ] `duration: Infinity` no se cierra solo.
-- [ ] Botón X visible y funcional cuando `dismiss === true`.
-- [ ] Auto-promote a vertical con dos acciones.
-- [ ] Mensaje largo wrappea en 2-3 líneas máximo (no torre vertical).
-- [ ] Padding y gaps usan tokens DS (no Tailwind raw `gap-3`).
+- No hay queue management visible para el usuario. Si llegan tres toasts a la vez, sonner los apila — el componente no los agrupa en un solo "tienes 3 notificaciones".
+- No persiste entre recargas. Si el supervisor recarga la página, los toasts pendientes se pierden.
+
+### Checklist de QA
+
+- [ ] Las cinco severities renderizan con su color correcto en light y en solid.
+- [ ] Con `duration: 3000`, el toast se cierra solo a los 3 segundos.
+- [ ] Con `duration: Infinity`, el toast no se cierra solo y la X funciona.
+- [ ] El botón X es visible y funcional cuando `dismiss === true`.
+- [ ] Con dos acciones, el layout cambia automáticamente a vertical.
+- [ ] Un mensaje largo wrappea en 2 o 3 líneas como mucho, no en 5.
+- [ ] El padding y los gaps usan los tokens del DS, no valores hardcoded.
 
 ---
 
-## 5. Tokens compartidos
+## Tokens compartidos del Smart Contact Design System
 
-### 5.1 · Color (subset crítico)
+Los tokens viven en `src/styles/sc-design-system.css` y se exponen a Tailwind v4 como utilities (`bg-sc-primary`, `text-sc-heading`, `rounded-sc-md`, etc.).
 
-| Token | Valor | Uso |
+### Color · subset crítico
+
+Los colores que aparecen con más frecuencia en los componentes documentados:
+
+| Token | Valor | Uso típico |
 |---|---|---|
-| `--sc-surface` | `#FFFFFF` | Background de modales/cards. |
-| `--sc-bg-canvas` | `#F4F6FC` | Background de la app (canvas). |
-| `--sc-surface-muted` | tint sobre canvas | Hover sutil, secciones secundarias. |
-| `--sc-primary` (navy 600) | `#1B273D` | CTA primario. |
-| `--sc-on-primary` | `#FFFFFF` | Texto sobre primary. |
-| `--sc-accent` (teal 300) | `#60D3E4` | Acento (subrayado tabs, focus ring). |
-| `--sc-accent-strong` (teal 600) | `#48B8C9` | Texto teal de énfasis. |
-| `--sc-accent-soft` (teal 50) | `#EEFBFD` | Background acento muy soft. |
+| `--sc-surface` | `#FFFFFF` | Fondo de modales, cards, surface principal. |
+| `--sc-bg-canvas` | `#F4F6FC` | Fondo de la app (canvas detrás de los cards). |
+| `--sc-surface-muted` | tinte ligero sobre canvas | Hover sutil, secciones secundarias. |
+| `--sc-primary` (navy 600) | `#1B273D` | CTA primario, iconos clave, headers de marca. |
+| `--sc-on-primary` | `#FFFFFF` | Texto que va sobre el primary. |
+| `--sc-accent` (teal 300) | `#60D3E4` | Acento principal: subrayado de tabs, focus ring. |
+| `--sc-accent-strong` (teal 600) | `#48B8C9` | Texto teal de énfasis (caption ON del bulk modal). |
+| `--sc-accent-soft` (teal 50) | `#EEFBFD` | Background del bubble del agente en el chat de transcripción. |
 | `--sc-text-heading` | `#181D26` | Títulos. |
-| `--sc-text-body` | `#5C616B` | Body text. |
-| `--sc-text-muted` | `#9499A3` | Secondary text, captions. |
-| `--sc-text-emphasis` | `#3C434D` | Hero numbers (display, ablandado del black puro). |
-| `--sc-text-disabled` | `#797979` | Disabled controls. |
+| `--sc-text-body` | `#5C616B` | Texto de cuerpo. |
+| `--sc-text-muted` | `#9499A3` | Captions, texto secundario. |
+| `--sc-text-emphasis` | `#3C434D` | Hero numbers (negro ablandado, no puro). |
+| `--sc-text-disabled` | `#797979` | Controles deshabilitados. |
 | `--sc-cost-warn` (warning 600) | `#D97706` | Cue de coste (amber). |
-| `--sc-border` (surface 200) | `#D3D5DA` | Borders de containers. |
-| `--sc-border-soft` (surface 100) | `#F3F4F6` | Hairlines, dividers. |
-| `--sc-info-strong` (info 600) | `#1464FE` | Active del RecordingTimeline; toast info Solid. |
-| `--sc-info-soft` (info 50) | `#EEF4FF` | Active bg del RecordingTimeline; toast info Light. |
-| `--sc-success-*` | greens | Toast success. |
-| `--sc-error-*` | reds | Toast error. |
-| `--sc-warning-*` | ambers | Toast warning. |
-| `--sc-indigo-*` | indigos | Toast indigo (cue IA). |
+| `--sc-border` | `#D3D5DA` | Bordes de containers. |
+| `--sc-border-soft` | `#F3F4F6` | Hairlines, dividers. |
+| `--sc-info-strong` | `#1464FE` | Active del RecordingTimeline; toast info solid. |
+| `--sc-info-soft` | `#EEF4FF` | Background activo del RecordingTimeline; toast info light. |
 
-**Source of truth**: `src/styles/sc-design-system.css`.
+Las severities del toast (`--sc-success-*`, `--sc-error-*`, `--sc-warning-*`, `--sc-indigo-*`) siguen el mismo patrón: cada una tiene una variante fuerte y una soft.
 
-### 5.2 · Spacing scale
+### Spacing · escala única para todo el producto
+
+Una sola escala con prefijo `--sc-space-*`. Los tokens están en píxeles para que sean predecibles:
 
 | Token | Valor |
 |---|---|
-| `--sc-space-50` | 2px |
-| `--sc-space-100` | 4px |
-| `--sc-space-150` | 6px |
-| `--sc-space-200` | 8px |
-| `--sc-space-250` | 10px |
-| `--sc-space-300` | 12px |
-| `--sc-space-400` | 16px |
-| `--sc-space-500` | 20px |
-| `--sc-space-600` | 24px |
-| `--sc-space-800` | 32px |
+| `--sc-space-50` | 2 px |
+| `--sc-space-100` | 4 px |
+| `--sc-space-150` | 6 px |
+| `--sc-space-200` | 8 px |
+| `--sc-space-250` | 10 px |
+| `--sc-space-300` | 12 px |
+| `--sc-space-400` | 16 px |
+| `--sc-space-500` | 20 px |
+| `--sc-space-600` | 24 px |
+| `--sc-space-800` | 32 px |
 
-**Regla**: en código nuevo usar SIEMPRE estos tokens (`gap-[var(--sc-space-300)]`), no Tailwind raw (`gap-3`). Aunque coincidan en valor, los tokens permiten cambios globales coordinados.
+Regla: en código nuevo, usar siempre estos tokens (`gap-[var(--sc-space-300)]`), no las clases raw de Tailwind (`gap-3`). Aunque coincidan en valor, los tokens permiten cambios globales coordinados si en el futuro se ajusta la escala.
 
-### 5.3 · Type scale
-
-| Token | Valor | Uso |
-|---|---|---|
-| `--sc-font-size-xs` | 11px | Captions, eyebrows, badges. |
-| `--sc-font-size-sm` | 12px | Body small, labels secundarios. |
-| `--sc-font-size-body` (utility `text-sc-base`) | 14px | Body default. |
-| `--sc-font-size-md` | 16px | Headings de sección, decision title. |
-| `--sc-font-size-lg` | 18px | Modal title (DS h4). |
-| `--sc-font-size-xl` | 21px | Lead. |
-| `--sc-font-size-display` | 112px | Hero numbers (Bulk modal). |
-
-**Política twMerge** (sec 15.15 + 20.X del canon): cuando combines `text-{size}` + `text-{color}` en `cn()`, mover el font-size a `style={{ fontSize: 'var(--sc-font-size-X)' }}`. `cn()/twMerge` colapsa ambas clases en la misma key y pierde la de tamaño silenciosamente.
-
-### 5.4 · Radii
+### Tipografía
 
 | Token | Valor | Uso |
 |---|---|---|
-| `--sc-radius-xs` | 2px | — |
-| `--sc-radius-sm` | 4px | Pills pequeños, badges. |
-| `--sc-radius-md` | 6px | Botones. |
-| `--sc-radius-lg` | 8px | — |
-| `--sc-radius-xl` | 12px | Modal (`rounded-sc-xl`). |
-| `--sc-radius-full` | 9999px | Avatares, dots, switch knob. |
+| `--sc-font-size-xs` | 11 px | Captions, eyebrows, badges pequeños. |
+| `--sc-font-size-sm` | 12 px | Body small, labels secundarios. |
+| `--sc-font-size-body` (utility `text-sc-base`) | 14 px | Body default. |
+| `--sc-font-size-md` | 16 px | Headings de sección, decision title del bulk. |
+| `--sc-font-size-lg` | 18 px | Modal title. |
+| `--sc-font-size-xl` | 21 px | Lead. |
+| `--sc-font-size-display` | 112 px | Hero numbers (solo el bulk modal hoy). |
 
-### 5.5 · Shadows
+Familia tipográfica: Roboto (importada de Google Fonts). El cliente lo definió, no se debe sustituir sin discusión explícita.
 
-| Token | Valor |
-|---|---|
-| `--sc-shadow-sm` | sutil |
-| `--sc-shadow-md` | medio (toasts solid) |
+Hay una particularidad técnica importante a tener presente cuando se combina `text-{size}` y `text-{color}` en una misma `cn()`: la utilidad `tailwind-merge` agrupa ambas bajo el mismo bucket `text-*` y mantiene solo la última, perdiendo silenciosamente la otra. La solución canónica es mover el `font-size` a un `style` inline (`style={{ fontSize: 'var(--sc-font-size-X)' }}`) y dejar el color en `cn()`. La regla aplica solo a clases que pasan por `cn()` — las className planas no tienen el problema.
 
-Sombras tienen que ser legibles en light bg. NO usar shadow extremos tipo "drop-shadow-2xl" (es AI tell).
+### Radii
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--sc-radius-xs` | 2 px | — |
+| `--sc-radius-sm` | 4 px | Pills pequeños, badges. |
+| `--sc-radius-md` | 6 px | Botones. |
+| `--sc-radius-lg` | 8 px | — |
+| `--sc-radius-xl` | 12 px | Modales. |
+| `--sc-radius-full` | 9999 px | Avatares, dots, switch knob. |
+
+### Shadows
+
+Dos tokens principales:
+
+- `--sc-shadow-sm`: sombra sutil para cards y botones primarios. Da elevación sin gritar.
+- `--sc-shadow-md`: sombra media para toasts solid. Mayor presencia.
+
+Las sombras del producto son siempre legibles sobre canvas claro y nunca extremas. Las sombras tipo `drop-shadow-2xl` (muy difusas, muy oscuras) son la huella del *AI slop* que conviene evitar.
 
 ---
 
-## 6. Reglas transversales
+## Reglas transversales del DS
 
-### 6.1 · Iconografía canónica
+### Iconografía canónica
 
-Un icono = un significado. Si reaparece una sección equivalente, usar el mismo.
+El producto usa iconos de la librería `lucide-react`, con estricta correspondencia uno-a-uno entre icono y significado. Si una sección equivalente reaparece en otro sitio del producto, debe usar el mismo icono.
 
-| Icono lucide | Significado | Lugar canónico |
+| Icono lucide | Significado | Lugar canónico de uso |
 |---|---|---|
-| `<Sparkles>` | "Esto es generado por IA" | Pill aside del Resumen. **NUNCA** como icono de sección/tab. |
+| `<Sparkles>` | "Esto es generado por IA" | Pill discreta en el aside del Resumen del análisis. **Nunca como icono de sección o tab principal.** |
 | `<AlignLeft>` | Body of text | Header del Bulk modal, sección Resumen del análisis. |
 | `<FileText>` | Documento de transcripción | Tab Transcripción del player. |
-| `<TrendingUp>` | Valoración / métrica | Sección Sentimiento. |
-| `<Phone>` / `<MessageSquare>` | Canal de la conversación | Header del player (channel-aware). |
+| `<TrendingUp>` | Valoración / métrica | Sección Sentimiento del análisis. |
+| `<Phone>` / `<MessageSquare>` | Canal de la conversación (channel-aware) | Header del player. |
 | `<HelpCircle>` | Documentación / ayuda | Toolbar de filtros. |
-| `<Mic>` | Grabación (regla) | Hero card de Reglas. |
+| `<Mic>` | Grabación (regla) | Hero card del Repository. |
 | `<Database>` / `<Tags>` | Entidades / Categorías | PrimaryCard del Repository. |
-| `<Download>` | Descargar contenido visible | Audio bar y tab row del player. |
+| `<Download>` | Descargar contenido visible | Tab row del player. |
 | `<RotateCcw>` | Re-hacer (re-transcribir) | Tab row del player. |
-| `<Loader2>` | Cargando | Botones submit, ProcessingState. |
+| `<Loader2>` | Cargando (girando) | Botones submit, ProcessingState. |
 | `<X>` / `<XCircle>` | Cerrar / error | Modal close, scToast error. |
 
-**Regla absoluta** (sec 20.10): cero emojis en cualquier interface. Si aparece uno en `src/app/components/*.tsx`, es bug. Mapeo emoji → lucide en canon sec 20.10.
+Regla absoluta del producto: **cero emojis en cualquier interfaz**. El README y los documentos internos de markdown son la única excepción (no son interface). Si aparece un emoji dentro de un componente `.tsx`, es un bug y debe sustituirse por su equivalente lucide.
 
-### 6.2 · Política de copy
+### Política de copy
 
-- **Imperativo conversacional para títulos** ("Esta llamada todavía no se ha transcrito"), no estado seco ("Sin transcripción disponible").
-- **Gerundio para procesos activos** ("Transcribiendo…", "Analizando…"), no estado pasado ("Transcripción en proceso").
-- **Lowercase para cost cues y captions** in-cell ("genera coste", "todo procesado", "admiten análisis"). Uppercase reservado a labels estructurales ("TOTAL A PROCESAR", "ANÁLISIS").
-- **Descripción explica el "por qué" antes que el "cómo"**.
-- **Highlights como pills triple-eje** (cuando aplican): qué pasa / qué desbloquea / qué cuesta.
+Pequeñas reglas que mantienen consistente la voz del producto:
 
-### 6.3 · CTA primario único
+- **Imperativo conversacional para títulos**, no estado seco. Decir "Esta llamada todavía no se ha transcrito" en vez de "Sin transcripción disponible".
+- **Gerundio para procesos activos**: "Transcribiendo…", "Analizando…". No "Transcripción en proceso".
+- **Lowercase para cost cues y captions** in-cell ("genera coste", "todo procesado", "admiten análisis"). El uppercase queda reservado para labels estructurales ("TOTAL A PROCESAR", "ANÁLISIS").
+- **La descripción explica el "por qué" antes que el "cómo"**. Antes de "Puedes solicitarla individualmente", se dice "Solicita la transcripción para activar la búsqueda dentro del audio".
+- **Highlights como pills triple-eje** cuando aplican: qué pasa / qué desbloquea / qué cuesta.
 
-**Shape canónico** del CTA primario (todo el repo):
+### CTA primario unificado
 
-```tsx
-<button
-  className={cn(
-    "inline-flex items-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
-    "font-medium text-sc-on-primary transition-all",
-    "hover:bg-sc-primary-hover",
-    "active:scale-[0.98] disabled:active:scale-100",
-    "disabled:cursor-not-allowed disabled:opacity-60",
-    FOCUS_RING,
-  )}
->
-  {icon}
-  {label}
-</button>
+En todo el producto hay un único patrón visual para el CTA primario, copiable directamente:
+
+```
+inline-flex items-center gap-2
+bg-sc-primary text-sc-on-primary
+px-4 py-2 rounded-sc-md shadow-sc-sm
+hover:bg-sc-primary-hover
+active:scale-[0.98] disabled:active:scale-100
+disabled:cursor-not-allowed disabled:opacity-60
++ FOCUS_RING
 ```
 
-**Regla**: una sola vez por modal/panel. Es el verbo principal (Procesar, Transcribir, Solicitar análisis, Guardar). NO usar para navegación entre vistas (eso son cards/links) ni para confirmaciones destructivas (esas son `Modal.Cancel` con texto rojo cuando exista).
+Regla: **una sola vez por modal o panel**. Es el verbo principal: Procesar, Transcribir, Solicitar análisis, Guardar. No usar este patrón para navegación entre vistas (eso son cards o links) ni para confirmaciones destructivas (esas tienen su propio shape, con caja roja).
 
-### 6.4 · Focus ring
+### Focus ring
 
-**Source of truth**: `src/app/components/ui/focus.ts`.
+La cadena exacta vive en una constante exportada (`FOCUS_RING` en `src/app/components/ui/focus.ts`):
 
-```ts
-export const FOCUS_RING = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface"
+```
+focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sc-accent
+focus-visible:ring-offset-2 focus-visible:ring-offset-sc-surface
 ```
 
-Cualquier elemento interactivo (button, link, role="button" div, role="slider", search input) debe importar `FOCUS_RING` y aplicarlo. NO re-escribir la cadena en sitios nuevos.
+Cualquier elemento interactivo (button, link, role="button", role="slider", search input) debe importar `FOCUS_RING` y aplicarlo. No reescribir la cadena en sitios nuevos.
 
-### 6.5 · Animaciones · solo `transform` + `opacity`
+Una excepción justificada: los inputs nativos `<input>` de búsqueda pueden usar `focus:ring-2 focus:ring-sc-accent/20` (sin `-visible`), porque al hacer clic en un input el focus es deliberado y un ring suave (20% alpha) lee mejor que el ring fuerte de navegación por teclado.
 
-Regla repo-wide (sec 20.12 del canon).
+### Animaciones · solo `transform` y `opacity`
 
-✅ Permitido: `scale`, `translate`, `rotate`, `opacity`.
-❌ Prohibido: `width`, `height`, `top`, `left`, `padding`, `margin` con `transition`.
+Regla repo-wide. Las propiedades que se pueden animar con `transition` son:
 
-Si necesitas crecer/encoger un elemento, usa `scaleX/Y` con `transform-origin`. Si necesitas posicionar, `translate`.
+✅ Permitidas: `transform` (translate, scale, rotate) y `opacity`.
+❌ Prohibidas con transition: `width`, `height`, `top`, `left`, `padding`, `margin`.
 
-### 6.6 · Anti layout-shift
+Razón: las propiedades de layout disparan reflow continuo en cada frame, lo que mata el rendimiento. `transform` y `opacity` solo afectan a la composición y son baratísimas en GPU.
 
-- Contenido que aparece/desaparece mid-interacción → reservar `min-h` + `opacity-0`. NO `cond && (...)`.
-- Counters / timestamps / IDs que cambian → `tabular-nums` siempre.
-- CTAs con label dinámico → `min-w-[Npx]` con N = ancho del label más largo.
-- Si el contenido cambia entre instancias (open/close del modal con datos distintos) → no reservar, cada open es independiente.
+Si un elemento necesita crecer o encoger, hay que escalar con `scaleX`/`scaleY` y compensar el contenido con `transform-origin`. Si necesita posicionarse, `translate`. Nunca cambiar `width` con `transition: width`.
 
-### 6.7 · Modal de confirmación: solo destructivo
+### Anti layout-shift
 
-Decisión 15.28 (sec 20.14):
+Cuatro reglas para evitar que la UI baile cuando el estado cambia:
 
-- **Solo "genera coste"** → dispatch directo desde el CTA. Cost cue inline cubre el rol de advertencia.
-- **Sobrescribe / borra / cancela** → modal de confirmación explícito con caja roja.
+1. **Si un contenido aparece o desaparece a media interacción, reservar el espacio.** Usar `min-h` + `opacity-0` (no `display: none`, no `cond && (...)`). El cost tag del bulk modal es un ejemplo: cuando es C1, sigue ocupando el espacio pero invisible.
+2. **`tabular-nums` por defecto** en cualquier counter, timestamp o ID que cambie de valor durante el uso. Sin esto, los dígitos respiran y los números al lado se mueven.
+3. **CTAs con label dinámico necesitan `min-w` con el ancho del label más largo.** Por ejemplo, un botón que alterna entre "Transcribir" y "Procesando…" debe tener `min-w-[200px]`. Sin esto, el botón cambia de ancho cuando cambia el label y los elementos al lado bailan.
+4. **Si el contenido cambia entre instancias** (por ejemplo, abrir el modal con una conversación diferente), no hace falta reservar — cada instancia es independiente.
 
-Anti-patrón: añadir "¿estás seguro?" antes de cualquier acción billable. Es click muerto que el usuario interpreta como fricción. Si el coste real (€) sube significativamente en el futuro, reevaluar caso por caso.
+### Modal de confirmación: solo para destructivo
+
+Como se detalló en el `ConversationPlayerModal`, esta es una decisión cerrada del producto que afecta a todo el repo:
+
+- Las operaciones que solo generan coste (transcribir/analizar por primera vez, exportar) se dispatchan directo desde el CTA, con la advertencia de coste inline.
+- Las operaciones destructivas (sobrescribir, borrar, cancelar algo en curso) sí van con un modal de confirmación explícito.
+
+El anti-patrón a evitar es "¿estás seguro?" antes de cada acción billable. Es click muerto que el supervisor interpreta como fricción y termina ignorando. Si el coste real (€) sube significativamente en algún flujo del futuro, el caso se reevalúa, pero la regla por defecto es la descrita.
+
+---
+
+*Si encuentras una discrepancia entre lo que dice este documento y lo que hace el código, prevalece el código y este documento es el que está obsoleto. Los ejemplos numéricos, las firmas y los hex deben verificarse en el repo cuando se actualice esta referencia.*

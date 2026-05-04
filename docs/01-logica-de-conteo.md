@@ -1,65 +1,61 @@
----
-title: Lógica de conteo y reglas de negocio
-subtitle: Qué inputs necesita cada componente, qué deriva, qué dispatcha
-audience: Backend, data engineer y frontend coordinando contrato
-author: Rafael Areses
-project: Memory · Smart Contact
-updated: 2026-05-04
----
+# Memory · Lógica de conteo y reglas de negocio
 
-# Lógica de conteo y reglas de negocio
-
-> Qué datos necesita cada componente, cómo los deriva en estado de UI, y qué dispatcha. Audiencia: quien implementa el backend o el contrato de datos del frontend. Para la parte visual y de interacción, ver `02-referencia-ui.md`.
-
-<small>Memory · Smart Contact · Por Rafael Areses</small>
+*Memory · Smart Contact · Por Rafael Areses*
 
 ---
 
-## Componentes documentados
+## Sobre este documento
 
-| Componente | Archivo en repo | Estado |
-|---|---|---|
-| `BulkTranscriptionModal` | `src/app/components/BulkTranscriptionModal.tsx` | v26 (cell-height 200, hero 88px) |
-| `ConversationPlayerModal` | `src/app/components/ConversationPlayerModal.tsx` | Empty states a una columna (15.28) |
-| `RecordingTimeline` | `src/app/components/RecordingPicker.tsx` | Strip único proporcional (15.29) |
-| `scToast` | `src/app/components/ui/sc-toast.tsx` | API estable; ancho 400/480 (15.28) |
+Memory es un dashboard para supervisores de contact center. Permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano.
+
+Este documento explica **qué datos necesita cada componente clave del producto, qué deriva a partir de esos datos, y qué reglas de negocio aplica antes de dispatchar acciones**. La parte visual y de interacción —cómo se ve, cómo se comporta, qué dice— vive en el documento hermano *Memory · Referencia de UI*.
+
+Cuatro componentes se documentan aquí, en este orden:
+
+| Componente | Para qué sirve |
+|---|---|
+| `BulkTranscriptionModal` | Confirmar y lanzar transcripción/análisis en bloque sobre N conversaciones seleccionadas. |
+| `ConversationPlayerModal` | Ver una conversación: audio (si es llamada), transcripción tipo chat, panel de análisis IA. |
+| `RecordingTimeline` | Cuando una conversación tiene varias grabaciones, elegir cuál se está oyendo. |
+| `scToast` | Notificaciones (éxito, error, en proceso) emitidas desde cualquier flujo. |
 
 ---
 
 ## 1. BulkTranscriptionModal
 
-Modal de confirmación para procesar conversaciones en bloque — transcripción y/o análisis. Se abre cuando el usuario selecciona varias conversaciones desde la tabla y dispara la acción de procesar.
+### ¿Qué es este componente?
 
-Su trabajo:
-1. Confirmar exactamente **cuántas** conversaciones se van a procesar.
-2. Permitir decidir si **incluye análisis** (cuando hay decisión real que tomar).
-3. Avisar de que la acción **genera coste**.
-4. Bloquear el botón primario cuando no hay nada que ejecutar.
+Un modal que aparece cuando el usuario selecciona varias conversaciones y dispara la acción "Procesar". Su trabajo es:
 
-**No es** un orquestador — no muestra progreso, no permite editar la selección.
+1. **Confirmar** exactamente cuántas conversaciones se van a procesar.
+2. Dejar que el usuario decida si **incluye análisis**, cuando hay decisión real que tomar.
+3. **Avisar** de que la operación genera coste.
+4. **Bloquear** el botón primario cuando no hay nada que ejecutar.
 
-### 1.1 · Contrato de datos
+No es un orquestador. No muestra progreso, no permite editar la selección desde dentro, no calcula coste monetario real. Es un punto de confirmación, nada más.
 
-El componente necesita conocer, para la selección actual, cuatro contadores. La API que los produzca es libre; lo importante es que sean MECE.
+### Contrato de datos
+
+El componente necesita conocer cuatro contadores sobre la selección actual. La API que los produzca es libre, pero los cuatro son MECE (mutuamente excluyentes y colectivamente exhaustivos respecto al total seleccionado):
 
 | Contador | Significado |
 |---|---|
-| `nSelected` | Total de conversaciones seleccionadas. Incluye todo lo demás. |
+| `nSelected` | Total de conversaciones seleccionadas. Es la suma de todo lo demás. |
 | `nTrans` | Conversaciones que aún necesitan transcripción. |
 | `nAnBase` | Conversaciones que aún necesitan análisis (tengan o no transcripción). |
 | `nAlready` | Conversaciones ya procesadas por completo (transcritas y analizadas). |
 
-**Invariante clave**: una conversación puede contarse en `nTrans` y en `nAnBase` simultáneamente si le faltan ambas cosas. **No son conjuntos disjuntos.** `nSelected = nAlready + (conversaciones a las que les falta algo)`.
+Una nota importante sobre la relación entre `nTrans` y `nAnBase`: **una misma conversación puede estar en ambos a la vez** si le faltan las dos cosas. No son conjuntos disjuntos. Lo único que es disjunto es `nAlready` con el resto: si una conversación está en `nAlready`, no puede estar en `nTrans` ni en `nAnBase`.
 
-El componente solo lee `nTrans`, `nAnBase`, `nAlready` y `nSelected`. No necesita saber qué conversación es cuál.
+El componente solo lee estos cuatro números. No necesita saber qué conversación concreta es cuál ni acceder a ningún payload mayor.
 
-### 1.2 · Derivación de la UI
+### Cómo se calcula lo que hay que procesar
 
-Toda la UI se deriva de tres valores calculados a partir de los contadores.
+Tres valores derivados gobiernan toda la UI del modal.
 
-**(a) Estado del switch "Incluir análisis"**
+**Estado del switch "Incluir análisis"**
 
-El switch tiene dos dimensiones ortogonales: `checked` (encendido) y `disabled` (interactividad).
+El switch tiene dos dimensiones independientes: si está encendido (`checked`) y si se puede tocar (`disabled`).
 
 ```
 disabled = (nAnBase === 0)
@@ -72,155 +68,182 @@ El valor inicial de `userOn` depende del escenario, para ofrecer el default úti
 userOn_initial = (nTrans === 0 && nAnBase > 0) ? true : false
 ```
 
-Es decir, cuando lo único pendiente es análisis (casos C2, C5), el switch abre encendido. El usuario puede apagarlo; si lo hace, `heroCount` cae a 0 y "Procesar" se deshabilita. **No se le obliga a mantenerlo encendido.**
+Es decir, cuando lo único pendiente es análisis, el switch abre encendido. El usuario puede apagarlo, pero entonces no quedará nada que procesar y "Procesar" se deshabilita. No se le fuerza a mantenerlo encendido — la deshabilitación del botón ya transmite el mensaje sin necesidad de bloquear el switch.
 
-Caption bajo el switch:
-- `disabled === true` → "No hay nada que analizar"
-- `disabled === false` → `+{nAnBase} pendientes · genera coste`
+La caption bajo el switch refleja el estado:
 
-**(b) `heroCount` — el número grande**
+- Si está deshabilitado: "No hay nada que analizar".
+- Si está activo: "+{nAnBase} pendientes · genera coste".
+
+**`heroCount` — el número grande**
 
 ```
 heroCount = checked ? nTrans + nAnBase : nTrans
 ```
 
-Es el número grande de la cell izquierda y representa lo que se va a ejecutar al confirmar.
+Es lo que aparece como número grande en la cell izquierda. Representa el total de operaciones que se ejecutarán al confirmar.
 
-**(c) `canSubmit` — habilita el botón "Procesar"**
+**`canSubmit` — habilita "Procesar"**
 
 ```
 canSubmit = heroCount > 0
 ```
 
-Único caso donde es `false`: C1 (nada pendiente).
+El único caso donde es falso es cuando todo está ya procesado.
 
-### 1.3 · Casuísticas (MECE)
+### Regla cerrada · conversaciones con varias grabaciones
 
-Seis combinaciones de datos. Cada una determina una casuística concreta. Los ejemplos numéricos son los que usa el prototipo:
+Una conversación puede tener N grabaciones (transferencias entre grupos vía IVR generan tramos separados). Esto introduce una pregunta: si una conversación con tres grabaciones entra en una selección bulk, ¿qué tramo se transcribe?
 
-| Caso | nSelected | nTrans | nAnBase | nAlready | checked (inicial) | disabled | heroCount (inicial) | canSubmit |
+**La regla del producto es: el bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo concreto solo existe en el modo individual, dentro del reproductor (`RecordingTimeline`). El bulk es para volumen; el single es para precisión.
+
+Razones detrás de esta decisión:
+
+- **Una sola regla, sencilla**. El supervisor no tiene que entender heurísticas ("¿el sistema escogió por mí cuál es la importante?").
+- **Transparente sobre el coste**. El modal muestra el desglose explícito antes de confirmar (ver más abajo).
+- **Consistente con el principio del bulk**. El bulk ejecuta sobre lo seleccionado, sin lógica oculta. Si el supervisor sabe que en la conversación X solo le interesa el tramo de retención, abre esa conversación, la transcribe individualmente, y luego puede usar el bulk sobre el resto.
+
+**Comunicación al usuario antes de confirmar**: cuando hay multi-grabación en la selección, el subtítulo del modal o una caption junto al número grande lo dice explícitamente. Por ejemplo: *"14 conversaciones · 3 con varias grabaciones · 22 transcripciones totales"*. El usuario ve el coste real (en número de operaciones) antes de pulsar Procesar. Si le sorprende, puede deseleccionar las multi-grabación manualmente y tratarlas aparte.
+
+**Implicación para el contador `nTrans`**: cuando hay multi-grabación en la selección, `nTrans` cuenta tramos pendientes, no conversaciones pendientes. Una conversación con 3 grabaciones sin transcribir suma 3 a `nTrans`, no 1.
+
+**Invariante asociada del modelo**: para una conversación con N grabaciones, `Conversation.hasTranscription === true` solo si las N están transcritas. Si M < N están transcritas, la conversación sigue siendo "pendiente" en la columna Estado y en `nTrans`. Esto mantiene coherencia con el resto del producto: una conversación parcialmente transcrita es funcionalmente "todavía pendiente", igual que el análisis sigue requiriendo el texto completo.
+
+### Las seis casuísticas
+
+Seis combinaciones de los cuatro contadores cubren todos los escenarios posibles en los que se puede abrir el modal. La tabla usa los ejemplos numéricos del prototipo; los valores reales dependerán siempre de la selección del usuario.
+
+| Caso | nSelected | nTrans | nAnBase | nAlready | checked inicial | disabled | heroCount inicial | ¿se puede procesar? |
 |---|---|---|---|---|---|---|---|---|
-| **C1** | 24 | 0 | 0 | 24 | false | true | 0 | no |
-| **C2** | 17 | 0 | 14 | 3 | true | false | 14 | sí |
-| **C3** | 12 | 10 | 0 | 2 | false | true | 10 | sí |
-| **C4** | 18 | 8 | 6 | 4 | false | false | 8 (→14 si on) | sí |
-| **C5** | 11 | 0 | 9 | 2 | true | false | 9 (→0 si off) | sí |
-| **C6** | 19 | 7 | 9 | 3 | false | false | 7 (→16 si on) | sí |
+| **C1** | 24 | 0 | 0 | 24 | false | sí | 0 | no |
+| **C2** | 17 | 0 | 14 | 3 | true | no | 14 | sí |
+| **C3** | 12 | 10 | 0 | 2 | false | sí | 10 | sí |
+| **C4** | 18 | 8 | 6 | 4 | false | no | 8 (→14 si on) | sí |
+| **C5** | 11 | 0 | 9 | 2 | true | no | 9 (→0 si off) | sí |
+| **C6** | 19 | 7 | 9 | 3 | false | no | 7 (→16 si on) | sí |
 
-Solo **C4 y C6** tienen `heroCount` que cambia en vivo cuando el usuario toca el interruptor.
+Solo C4 y C6 tienen un `heroCount` que cambia en vivo cuando el usuario toca el switch.
 
-**Cómo se lee cada caso**:
+**Lectura de cada caso**:
 
-- **C1** — Ya estaba todo hecho. Switch deshabilitado. Procesar deshabilitado.
-- **C2** — Transcripciones hechas; solo queda analizar 14. Switch abre `on` por default. El usuario puede apagarlo, pero `heroCount` cae a 0 y Procesar se deshabilita.
-- **C3** — Transcripciones pendientes, pero de estas conversaciones no se puede analizar (e.g. chat-only u otra regla). Switch deshabilitado; Procesar procesa solo transcripciones.
-- **C4** — Ambas cosas pendientes. Switch abre `off`. El usuario decide.
-- **C5** — Solo chats, que no se transcriben pero sí se analizan. Mismo patrón que C2.
-- **C6** — Mezcla de llamadas y chats, ambas con análisis pendiente. Mismo patrón que C4.
+- **C1 — Todo procesado.** No hay nada pendiente. El modal sirve solo como confirmación de que el supervisor ya no tiene trabajo por delante en esta selección. Switch deshabilitado, Procesar deshabilitado.
 
-### 1.4 · Variantes Figma → código
+- **C2 — Solo análisis pendiente.** Las transcripciones ya están; quedan 14 análisis. El switch abre encendido por default. El usuario puede apagarlo, pero entonces `heroCount` cae a 0 y Procesar se deshabilita. Apagarlo es legítimo: el supervisor decide no analizar ahora.
 
-Dos propiedades en el component set: `Scenario` × `Analysis`. 8 combinaciones definidas.
+- **C3 — Transcripciones pendientes pero no se puede analizar.** Por ejemplo, una selección de chats donde las reglas de producto excluyen análisis para ese tipo, o conversaciones que no admiten análisis por otra razón. Switch deshabilitado. Procesar procesa solo las transcripciones.
 
-|  | Analysis=None | Analysis=Off | Analysis=On |
-|---|---|---|---|
-| **C1** | ✓ | | |
-| **C2** | | | ✓ |
-| **C3** | ✓ | | |
-| **C4** | | ✓ | ✓ |
-| **C5** | | | ✓ |
-| **C6** | | ✓ | ✓ |
+- **C4 — Ambas cosas pendientes, mezcla.** El supervisor decide. El switch abre apagado por default (lo más conservador en coste); si lo enciende, `heroCount` salta de 8 a 14 (8 transcripciones + 6 análisis adicionales).
 
-En código `Analysis` se descompone en dos booleanos:
+- **C5 — Solo chats con análisis pendiente.** Los chats no se transcriben (son texto por definición), pero sí se analizan. Mismo comportamiento que C2.
 
-| Figma `Analysis` | `checked` | `disabled` |
-|---|---|---|
-| None | false | true |
-| Off | false | false |
-| On | true | false |
+- **C6 — Mezcla con análisis pendiente.** Mezcla de llamadas y chats, todos con análisis pendiente. Mismo patrón que C4.
 
-`Analysis=On` se usa igual en C2/C5 (default inicial) que en C4/C6 (clic del usuario). Misma pinta, misma semántica.
+### Concurrencia · qué pasa con los items "en proceso"
 
-### 1.5 · Concurrencia · conversaciones en proceso
+Una vez se confirma "Procesar", las conversaciones afectadas pasan a estado "en proceso" en el listado. La transcripción y el análisis tardan minutos. Durante ese tiempo, el supervisor puede seguir trabajando y seleccionar nuevas conversaciones para lanzar otra acción en bulk.
 
-Una vez se confirma "Procesar", las conversaciones afectadas entran en estado "en proceso" en el listado. Pueden pasar minutos hasta que terminen. Durante ese tiempo, el usuario puede seguir trabajando y seleccionar nuevas conversaciones para lanzar otra acción en masa.
+Para evitar disparar acciones duplicadas sobre items que ya están en vuelo:
 
-Para evitar disparar acciones duplicadas sobre items en vuelo:
+- En la **vista individual de una fila**, las conversaciones en proceso no se pueden seleccionar. La fila se bloquea visualmente (spinner o badge de estado) y el clic en su checkbox no responde.
+- En la **selección masiva**, las conversaciones en proceso se deseleccionan **silenciosamente** antes de abrir el modal. El supervisor las ve en la fila con su indicador de "en proceso", pero no forman parte de la nueva selección. Esta deselección no se anuncia con un toast — sería ruido, el indicador en la fila ya cuenta la historia.
 
-- **En vista individual** — la conversación en proceso no es seleccionable. La fila se bloquea visualmente (spinner o badge "en proceso") y no responde al clic.
-- **En selección masiva** — las conversaciones en proceso se deseleccionan **silenciosamente** antes de abrir el modal. El usuario las ve en la fila con el indicador "en proceso", pero no forman parte de la nueva selección.
+Consecuencia para este modal: nunca recibe conversaciones en vuelo. El filtrado ocurre antes, en la vista de listado y en el store. Los contadores `nTrans` / `nAnBase` / `nAlready` representan solo estado pendiente o finalizado. **No hay un contador adicional "en proceso" en el modal** — eso es responsabilidad del listado.
 
-**Consecuencia para este modal**: nunca recibe conversaciones en vuelo. El filtrado ocurre upstream (vista de listado + store). Los contadores `nTrans` / `nAnBase` / `nAlready` siguen representando solo estado pendiente o finalizado. **No hay un contador adicional "en proceso"** — eso es responsabilidad del listado, no del modal.
+### Qué dispatcha al confirmar
 
-### 1.6 · Dispatch al confirmar
-
-Al hacer clic en "Procesar" con `canSubmit === true`, el modal invoca `onConfirm` del padre:
+Al hacer clic en "Procesar" con `canSubmit === true`, el modal invoca `onConfirm` del padre con dos argumentos:
 
 ```
 onConfirm({ includeAnalysis: checked }, eligibleIds)
 ```
 
-Donde `eligibleIds` se calcula upstream según el toggle:
-- `checked === false` → solo `readyToTranscribe.map(c => c.id)`.
-- `checked === true` → `[...readyToTranscribe, ...callsEligibleAnalysis, ...chatsEligibleAnalysis].map(c => c.id)`.
+Donde `eligibleIds` es la lista de IDs que el modal calcula según el toggle:
 
-`ConversationsView.handleBulkConfirm` reclasifica esos IDs en dos buckets antes de dispatchar mutaciones:
+- Si `checked === false`: solo los IDs de las conversaciones que necesitan transcripción.
+- Si `checked === true`: la unión de `readyToTranscribe` + las que están transcritas pero sin análisis.
 
-- `needsTranscription` — IDs sin transcripción. Pasan por el chain (transcribir → analizar si `includeAnalysis`).
-- `alreadyTranscribed` — IDs ya transcritos pero sin análisis. Si `includeAnalysis`, se mandan directos a `handleRequestAnalysis`.
+El padre (`ConversationsView.handleBulkConfirm`) reclasifica esos IDs en dos cubos antes de dispatchar las mutaciones reales:
 
-**Modelo de error**:
-- Si el backend rechaza la acción → `scToast.error({ title: "No se ha podido completar la acción", message: razón })`. El modal ya está cerrado en ese punto; no reaparece.
-- El usuario puede reintentar desde la misma pantalla.
+- `needsTranscription` — IDs sin transcripción. Pasan por el chain (transcribir y, si `includeAnalysis`, analizar después).
+- `alreadyTranscribed` — IDs ya transcritos pero sin análisis. Si `includeAnalysis`, se mandan directos al handler de análisis.
 
-**Fire-and-forget**: el modal se cierra inmediatamente al dispatch, sin esperar respuesta del backend. El feedback (éxito o fallo) llega vía toast. No hay barra de progreso en el modal.
+Cuando hay multi-grabación en juego, los IDs que viajan por estos cubos son **IDs de tramo**, no de conversación, por la regla descrita arriba.
+
+### Manejo de errores
+
+Comportamiento *fire-and-forget*: el modal se cierra inmediatamente al confirmar, sin esperar respuesta del backend. El control vuelve al listado.
+
+Si el backend rechaza la acción, la respuesta llega vía toast desde la vista de listado:
+
+```
+scToast.error({
+  title: "No se ha podido completar la acción",
+  message: <razón concreta>
+})
+```
+
+El modal ya está cerrado en ese punto y no reaparece. El usuario puede reintentar desde la misma pantalla.
+
+Hay una limitación técnica importante a tener presente: **el backend no notifica errores granulares durante el proceso** (no llega un evento "fallo en la conversación 27 de 50"). Solo notifica al inicio y al final del batch. Por eso el modal no diseña feedback fino tipo "X de Y completadas con error". El feedback de error llega como un evento único al terminar el batch entero.
 
 ---
 
 ## 2. ConversationPlayerModal
 
-Modal por conversación. Se abre al clicar el `<StatusIcon>` en la columna Estado de la tabla. Permite reproducir audio (si es llamada), ver transcripción tipo chat, y consultar el panel de análisis (resumen + sentimiento).
+### ¿Qué es este componente?
 
-### 2.1 · Invariantes globales del modelo
+Un modal por conversación. Se abre al hacer clic en el icono de estado de una fila de la tabla. Permite:
 
-Centralizadas en `normalizeChats(list)` de `src/app/data/mockSamples.ts`:
+- Reproducir el audio (solo si es llamada con grabación).
+- Leer la transcripción en formato chat (bubbles izquierda/derecha por hablante).
+- Consultar el panel de análisis IA: resumen + sentimiento.
+- Lanzar la transcripción si la conversación todavía no la tiene.
+- Lanzar el análisis si la transcripción está pero el análisis no.
 
-1. `channel === "chat"` ⇒ `hasTranscription === true` + `transcription[]` poblado.
-2. `hasAnalysis === true` ⇒ `hasTranscription === true`. Si no, baja `hasAnalysis: false` y limpia `aiCategories`.
+### Invariantes globales del modelo
 
-**Cualquier código que mute `Conversation` debe pasar por estas reglas o respetarlas en su propio path.** `handleRequestAnalysis` en `ConversationsView` filtra targets sin transcripción antes de actuar (capa de defensa adicional).
+Hay dos reglas duras sobre el estado de una `Conversation` que el reproductor (y todo el resto del producto) asume siempre:
 
-### 2.2 · State machine · tab Transcripción
+**Invariante 1 — Los chats siempre están transcritos.**
+Un chat es texto por definición; la transcripción no requiere procesamiento. Cuando se carga cualquier conversación con `channel === "chat"`, el sistema fuerza `hasTranscription === true` y rellena `transcription[]` si estaba vacío.
 
-Orden de evaluación (primer match gana):
+**Invariante 2 — No hay análisis sin transcripción.**
+El análisis (resumen + sentimiento) se deriva del texto. Una conversación no puede tener `hasAnalysis === true` si no tiene `hasTranscription === true`. Si por alguna razón el dato llega contradictorio (`hasAnalysis: true, hasTranscription: false`), el sistema baja `hasAnalysis` a `false` y limpia las categorías IA asociadas.
 
-| Condición | Estado | Componente render |
-|---|---|---|
-| `isProcessing === true` | Procesando | `<ProcessingState title="Transcribiendo">` |
-| `!hasRecording && channel === "llamada"` | Sin grabación | `<TerminalNote title="No hay grabación de esta llamada">` |
-| `!hasTranscription` | Empty actionable | `<DecisionState title="Sin transcripción" cost="Genera coste · ~30 s">` |
-| `transcription.length === 0` | Empty terminal | `<TerminalNote title="Transcripción vacía">` |
-| else | Activo | Lista de bubbles + search input |
+**Invariante 3 — Para multi-grabación, `hasTranscription` agregado solo es TRUE si todas las grabaciones lo están.**
+Como se detalla en la regla de bulk multi-rec (sección 1), una conversación con N grabaciones se considera transcrita solo si las N están transcritas. Esta agregación se computa en el loader; el campo `Conversation.hasTranscription` no se establece manualmente.
 
-### 2.3 · State machine · tab Análisis
+Estas tres reglas viven centralizadas en `normalizeChats(list)` dentro de `mockSamples.ts`. Cualquier código que mute una `Conversation` debe pasar por esas reglas o respetarlas en su propio camino. El handler `handleRequestAnalysis` en la vista de conversaciones añade además un filtro defensivo: ignora targets sin transcripción antes de actuar.
 
-| Condición | Estado | Componente render |
-|---|---|---|
-| `isAnalyzing && !hasAnalysis` | Procesando | `<ProcessingState title="Analizando">` |
-| `!hasAnalysis && !canRequest` (sin transcripción) | Dead-end resuelto | `<DecisionState title="Pendiente de transcribir y analizar" action="Transcribir y analizar" cost="Genera coste · transcripción + análisis">` |
-| `!hasAnalysis && canRequest` | Empty actionable | `<DecisionState title="Lista para analizar" action="Solicitar análisis" cost="Genera coste · ~10 s">` |
-| else | Activo | Sección Resumen + sección Sentimiento |
+### Estado de la pestaña Transcripción
 
-Donde `canRequest = hasTranscription || isChat`.
+El cuerpo de la pestaña Transcripción puede mostrarse en cinco estados distintos. Se evalúan en orden y el primer match gana:
 
-### 2.4 · Chain event-driven · transcribir → analizar
+1. **Procesando.** Si la transcripción está en marcha, se muestra una vista de "Transcribiendo" con un spinner y un mensaje conversacional.
+2. **Sin grabación (terminal).** Si la conversación es una llamada y no tiene grabación, se muestra un mensaje de "No hay grabación de esta llamada", sin acción posible. Sin grabación no se puede transcribir.
+3. **Sin transcripción (accionable).** Si la conversación tiene grabación pero no transcripción, se muestra un empty state con CTA "Transcribir" y la advertencia de coste inline ("Genera coste · ~30 s").
+4. **Transcripción vacía (terminal).** Si la transcripción se ejecutó pero terminó sin extraer líneas (típico de audios muy cortos o con silencios largos), se muestra un mensaje neutro sin acción.
+5. **Activo.** Si hay transcripción válida, se renderiza la lista de intervenciones en formato chat más un buscador en la cabecera de la pestaña.
 
-El CTA combinado "Transcribir y analizar" del dead-end de Análisis dispara dos mutaciones que **NO pueden ocurrir en paralelo** (la segunda depende del resultado de la primera).
+### Estado de la pestaña Análisis
 
-La implementación canónica usa una queue + effect en el padre (`ConversationsView`):
+Cuatro estados, mismo patrón de evaluación en orden:
+
+1. **Procesando.** Si el análisis está en marcha y todavía no se ha completado, se muestra "Analizando".
+2. **Pendiente de transcribir y analizar (dead-end resuelto).** Si no hay análisis y tampoco se puede pedir directamente (porque no hay transcripción y la conversación no es chat), el CTA combina los dos pasos: "Transcribir y analizar". Esto evita que el supervisor tenga que rebotar a la otra pestaña, transcribir, esperar y volver. La advertencia de coste lo refleja: "Genera coste · transcripción + análisis".
+3. **Lista para analizar (accionable).** Si hay transcripción pero no análisis, el CTA es "Solicitar análisis". Coste: "Genera coste · ~10 s".
+4. **Activo.** Resumen + sentimiento renderizados. El resumen se deriva determinísticamente del id (mismo hash que elige la plantilla de transcripción, así nunca hay disonancia entre las dos pestañas).
+
+Para chats, la condición "se puede pedir análisis" siempre se cumple aunque no haya transcripción explícita, porque el chat es texto por definición y el análisis trabaja sobre él directamente.
+
+### Cadena transcribir → analizar
+
+Cuando el usuario pulsa "Transcribir y analizar" en el dead-end resuelto, el componente dispara dos mutaciones encadenadas: primero la transcripción y, cuando termina, el análisis. La segunda no puede correr en paralelo a la primera porque depende de su resultado.
+
+La implementación canónica vive en el padre (`ConversationsView`) y usa una cola más un effect que la drena cuando el estado lo permite:
 
 ```
-const [chainAnalysisIds, setChainAnalysisIds] = useState<string[]>([]);
+const [chainAnalysisIds, setChainAnalysisIds] = useState([]);
 
 const handleRequestTranscriptionAndAnalysis = (ids) => {
   setChainAnalysisIds(prev => [...prev, ...ids]);
@@ -228,7 +251,6 @@ const handleRequestTranscriptionAndAnalysis = (ids) => {
 };
 
 useEffect(() => {
-  if (chainAnalysisIds.length === 0) return;
   const ready = chainAnalysisIds.filter(id =>
     conversations.find(c => c.id === id)?.hasTranscription
   );
@@ -238,164 +260,172 @@ useEffect(() => {
 }, [conversations, chainAnalysisIds]);
 ```
 
-**Propiedades**:
-- Robusto a re-renders del padre.
-- Robusto a múltiples IDs en flight (cada uno se drena cuando su transcripción individual completa).
-- Cuando llegue backend real: sustituir `handleRequestTranscription` (mutación con `setTimeout`) por una promesa real. La queue + effect sigue funcionando igual.
+Lo importante de este patrón:
 
-**Anti-patrón evitado**: `setTimeout(onRequestAnalysis, 6500)` dentro del player. Bug en 15.20: capturaba `onRequestAnalysis` con closure stale; el filter de elegibilidad veía estado anterior.
+- **Robusto a cambios futuros.** Cuando aterrice backend real, basta sustituir `handleRequestTranscription` (que hoy hace `setTimeout` para simular) por una promesa real. La cola y el effect siguen funcionando igual.
+- **Robusto a múltiples IDs en vuelo.** Cada conversación se drena de la cola cuando su transcripción individual completa. No hay timer compartido que se pueda desincronizar.
+- **Sustituyó a un patrón con `setTimeout(6500)` que tenía un bug de closure.** El `setTimeout` capturaba referencias viejas a las conversaciones y filtraba elegibilidad sobre estado obsoleto. La cola se evalúa cada vez que el estado cambia, así que siempre lee la versión actual.
 
-### 2.5 · Modal de confirmación: solo para destructivo
+### Cuándo aparece un modal de confirmación
 
-Decisión validada en 15.28 (canon sec 20.14):
+Decisión cerrada del producto: **el modal de confirmación adicional se reserva para operaciones destructivas, no para "esto genera coste"**.
 
-- **Operaciones que solo generan coste** (transcribir/analizar por primera vez, exportar): dispatch directo desde el CTA. La advertencia inline (`Genera coste · ~30 s`) cubre el rol de "consent". El toast de éxito al terminar cierra el loop.
-- **Operaciones destructivas** (sobrescriben datos): SÍ van con modal de confirmación explícito. Único superviviente en el player: `RetranscriptionConfirmModal` (re-transcribir sobrescribe transcript + análisis derivado).
+- **Operaciones que solo generan coste** (transcribir por primera vez, analizar por primera vez, exportar): se dispatchan directamente desde el CTA. La advertencia de coste vive inline ("Genera coste · ~30 s") justo debajo del botón. Es consentimiento suficiente; el toast de éxito al terminar cierra el loop.
+- **Operaciones destructivas** (sobrescribir datos existentes, borrar, cancelar algo en curso): sí van con un modal de confirmación explícito y, cuando aplica, una caja roja avisando del impacto.
 
-`TranscriptionRequestModal.tsx` fue borrado en 15.28.
+Único modal de confirmación que sobrevive en el reproductor: `RetranscriptionConfirmModal`. Re-transcribir sobrescribe la transcripción existente y, en consecuencia, invalida el análisis derivado. El usuario tiene que confirmarlo conscientemente.
 
-### 2.6 · Multi-recording
+Esta regla evita el patrón "¿estás seguro?" antes de cada acción billable, que el supervisor interpreta como fricción muerta y termina ignorando.
 
-Si `conversation.recordings.length > 1`, se renderiza `<RecordingTimeline>` sobre el audio bar. Estado controlado:
+### Multi-grabación
 
-- `selectedRecordingId: string | null`. Default: `recordings[0].id`.
-- Al seleccionar otro: `setIsPlaying(false) + setCurrentTime(0)` (reset transport).
-- `totalDuration` para el audio bar usa la duración del segmento seleccionado, no la total agregada.
-
-Lógica de cálculo proporcional: ver §3 abajo.
+Si la conversación tiene más de una grabación (es decir, `recordings.length > 1`), aparece un componente adicional sobre la barra de audio: el `RecordingTimeline`. Permite al supervisor elegir qué tramo está oyendo. Su lógica se documenta en la sección siguiente.
 
 ---
 
 ## 3. RecordingTimeline
 
-Selector de tramo para conversaciones multi-grabación (transferencias entre grupos vía IVR generan N grabaciones por conversación). Renderizado solo cuando `recordings.length > 1`.
+### ¿Qué es este componente?
 
-### 3.1 · Cálculo de anchuras proporcionales
+Un selector de tramo para conversaciones que tienen varias grabaciones. Se renderiza solo cuando `recordings.length > 1`; con una sola grabación, no aparece (sería un selector de un único elemento, sin sentido).
+
+Las conversaciones multi-grabación nacen típicamente de transferencias entre grupos vía IVR: el cliente entra al menú principal, lo transfieren al equipo comercial, lo transfieren a retención. Cada tramo se graba por separado.
+
+### Cómo calcula la anchura de cada tramo
+
+El componente parte de las duraciones de cada grabación, las suma para obtener el total, y reparte la anchura disponible proporcionalmente:
 
 ```
-durations[i] = parseDurationSec(recordings[i].duration)
-total        = sum(durations)
-fraction[i]  = durations[i] / total
+durations[i]  = parseDurationSec(recordings[i].duration)
+total         = sum(durations)
+fraction[i]   = durations[i] / total
 ```
 
-Cada segmento se renderiza con:
+Cada segmento se renderiza con `flex-grow: fraction[i]`, `flex-basis: 0` y un `min-width` de 56 píxeles. El `flex-grow` proporcional reparte el espacio exactamente según la duración real de cada tramo; el `min-width` evita que un tramo muy corto se vuelva inclickable.
 
-```css
-flex-grow: fraction[i];
-flex-basis: 0;
-min-width: 56px;
-```
+El supervisor ve de un vistazo qué tramo domina la conversación. Si la llamada son 5 segundos en IVR, 3 minutos hablando con un comercial y 30 segundos en retención, el segmento del comercial se ve claramente como el más ancho.
 
-El `flex-grow` proporcional + `flex-basis: 0` reparte el espacio disponible exactamente en proporción a la duración real. El `min-width: 56px` evita que segmentos muy cortos sean inclickables.
+### Cuándo un tramo muestra solo número en vez de label
 
-### 3.2 · Threshold de label · 12%
+Cuando `fraction[i]` es menor que 0.12 (12% del total), el segmento es demasiado estrecho para que el label se lea bien. En vez de truncarlo a tres caracteres y dejarlo feo, el componente cae a un fallback:
 
-Si `fraction[i] < 0.12`, el segmento no muestra el label de texto — fallback a:
-- Número índice (`{i+1}`) en el sitio del label.
-- Tooltip nativo (`title={label}`) con el label completo.
-- `aria-label` con tramo + label + duración + hora de inicio.
+- En el sitio donde iría el label, muestra el número de tramo (`1`, `2`, `3`...).
+- El label completo se sigue ofreciendo via tooltip nativo (`title=`).
+- La etiqueta `aria-label` siempre incluye el label completo, así que el lector de pantalla nunca pierde la información.
 
-**Why**: por debajo de 12% (~75px en un strip de 600px) el truncate del label produce 3-4 caracteres ("IVR…", "Com…") que no aportan info. El número + tooltip es más honesto.
+El umbral del 12% no es mágico: por debajo de eso, en un strip estándar de unos 600 píxeles, el segmento queda en menos de 75 píxeles y el label se trunca a apenas tres o cuatro caracteres. El número índice + tooltip es más honesto.
 
-### 3.3 · Selección y dispatch
+### Selección y dispatch
 
-Modelo: `role="radiogroup"` + cada segmento `role="radio"`.
+El componente expone un patrón estándar de radiogroup ARIA:
 
-- `selectedId` controlado por el padre (`ConversationPlayerModal`).
-- `onSelect(id)` notifica el cambio. El padre actualiza `selectedRecordingId` + reset del audio transport.
-- `tabIndex={0}` SOLO en el activo (patrón estándar W3C ARIA).
+- El contenedor del strip tiene `role="radiogroup"` con `aria-label="Selecciona un tramo"`.
+- Cada segmento tiene `role="radio"` y `aria-checked` reflejando si es el seleccionado.
+- El `tabIndex` de los segmentos es 0 solo en el activo; el resto vale -1. Esto sigue el patrón W3C: la navegación por Tab entra al grupo en el activo, y dentro del grupo la navegación es por flechas.
 
-### 3.4 · Navegación por teclado
+El estado `selectedRecordingId` lo controla el padre (`ConversationPlayerModal`). El componente no decide qué tramo está seleccionado; solo notifica al padre cuando el usuario quiere cambiar via `onSelect(id)`.
 
-Dentro del radiogroup:
+Al cambiar de tramo, el padre hace dos cosas: actualizar `selectedRecordingId` y resetear el transporte del audio (`isPlaying: false`, `currentTime: 0`). La barra de audio toma su duración del tramo seleccionado, no de la duración agregada de la conversación.
 
-| Tecla | Acción |
-|---|---|
-| `→` o `↓` | Mover selección al siguiente |
-| `←` o `↑` | Mover selección al anterior |
+### Edge cases
 
-No hay wrap-around (en el primero, `←` no hace nada; en el último, `→` no hace nada). Patrón coherente con segmentos de duración (no son una rueda).
-
-### 3.5 · Edge cases
-
-- **1 sola grabación** — el componente no se renderiza. Lo gatea el padre.
-- **Anchura del strip insuficiente para todos los `min-width: 56px`** — `overflow-hidden` clipa segmentos. Aceptable porque la realidad del producto es 2-5 tramos por conversación; si llega un sample con 12+, considerar `overflow-x-auto modal-scrollbar` o redibujo.
-- **Duración total = 0** — `total || 1` evita división por cero.
+- **Una sola grabación.** El componente no se renderiza. Lo gatea el padre con `recordings.length > 1`.
+- **Anchura del strip insuficiente para todos los `min-width: 56px`.** El contenedor tiene `overflow-hidden`, así que segmentos que pasen del ancho disponible se clipan. Aceptable porque la realidad del producto son 2 a 5 tramos por conversación; si llega un sample con 12 o más, conviene revisar (probablemente migrar a `overflow-x-auto` con scroll horizontal).
+- **Duración total cero.** El cálculo usa `total || 1` para evitar división por cero. Si todas las grabaciones tienen duración cero, el reparto es uniforme, lo cual es razonable como fallback.
 
 ---
 
 ## 4. scToast
 
-Componente de toast propio (Figma DS node `1050:355`) montado sobre `sonner`. API limpia para 5 severities × 2 appearances × 2 layouts.
+### ¿Qué es y por qué hay un wrapper
 
-### 4.1 · API
+`scToast` es la API canónica de notificaciones del producto. Por debajo usa `sonner` (la librería que viene con el stack de prototipos) como motor de cola, posicionamiento y accesibilidad, pero la presentación visual está envuelta para que los toasts sigan exactamente las convenciones del Smart Contact Design System: tipografía, colores por severidad, layout horizontal o vertical, dismiss, acciones.
 
-```ts
-scToast.success({ title, message, action, secondaryAction, duration, layout, appearance, dismiss })
-scToast.error({ ... })
-scToast.warning({ ... })
-scToast.info({ ... })
-scToast.indigo({ ... })
-scToast.dismiss(id?)
+El wrapper existe para que ningún sitio del código haga `import { toast } from "sonner"` directamente con su look-and-feel default. Cualquier toast nuevo que aparezca en el producto debe usar `scToast`.
+
+### Cómo elegir la severity
+
+Cinco severities. La elección comunica el tipo de evento, no su gravedad:
+
+| Severity | Cuándo usarla |
+|---|---|
+| `success` | Operación que terminó OK y el supervisor quiere confirmarlo. Ejemplo: "Transcripción lista". |
+| `error` | Fallo que requiere atención. Suele ir con `action` para reintentar o navegar a las fallidas. |
+| `warning` | Atención requerida pero no bloqueante. Ejemplo: "10 conversaciones omitidas porque están en proceso". |
+| `info` | Información contextual, sin acción. Ejemplo: "Filtro aplicado". |
+| `indigo` | Cue específico de feature o IA. Reservado para acciones que merecen highlight. No abusar. |
+
+Como regla general: si el evento no necesita mover al usuario a una decisión, suele ser `info`. Si la requiere o si quieres que la note, sube a `success` (positivo), `warning` (atención) o `error` (acción).
+
+### API
+
 ```
+scToast.success({
+  title:           "Transcripción lista",
+  message:         "Ya puedes consultarla en el reproductor.",
+  action:          { label: "Abrir", onClick: () => openPlayer(id) },
+  secondaryAction: { label: "Más tarde", onClick: () => {} },
+  duration:        3000,
+  layout:          "horizontal",
+  appearance:      "light",
+  dismiss:         true,
+  id:              "transcription-ready",
+})
+```
+
+Casi todos los campos son opcionales. Lo único realmente común es `title` y, según el caso, `message` o `action`.
 
 | Prop | Tipo | Default | Significado |
 |---|---|---|---|
-| `title` | `string?` | — | Línea principal, semibold. |
-| `message` | `string?` | — | Línea de detalle, regular. |
-| `action` | `{ label, onClick }?` | — | Botón primario inline. |
-| `secondaryAction` | `{ label, onClick }?` | — | Botón secundario. Promueve a layout vertical si está presente con `action`. |
-| `duration` | `number \| Infinity` | `3000` | Auto-dismiss en ms. `Infinity` = sticky. |
-| `layout` | `'horizontal' \| 'vertical'` | `'horizontal'` | Auto-promote a vertical con dos acciones o sin título. |
-| `appearance` | `'light' \| 'solid'` | `'light'` | Soft tint vs filled fuerte. |
-| `dismiss` | `boolean` | `true` | Mostrar la X de cerrar. |
-| `id` | `string \| number?` | — | Stable id para programmatic update/dismiss. |
+| `title` | string | — | Línea principal, semibold. |
+| `message` | string | — | Línea de detalle, regular. |
+| `action` | `{ label, onClick }` | — | Botón inline primario. Cierra el toast tras invocarlo. |
+| `secondaryAction` | `{ label, onClick }` | — | Botón secundario. Si está presente con `action`, el layout pasa automáticamente a vertical. |
+| `duration` | number | 3000 (ms) | Auto-dismiss. Pasar `Infinity` lo hace sticky. |
+| `layout` | "horizontal" \| "vertical" | "horizontal" | Auto-promote a vertical con dos acciones o sin título. |
+| `appearance` | "light" \| "solid" | "light" | Tinte suave vs fondo saturado. |
+| `dismiss` | boolean | true | Mostrar la X de cerrar. |
+| `id` | string \| number | — | Identificador estable para actualizar o cerrar programáticamente. |
 
-### 4.2 · Cuándo usar cada severity
+### Reglas de ciclo de vida
 
-| Severity | Cuándo |
-|---|---|
-| `success` | Operación que terminó OK y el usuario puede confirmarlo. Ejemplo: "Transcripción lista". |
-| `error` | Fallo que requiere atención del usuario. Suele ir con `action` para reintentar o ver fallidas. |
-| `warning` | Atención requerida pero no bloqueante. Ejemplo: "10 conversaciones omitidas porque están en proceso". |
-| `info` | Info contextual sin acción. Ejemplo: "Filtro aplicado". |
-| `indigo` | Cue de feature/IA. Reservado para acciones que requieren highlight (no overuse). |
+Tres pautas para que los toasts se sientan consistentes:
 
-### 4.3 · Auto-promote a layout vertical
+1. **El default de 3000 ms basta para confirmaciones simples.** Si solo quieres acusar recibo de un evento ("Filtro aplicado", "Conversación marcada"), el default funciona.
 
-El layout `horizontal` no cabe cómodamente con dos acciones. La promoción a vertical es automática:
+2. **Si el toast lleva una acción, debe ser sticky o muy largo.** Un toast con botón "Ver fallidas" que desaparece en 3 segundos es una afordance perdida — el supervisor no llega a verla. Para acciones, usa `Infinity` (el supervisor cierra cuando quiera) o como mínimo 7000 ms.
 
-```
-effectiveLayout = layout === 'vertical' || (action && secondaryAction)
-                  ? 'vertical' : 'horizontal'
-```
+3. **`Infinity` se reserva para estados que requieren acción explícita del usuario.** El caso típico es "Procesando N conversaciones": un toast persistente arriba a la derecha mientras dura el batch. Cuando el batch termina, ese toast se reemplaza por uno breve de éxito o error. No abuses de `Infinity` para cosas que no son procesos largos.
 
-Razón: forzar al consumidor a recordar cuándo usar vertical es ruido. La presencia de `secondaryAction` ya implica que hace falta más espacio.
-
-### 4.4 · Dimensiones y spacing
-
-- Ancho default: `400px` (`--sc-toast-width: 400px`).
-- Ancho max: `480px`.
-- Padding: `var(--sc-space-400)` (16px) en todos los lados.
-- Gap interno (icon → content): `var(--sc-space-300)` (12px).
-- Gap title ↔ message: `var(--sc-space-200)` (8px).
-
-Decisión 15.28: el ancho original (360px) hacía que mensajes largos de error wrapearan demasiadas veces y subían la altura del toast. 400/480 da margen sin volverse "larguísimo". El gap title↔message subió de 4px a 8px para que el mensaje se lea como párrafo separado, no como continuación de la línea de título.
-
-### 4.5 · Reglas de ciclo de vida
-
-- Default `duration: 3000` (3 segundos). Suficiente para un cue, no entorpece.
-- Toasts con `action` **deben** ser sticky o muy largos (≥ 7000ms): si el usuario no llega a verlos antes del auto-dismiss, la acción se pierde.
-- `Infinity` reservado para estados que SÍ requieren acción explícita del usuario (ejemplo: "Procesando N conversaciones" — toast persistente mientras dura el batch).
-- Sticky toasts deben tener `dismiss: true` para que el usuario pueda cerrarlos manualmente.
+Cuando un toast es sticky, ten siempre `dismiss: true` (default) para que el usuario pueda cerrarlo manualmente. Un sticky sin dismiss es una jaula visual.
 
 ---
 
 ## Glosario
 
-- **Transcripción**: conversión speech-to-text de una llamada. Paso base.
-- **Análisis**: pase de IA sobre una conversación transcrita (o sobre un chat). Produce resumen + sentimiento.
-- **Conversación**: elemento único — una llamada o un hilo de chat. Puede tener N grabaciones (transferencias IVR).
-- **Pendiente**: estado de una conversación que aún no ha pasado un paso (transcripción o análisis).
-- **MECE**: Mutually Exclusive, Collectively Exhaustive. Aplicado a las 6 casuísticas del Bulk modal.
-- **Fire-and-forget**: el componente dispara la acción y cierra; el feedback llega vía toast, no espera respuesta inline.
+- **Conversación**: la unidad de contenido del producto. Puede ser una llamada o un hilo de chat. Una conversación puede tener una o varias grabaciones (las llamadas con transferencias IVR).
+- **Tramo o grabación**: cada uno de los segmentos de audio que componen una conversación multi-grabación. Para una conversación de 1 grabación, "tramo" y "conversación" son sinónimos.
+- **Transcripción**: el proceso (y el resultado) de convertir audio en texto, con separación de hablantes. Es el paso base. Sin transcripción no hay nada más.
+- **Análisis**: pase de IA sobre una conversación transcrita (o sobre un chat). Produce dos cosas: un resumen breve y una valoración de sentimiento. Es opcional.
+- **Pendiente**: estado de una conversación que aún no ha pasado un paso (transcripción o análisis). En multi-grabación, una conversación está pendiente si **alguno** de sus tramos lo está.
+- **MECE**: mutually exclusive, collectively exhaustive. Aplicado a los cuatro contadores del bulk modal: `nSelected = nTrans` (algunos) `+ nAnBase` (algunos, posiblemente solapados con nTrans) `+ nAlready`. La parte solapada está controlada explícitamente.
+- **Fire-and-forget**: el componente dispatcha la acción y se cierra sin esperar respuesta. El feedback (éxito o fallo) llega vía toast desde la vista que lo invocó.
+- **Empty state**: el cuerpo de un componente cuando no hay datos para mostrar. Tres variantes en el reproductor: con acción (`DecisionState`), procesando (`ProcessingState`), y terminal sin acción (`TerminalNote`).
+
+---
+
+## Decisiones de producto cerradas
+
+- **El bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo concreto vive solo en el modo individual. El modal muestra el desglose explícito antes de confirmar.
+- **`Conversation.hasTranscription` para multi-grabación es TRUE solo si todas las grabaciones lo están.** Una conversación parcialmente transcrita es funcionalmente "pendiente".
+- **El modal de confirmación adicional se reserva para operaciones destructivas.** Las operaciones que solo generan coste se dispatchan directo, con la advertencia inline en el CTA. Único superviviente: `RetranscriptionConfirmModal`.
+- **El bulk no decide por el usuario.** Los items en proceso se filtran antes de llegar al modal (selección masiva los deselecciona silenciosamente; en vista individual no son seleccionables). El modal nunca recibe items en vuelo.
+- **No hay cancelación de batch a mitad de proceso.** Una vez disparada la acción, el coste se genera completo. La copia del modal lo refleja: no se promete "cancelar" en ningún sitio.
+- **Errores se notifican solo al inicio y al final del batch.** El backend no notifica errores granulares durante el proceso. La UI no diseña feedback fino tipo "fallo en la 27 de 50".
+
+## Pendiente de decidir
+
+- **Contrato de backend para los contadores `nTrans`, `nAnBase`, `nAlready`.** Endpoint concreto, payload esperado, paginación si la selección es muy grande.
+- **Eventos de telemetría.** Qué eventos disparar al abrir el modal, al togglear el switch, al confirmar; con qué atributos. Útil para medir adopción del switch de análisis.
+- **Límite máximo de selección para el bulk.** ¿Hay un tope duro? ¿Aviso si se excede? ¿Paginación de la acción?
+- **Implementación del estado por grabación y agregación en `hasTranscription`.** La regla está cerrada en producto, pero el modelo y los handlers todavía cuentan a nivel de conversación. Pasada de implementación pendiente.
