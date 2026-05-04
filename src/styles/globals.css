@@ -305,10 +305,14 @@ html {
 }
 
 .doc-prose blockquote {
-  border-left: 3px solid var(--sc-border);
-  padding-left: var(--sc-space-400);
+  /* 1px border-left + bg tint para evitar el side-stripe AI slop pattern.
+     Indenta + cambia bg en lugar de gritar con un rule grueso. */
+  border-left: 1px solid var(--sc-border);
+  background: var(--sc-surface-muted);
+  padding: var(--sc-space-300) var(--sc-space-400);
+  border-radius: 0 4px 4px 0;
   margin: var(--sc-space-400) 0;
-  color: var(--sc-text-muted);
+  color: var(--sc-text-body);
   font-style: normal;
 }
 
@@ -398,41 +402,123 @@ html {
 
 .doc-prose small { font-size: 12px; color: var(--sc-text-muted); }
 
-/* Print stylesheet · only the doc-print-target is visible.
-   Activates when body.printing-doc is set by DocumentationModal. */
+/* Print stylesheet · activado por DocumentationModal con body.printing-doc.
+   Estrategia: ocultar la app principal + overlay/header/footer del modal,
+   y "desmontar" las constraints de positioning/overflow del modal-content
+   y modal-body para que el contenido del doc fluya en flujo normal y se
+   pagine automáticamente. NO usar `position: absolute; inset: 0` — limita
+   a una sola página y rompe la paginación. */
 @media print {
-  body.printing-doc * {
-    visibility: hidden;
+  @page {
+    size: A4;
+    margin: 18mm 16mm;
   }
-  body.printing-doc .doc-print-target,
-  body.printing-doc .doc-print-target * {
-    visibility: visible;
+
+  /* Ocultar la app principal — solo queda el portal del modal */
+  body.printing-doc #root {
+    display: none !important;
   }
-  body.printing-doc .doc-print-target {
-    position: absolute;
-    inset: 0;
+
+  /* Ocultar overlay del modal */
+  body.printing-doc [data-slot="modal-overlay"] {
+    display: none !important;
+  }
+
+  /* Modal content: quitar fixed/transform/altura/overflow constraints
+     para que vuelva a ser un bloque normal en el flujo del documento */
+  body.printing-doc [data-slot="modal-content"] {
+    position: static !important;
+    transform: none !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    height: auto !important;
+    min-height: 0 !important;
     max-height: none !important;
     overflow: visible !important;
-    padding: 16mm !important;
-    color: #000 !important;
-    background: #fff;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: white !important;
+    display: block !important;
   }
+
+  /* Header y footer del modal fuera del PDF */
+  body.printing-doc [data-slot="modal-header"],
+  body.printing-doc [data-slot="modal-footer"] {
+    display: none !important;
+  }
+
+  /* Body del modal: quitar flex / scroll para que el doc respire */
+  body.printing-doc [data-slot="modal-body"] {
+    padding: 0 !important;
+    overflow: visible !important;
+    flex: none !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    display: block !important;
+  }
+
+  /* El doc en sí: sin altura limitada ni scroll */
+  body.printing-doc .doc-print-target {
+    max-height: none !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    color: #000 !important;
+    background: white !important;
+  }
+
+  /* Fuerza tinta negra para impresión limpia */
+  body.printing-doc .doc-print-target,
   body.printing-doc .doc-print-target h1,
   body.printing-doc .doc-print-target h2,
   body.printing-doc .doc-print-target h3,
-  body.printing-doc .doc-print-target strong {
+  body.printing-doc .doc-print-target h4,
+  body.printing-doc .doc-print-target strong,
+  body.printing-doc .doc-print-target li,
+  body.printing-doc .doc-print-target p {
     color: #000 !important;
   }
+
   body.printing-doc .doc-print-target a {
     color: #000 !important;
     text-decoration: underline;
   }
-  body.printing-doc .doc-print-target table {
-    page-break-inside: avoid;
+
+  body.printing-doc .doc-print-target code,
+  body.printing-doc .doc-print-target pre {
+    background: #f5f5f5 !important;
+    color: #000 !important;
+    border-color: #ccc !important;
   }
+
+  body.printing-doc .doc-print-target small {
+    color: #555 !important;
+  }
+
+  /* Reglas de paginación */
   body.printing-doc .doc-print-target h1,
   body.printing-doc .doc-print-target h2,
-  body.printing-doc .doc-print-target h3 {
+  body.printing-doc .doc-print-target h3,
+  body.printing-doc .doc-print-target h4 {
     page-break-after: avoid;
+    page-break-inside: avoid;
+    break-after: avoid;
+    break-inside: avoid;
+  }
+
+  body.printing-doc .doc-print-target table {
+    page-break-inside: auto;
+  }
+  body.printing-doc .doc-print-target tr,
+  body.printing-doc .doc-print-target pre,
+  body.printing-doc .doc-print-target blockquote {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  body.printing-doc .doc-print-target img {
+    max-width: 100%;
+    page-break-inside: avoid;
   }
 }

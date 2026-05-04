@@ -154,17 +154,17 @@ Para evitar disparar acciones duplicadas sobre items en vuelo:
 
 ### 1.6 · Dispatch al confirmar
 
-Al hacer clic en "Procesar" con `canSubmit === true`:
+Al hacer clic en "Procesar" con `canSubmit === true`, el modal invoca `onConfirm` del padre:
 
 ```
-dispatch({
-  ids: <eligibleIds>,
-  doTranscription: nTrans > 0,
-  includeAnalysis: checked,
-})
+onConfirm({ includeAnalysis: checked }, eligibleIds)
 ```
 
-Donde `eligibleIds` se clasifica upstream en `ConversationsView.handleBulkConfirm` en dos buckets:
+Donde `eligibleIds` se calcula upstream según el toggle:
+- `checked === false` → solo `readyToTranscribe.map(c => c.id)`.
+- `checked === true` → `[...readyToTranscribe, ...callsEligibleAnalysis, ...chatsEligibleAnalysis].map(c => c.id)`.
+
+`ConversationsView.handleBulkConfirm` reclasifica esos IDs en dos buckets antes de dispatchar mutaciones:
 
 - `needsTranscription` — IDs sin transcripción. Pasan por el chain (transcribir → analizar si `includeAnalysis`).
 - `alreadyTranscribed` — IDs ya transcritos pero sin análisis. Si `includeAnalysis`, se mandan directos a `handleRequestAnalysis`.

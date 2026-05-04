@@ -29,7 +29,7 @@ Modal (width 720px, surface bg-sc-surface, radius 8px)
 ├── Body (2 columnas, divider hairline central)
 │   ├── Hero cell (left, 50%)
 │   │   ├── Label "TOTAL A PROCESAR" (sc-base, font-semibold, uppercase)
-│   │   ├── Number heroCount (88px, leading 88px, text-sc-emphasis, tabular-nums, animate-sc-pulse al cambiar)
+│   │   ├── Number heroCount (112px, leading 112px, text-sc-emphasis, tabular-nums, animate-sc-pulse al cambiar)
 │   │   ├── HeroDeltaHint "(de N seleccionadas)" si heroCount !== nSelected
 │   │   └── Cost tag "genera coste" | "todo procesado" (text-sc-cost-warn lowercase)
 │   └── Decision cell (right, 50%)
@@ -113,9 +113,9 @@ Fire-and-forget (ver Doc A §1.6). El modal se cierra inmediatamente. Feedback v
 | Cost warn | `--sc-cost-warn` | `#D97706` |
 | Accent strong | `--sc-accent-strong` | `#48B8C9` |
 | Border soft | `--sc-border-soft` | hairline divider |
-| Hero font-size | `--sc-font-size-display` | `88px` |
-| Hero line-height | `--sc-line-height-display` | `88px` |
-| Cell height | `--sc-bulk-cell-height` | `200px` |
+| Hero font-size | `--sc-font-size-display` | `112px` |
+| Hero line-height | `--sc-line-height-display` | `112px` (1:1 con el font-size) |
+| Cell height | `--sc-bulk-cell-height` | `240px` |
 | Cell padding-top | `--sc-bulk-cell-padding-top` | `28px` |
 | Cell padding-x | `--sc-bulk-cell-padding-x` | `24px` |
 
@@ -465,26 +465,27 @@ Ancho 400/480 introducido en 15.28 — el original (360) hacía wrappear demasia
 | Token | Valor | Uso |
 |---|---|---|
 | `--sc-surface` | `#FFFFFF` | Background de modales/cards. |
-| `--sc-surface-muted` | `#F4F6FC` | Hover muy sutil, hairline backgrounds. |
-| `--sc-primary` | `#1B273D` (navy 600) | CTA primario. |
-| `--sc-primary-hover` | navy 700 | Hover del primary. |
+| `--sc-bg-canvas` | `#F4F6FC` | Background de la app (canvas). |
+| `--sc-surface-muted` | tint sobre canvas | Hover sutil, secciones secundarias. |
+| `--sc-primary` (navy 600) | `#1B273D` | CTA primario. |
 | `--sc-on-primary` | `#FFFFFF` | Texto sobre primary. |
-| `--sc-accent` | `#60D3E4` (teal) | Acento (subrayado tabs, focus ring). |
-| `--sc-accent-strong` | `#48B8C9` | Texto teal de énfasis. |
-| `--sc-accent-soft` | `#EEFBFD` | Background acento muy soft. |
-| `--sc-text-heading` | `#0F172A` | Títulos. |
-| `--sc-text-body` | mid gray | Body text. |
-| `--sc-text-muted` | `#64748B` | Secondary text, captions. |
-| `--sc-text-emphasis` | `#3C434D` | Hero numbers. |
+| `--sc-accent` (teal 300) | `#60D3E4` | Acento (subrayado tabs, focus ring). |
+| `--sc-accent-strong` (teal 600) | `#48B8C9` | Texto teal de énfasis. |
+| `--sc-accent-soft` (teal 50) | `#EEFBFD` | Background acento muy soft. |
+| `--sc-text-heading` | `#181D26` | Títulos. |
+| `--sc-text-body` | `#5C616B` | Body text. |
+| `--sc-text-muted` | `#9499A3` | Secondary text, captions. |
+| `--sc-text-emphasis` | `#3C434D` | Hero numbers (display, ablandado del black puro). |
 | `--sc-text-disabled` | `#797979` | Disabled controls. |
-| `--sc-cost-warn` | `#D97706` (amber) | Cue de coste. |
-| `--sc-border` | gris medio | Borders. |
-| `--sc-border-soft` | `#F3F4F6` | Hairlines, dividers. |
-| `--sc-info-strong` | blue | Active state del RecordingTimeline. |
-| `--sc-info-soft` | tint blue | Active bg del RecordingTimeline. |
+| `--sc-cost-warn` (warning 600) | `#D97706` | Cue de coste (amber). |
+| `--sc-border` (surface 200) | `#D3D5DA` | Borders de containers. |
+| `--sc-border-soft` (surface 100) | `#F3F4F6` | Hairlines, dividers. |
+| `--sc-info-strong` (info 600) | `#1464FE` | Active del RecordingTimeline; toast info Solid. |
+| `--sc-info-soft` (info 50) | `#EEF4FF` | Active bg del RecordingTimeline; toast info Light. |
 | `--sc-success-*` | greens | Toast success. |
 | `--sc-error-*` | reds | Toast error. |
 | `--sc-warning-*` | ambers | Toast warning. |
+| `--sc-indigo-*` | indigos | Toast indigo (cue IA). |
 
 **Source of truth**: `src/styles/sc-design-system.css`.
 
@@ -511,23 +512,24 @@ Ancho 400/480 introducido en 15.28 — el original (360) hacía wrappear demasia
 |---|---|---|
 | `--sc-font-size-xs` | 11px | Captions, eyebrows, badges. |
 | `--sc-font-size-sm` | 12px | Body small, labels secundarios. |
-| `--sc-font-size-base` | 14px | Body default. |
-| `--sc-font-size-md` | 16px | Headings de sección, titles de modal. |
-| `--sc-font-size-lg` | 19px | — |
-| `--sc-font-size-xl` | 21px | — |
-| `--sc-font-size-display` | 88px | Hero numbers. |
+| `--sc-font-size-body` (utility `text-sc-base`) | 14px | Body default. |
+| `--sc-font-size-md` | 16px | Headings de sección, decision title. |
+| `--sc-font-size-lg` | 18px | Modal title (DS h4). |
+| `--sc-font-size-xl` | 21px | Lead. |
+| `--sc-font-size-display` | 112px | Hero numbers (Bulk modal). |
 
 **Política twMerge** (sec 15.15 + 20.X del canon): cuando combines `text-{size}` + `text-{color}` en `cn()`, mover el font-size a `style={{ fontSize: 'var(--sc-font-size-X)' }}`. `cn()/twMerge` colapsa ambas clases en la misma key y pierde la de tamaño silenciosamente.
 
 ### 5.4 · Radii
 
-| Token | Valor |
-|---|---|
-| `--sc-radius-sm` | 3px |
-| `--sc-radius-md` | 6px |
-| `--sc-radius-xl` | 12px |
-
-Modal: 8px (intermedio, no token directo). Botones: `rounded-sc-md`.
+| Token | Valor | Uso |
+|---|---|---|
+| `--sc-radius-xs` | 2px | — |
+| `--sc-radius-sm` | 4px | Pills pequeños, badges. |
+| `--sc-radius-md` | 6px | Botones. |
+| `--sc-radius-lg` | 8px | — |
+| `--sc-radius-xl` | 12px | Modal (`rounded-sc-xl`). |
+| `--sc-radius-full` | 9999px | Avatares, dots, switch knob. |
 
 ### 5.5 · Shadows
 
