@@ -1470,6 +1470,7 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
 - 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled aun con aria-label "Próximamente: …"). (P3)
 - ~22 archivos shadcn primitives en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). Mantenidos como kit reutilizable; auditar si una pasada de bundle-size lo requiere o si un feature concreto los necesita. (P3)
+- **Decidir destino de la integración `DocumentationModal` + popover en `ConversationsView`** (15.31): los docs externos pasan a distribuirse como `.docx` generados desde los `.md` de `docs/` con Claude Desktop. La integración del prototipo sigue funcional pero ya no es el canal canónico. Decisiones posibles: (a) revertir todo (volver al simple `<HelpCircle>` con link a Figma site, borrar `DocumentationModal.tsx` y deps `react-markdown`/`remark-gfm`), (b) mantener la integración porque sincroniza con los `.md` automáticamente y ofrece "ver online" además de "descargar PDF", (c) simplificar a solo links de descarga (que el popover apunte a las URLs raw de GitHub o a `.docx` pre-generados servidos desde `public/`). (P2)
 - **Implementar regla "bulk transcribe TODAS las grabaciones de cada conversación seleccionada"** (sec 13 decisiones de producto items 13 + 14, cerradas en 15.31). Cambios:
   1. Modelo: añadir estado `hasTranscription` por grabación dentro de `Conversation.recordings[]`. Computar `Conversation.hasTranscription` agregado en `normalizeChats` (TRUE solo si todas).
   2. `BulkTranscriptionModal`: `nTrans` cuenta tramos pendientes (no conversaciones) en presencia de multi-rec. Subtítulo o caption muestra desglose explícito `X conversaciones · Y multi-grabación → Z transcripciones totales`.
@@ -2126,3 +2127,33 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - **`memory-archive/`** existirá ahora siempre. Cuando 2026-05 termine, archivar 15.23-15.30 (mes corriente actual) a `memory-archive/2026-05.md` y comprimir.
 - **Próximo session number: 15.31** (deducible del último encabezado del canon).
 - Commit de esta sesión: `34cfd5b` (pusheado a `origin/main`).
+
+### 15.31 · 2026-05-05 · Claude Code · spec técnica para handoff a Claude Desktop · decisiones bulk multi-grabación
+
+**Hecho**:
+- **Primer intento de docs en `docs/01-logica-de-conteo.md` y `docs/02-referencia-ui.md`** (commits `6c107b1` + `e7825d4`): rechazado por el usuario ("bastante horrible"). Eran densos, con tablas amontonadas, cross-refs constantes al canon, línea "Audiencia: ..." que sonaba corporativa.
+- **Reescritura completa desde cero** (commit `0d1d9ab`): mismo scope (4 componentes — Bulk + Player + RecordingTimeline + scToast) pero en estilo del v20 docx — narrativos, autocontenidos, cada sección abre con "qué es y por qué", sin cross-refs al canon, voz tipo v20 con pequeñas observaciones del autor. archivos: `docs/01-logica-de-conteo.md` (~370 líneas), `docs/02-referencia-ui.md` (~480 líneas).
+- **Integración del prototipo** (commit `6c107b1`): `DocumentationModal.tsx` con `react-markdown` + `remark-gfm`, popover en lugar del HelpCircle simple, botón "Descargar PDF" con `window.print()`. Print stylesheet inicial era buggy (limitaba a 1 página por usar `position: absolute; inset: 0`); reescrito en commit `e7825d4` para desmontar las constraints del modal y dejar flujo natural multi-página.
+- **Decisión cerrada · bulk con multi-grabación**: el bulk transcribe **TODAS las grabaciones** de cada conversación seleccionada. No elige tramo. El single (player → RecordingTimeline) es donde se elige tramo concreto. El modal muestra el desglose explícito antes de confirmar (`X conversaciones · Y multi-grabación → Z transcripciones`). Canonizado en sec 13 item 13. Commit `4f39645`.
+- **Decisión cerrada · invariante hasTranscription para multi-rec**: `Conversation.hasTranscription === true` SOLO si las N grabaciones están transcritas. Coherente con la invariante "no análisis sin transcripción". Canonizado en sec 13 item 14. Mismo commit `4f39645`.
+- **Roadmap P1 nuevo en sec 17**: implementación de la regla multi-grabación (estado por grabación, agregación en `normalizeChats`, `nTrans` cuenta tramos en presencia de multi-rec, dispatch por tramo en `handleBulkConfirm`). Cinco sub-pasos detallados.
+- **Pivote final**: tras el segundo intento, el usuario decidió que los `.md` son la fuente y Claude Desktop hará el formatting a `.docx`. Se entregaron al usuario:
+  1. URLs raw de GitHub para descargar los `.md` directamente (no via prototipo).
+  2. **Prompt maestro v2** para Claude Desktop, con guards explícitos sobre comillas tipográficas en bloques de código, TOC condicional al tamaño, tamaño de página vs paginación, y verificación de archivos antes de empezar (después de que el usuario probara una v1 y Claude Desktop parara por mismatch de inputs).
+
+**Decidido**:
+- **Docs externos del producto se escriben narrativos, autocontenidos, sin línea de "Audiencia"** y sin cross-refs al canon. Validado en 15.31 después del rechazo del primer intento. Detalle conversacional en `feedback_external_docs_style.md` (auto-memoria).
+- **Para handoff a herramientas externas (Claude Desktop, ChatGPT, etc.) que tienen su propio formatting**: la responsabilidad del agente Claude Code es producir `.md` de calidad final; el formatting visual (docx, PDF pulido) lo asume la herramienta de destino. Evitar inventar pipelines locales (pandoc, html→pdf) cuando la herramienta destino es mejor que tú en formatting.
+- **La integración prototype-side (`DocumentationModal` + popover + react-markdown)** queda en limbo: funciona, pero ya no es el canal canónico de distribución de docs. Decidir su destino en próxima sesión.
+- **Bulk multi-grabación · regla de "todo o nada en grupos enteros"**: consistente con la decisión existente de "items en proceso se omiten silenciosamente" (sec 13 item 9). Patrón del producto: el bulk no decide por el usuario, ejecuta sobre lo seleccionado de forma transparente, y la afordance fina vive en el modo individual.
+
+**Pendiente** (en sec 17):
+- **Implementación de la regla multi-grabación** (P1, 5 sub-pasos).
+- **Decidir destino de la integración `DocumentationModal` + popover en ConversationsView** (P2 nuevo, ver abajo).
+
+**Notas para próxima sesión**:
+- Los `.md` de `docs/` son la **fuente canónica** del contenido. Cualquier actualización a la documentación externa edita el `.md` y se distribuye via Claude Desktop (o equivalente) regenerando el `.docx`.
+- La integración `DocumentationModal` sigue funcional en el prototipo pero **NO es el canal oficial**. Si en próxima sesión se decide revertir, los archivos a tocar son: `src/app/components/DocumentationModal.tsx` (borrar), `src/app/components/ConversationsView.tsx` (revertir el popover de 3 items al `Tooltip` simple original con `<HelpCircle>` apuntando a la URL Figma), `src/styles/globals.css` (borrar el bloque `.doc-prose` + el `@media print`), `package.json` (quitar `react-markdown` y `remark-gfm`).
+- Si la decisión es mantener la integración: los `.md` de `docs/` se sincronizan automáticamente al estar importados con `?raw` en `DocumentationModal.tsx` — no hay duplicación.
+- Las dos decisiones de bulk multi-rec (sec 13 items 13 y 14) están cerradas en producto pero no implementadas en código. Antes de tocar `BulkTranscriptionModal.tsx`, leer ambos items + el roadmap de sec 17 para tener el plan completo.
+- Commit de cierre: TBD.
