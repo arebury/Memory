@@ -19,7 +19,6 @@ import {
 import { Modal } from "./ui/modal";
 import { cn } from "./ui/utils";
 import { FOCUS_RING } from "./ui/focus";
-import { TranscriptionRequestModal } from "./TranscriptionRequestModal";
 import { RetranscriptionConfirmModal } from "./RetranscriptionConfirmModal";
 import { RecordingTimeline } from "./RecordingPicker";
 import { Conversation } from "../data/mockData";
@@ -75,7 +74,6 @@ export function ConversationPlayerModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [requestingTranscription, setRequestingTranscription] = useState(false);
   const [requestingAnalysis, setRequestingAnalysis] = useState(false);
-  const [showTranscriptionConfirm, setShowTranscriptionConfirm] = useState(false);
   const [showRetranscriptionConfirm, setShowRetranscriptionConfirm] = useState(false);
   const [selectedRecordingId, setSelectedRecordingId] = useState<string | null>(null);
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
@@ -146,15 +144,11 @@ export function ConversationPlayerModal({
     setCurrentTime(Math.max(0, Math.min(totalDuration, t)));
 
   /* ── Per-conversation request handlers ──
-     handleTranscriptionRequest only OPENS the confirmation modal;
-     the actual dispatch happens in confirmTranscription so the user
-     gets a cost-warning step (audit A2). */
-  const handleTranscriptionRequest = () => {
-    if (!conversation || !onRequestTranscription) return;
-    setShowTranscriptionConfirm(true);
-  };
-
-  const confirmTranscription = async () => {
+     First-time transcription dispatches directly: the cost cue lives
+     inline under the CTA in DecisionState, so a confirm modal would be
+     a redundant click. Re-transcription DOES gate (destructive — it
+     overwrites transcript + derived analysis), via RetranscriptionConfirmModal. */
+  const handleTranscriptionRequest = async () => {
     if (!conversation || !onRequestTranscription) return;
     setRequestingTranscription(true);
     try {
@@ -457,13 +451,6 @@ export function ConversationPlayerModal({
         </Modal.Footer>
       </Modal.Content>
 
-      <TranscriptionRequestModal
-        isOpen={showTranscriptionConfirm}
-        onClose={() => setShowTranscriptionConfirm(false)}
-        duration={conversation.duration}
-        onConfirm={confirmTranscription}
-      />
-
       <RetranscriptionConfirmModal
         isOpen={showRetranscriptionConfirm}
         onClose={() => setShowRetranscriptionConfirm(false)}
@@ -536,14 +523,12 @@ function TranscriptionTab({
   onSearchChange: (v: string) => void;
   scrollRef: React.RefObject<HTMLDivElement>;
 }) {
-  /* Empty states · split-layout decision/processing/terminal pattern.
-     The supervisor reads the future shape of the content (skeleton on
-     the left) before committing the action (right). Replaces the
-     centered medallion + pills + button combo. */
+  /* Empty states · single-column centered pattern. Title → description
+     → CTA → cost cue. The skeleton-preview split was decorative — it
+     never told the supervisor anything they didn't already know. */
   if (isProcessing) {
     return (
       <ProcessingState
-        preview={<TranscriptSkeleton />}
         title="Transcribiendo"
         caption="Procesa el audio y separa los hablantes. Tarda unos segundos."
       />
@@ -563,7 +548,7 @@ function TranscriptionTab({
   if (!conversation.hasTranscription) {
     return (
       <DecisionState
-        preview={<TranscriptSkeleton />}
+        icon={<FileText size={24} strokeWidth={1.5} />}
         title="Sin transcripción"
         description="Genera el texto para buscar dentro de la conversación y dejar el análisis disponible."
         action={{
@@ -726,7 +711,6 @@ function AnalysisTab({
   if (isAnalyzing && !conversation.hasAnalysis) {
     return (
       <ProcessingState
-        preview={<AnalysisSkeleton />}
         title="Analizando"
         caption="Genera resumen y sentimiento a partir de la transcripción."
       />
@@ -741,7 +725,7 @@ function AnalysisTab({
       // bounce to the other tab and click again.
       return (
         <DecisionState
-          preview={<CombinedSkeleton />}
+          icon={<Sparkles size={24} strokeWidth={1.5} />}
           title="Pendiente de transcribir y analizar"
           description="El análisis necesita texto. Lanzamos la transcripción y, en cuanto termine, generamos resumen y sentimiento."
           action={{
@@ -760,7 +744,7 @@ function AnalysisTab({
     }
     return (
       <DecisionState
-        preview={<AnalysisSkeleton />}
+        icon={<Sparkles size={24} strokeWidth={1.5} />}
         title="Lista para analizar"
         description="Resumen accionable y valoración de sentimiento sobre la transcripción existente."
         action={{
@@ -836,117 +820,20 @@ function AnalysisTab({
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   Reusable bits
-   ───────────────────────────────────────────────────────────────── */
-
-/* ─────────────────────────────────────────────────────────────────
-   Skeletons · low-contrast previews of the future content. Mirror
-   the ACTUAL UI shape (chat bubbles, summary card) so the supervisor
-   reads them as "this is what you'd see, just masked". Used by
-   DecisionState (idle) and ProcessingState (in-flight).
-   ───────────────────────────────────────────────────────────────── */
-
-function TranscriptSkeleton() {
-  return (
-    <div className="flex flex-col gap-[var(--sc-space-300)]" aria-hidden>
-      {/* Bubble 1 — left (cliente) */}
-      <div className="flex justify-start">
-        <div className="flex max-w-[78%] flex-col items-start gap-1">
-          <div className="flex items-baseline gap-2 px-1">
-            <span className="block h-2 w-12 rounded-full bg-sc-border-soft" />
-            <span className="block h-2 w-8 rounded-full bg-sc-border-soft" />
-          </div>
-          <div className="rounded-2xl rounded-bl-md bg-sc-border-soft px-[var(--sc-space-400)] py-[var(--sc-space-300)]">
-            <span className="block h-2.5 w-32 rounded-full bg-sc-surface" />
-          </div>
-        </div>
-      </div>
-
-      {/* Bubble 2 — right (agente, accent-soft) */}
-      <div className="flex justify-end">
-        <div className="flex max-w-[78%] flex-col items-end gap-1">
-          <div className="flex items-baseline gap-2 px-1">
-            <span className="block h-2 w-16 rounded-full bg-sc-border-soft" />
-            <span className="block h-2 w-8 rounded-full bg-sc-border-soft" />
-          </div>
-          <div className="rounded-2xl rounded-br-md bg-sc-accent-soft px-[var(--sc-space-400)] py-[var(--sc-space-300)]">
-            <span className="block h-2.5 w-40 rounded-full bg-sc-surface" />
-            <span className="mt-1.5 block h-2.5 w-24 rounded-full bg-sc-surface" />
-          </div>
-        </div>
-      </div>
-
-      {/* Bubble 3 — left */}
-      <div className="flex justify-start">
-        <div className="flex max-w-[78%] flex-col items-start gap-1">
-          <div className="flex items-baseline gap-2 px-1">
-            <span className="block h-2 w-12 rounded-full bg-sc-border-soft" />
-            <span className="block h-2 w-8 rounded-full bg-sc-border-soft" />
-          </div>
-          <div className="rounded-2xl rounded-bl-md bg-sc-border-soft px-[var(--sc-space-400)] py-[var(--sc-space-300)]">
-            <span className="block h-2.5 w-28 rounded-full bg-sc-surface" />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function AnalysisSkeleton() {
-  return (
-    <div className="flex flex-col gap-[var(--sc-space-400)]" aria-hidden>
-      {/* Resumen */}
-      <div className="flex flex-col gap-[var(--sc-space-200)]">
-        <div className="flex items-center gap-1.5">
-          <AlignLeft size={11} strokeWidth={1.75} className="text-sc-border" />
-          <span className="block h-2.5 w-16 rounded-full bg-sc-border-soft" />
-        </div>
-        <div className="flex flex-col gap-1.5 pl-[var(--sc-space-400)]">
-          <span className="block h-2.5 w-full max-w-[280px] rounded-full bg-sc-border-soft" />
-          <span className="block h-2.5 w-full max-w-[260px] rounded-full bg-sc-border-soft" />
-          <span className="block h-2.5 w-3/4 max-w-[200px] rounded-full bg-sc-border-soft" />
-        </div>
-      </div>
-
-      {/* Sentimiento */}
-      <div className="flex flex-col gap-[var(--sc-space-200)]">
-        <div className="flex items-center gap-1.5">
-          <TrendingUp size={11} strokeWidth={1.75} className="text-sc-border" />
-          <span className="block h-2.5 w-20 rounded-full bg-sc-border-soft" />
-        </div>
-        <div className="flex items-center gap-2 pl-[var(--sc-space-400)]">
-          <span className="size-2.5 rounded-full bg-sc-border-soft" />
-          <span className="block h-2.5 w-24 rounded-full bg-sc-border-soft" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function CombinedSkeleton() {
-  return (
-    <div className="flex flex-col gap-[var(--sc-space-400)]">
-      <TranscriptSkeleton />
-      <hr className="border-0 border-t border-sc-border-soft" />
-      <AnalysisSkeleton />
-    </div>
-  );
-}
-
-/* ─────────────────────────────────────────────────────────────────
-   DecisionState · split-layout idle empty state. LEFT preview
-   informs WHAT the user gets; RIGHT card commits the action with
-   cost inline. Replaces the centered medallion+pills+button combo.
+   DecisionState · single-column centered empty state. Icon → title →
+   description → CTA → cost cue. Sibling of TerminalNote and
+   ProcessingState; same vertical rhythm so the three empty surfaces
+   feel like one family.
    ───────────────────────────────────────────────────────────────── */
 
 function DecisionState({
-  preview,
+  icon,
   title,
   description,
   action,
   cost,
 }: {
-  preview: React.ReactNode;
+  icon?: React.ReactNode;
   title: string;
   description: string;
   action: {
@@ -958,85 +845,75 @@ function DecisionState({
   cost?: string;
 }) {
   return (
-    <div className="flex flex-1 items-stretch">
-      {/* LEFT — preview lives here. Soft surface tint anchors it as
-           "context", separate from the decision on the right. */}
-      <div className="flex flex-1 items-center justify-center border-r border-sc-border-soft bg-sc-surface-muted/40 px-[var(--sc-space-600)] py-[var(--sc-space-500)]">
-        <div className="w-full max-w-[360px]">{preview}</div>
+    <div className="flex flex-1 flex-col items-center justify-center gap-[var(--sc-space-400)] px-[var(--sc-space-600)] py-[var(--sc-space-500)] text-center">
+      {icon && <span className="text-sc-muted">{icon}</span>}
+      <div className="flex flex-col gap-[var(--sc-space-200)]">
+        <h3 className="text-sc-md font-semibold leading-[var(--sc-line-height-md)] text-sc-heading">
+          {title}
+        </h3>
+        <p className="max-w-[44ch] text-sc-sm leading-[18px] text-sc-body">
+          {description}
+        </p>
       </div>
-
-      {/* RIGHT — action card. Vertical center, fixed width, tight
-           cluster of title→description→CTA→cost. */}
-      <div className="flex w-[280px] shrink-0 flex-col justify-center gap-[var(--sc-space-400)] px-[var(--sc-space-500)] py-[var(--sc-space-500)]">
-        <div className="flex flex-col gap-[var(--sc-space-200)]">
-          <h3 className="text-sc-md font-semibold leading-[var(--sc-line-height-md)] text-sc-heading">
-            {title}
-          </h3>
-          <p className="text-sc-sm leading-[18px] text-sc-body">
-            {description}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-[var(--sc-space-150)]">
-          <button
-            type="button"
-            onClick={action.onClick}
-            disabled={action.disabled}
-            style={{ fontSize: "var(--sc-font-size-sm)" }}
-            className={cn(
-              /* min-w-[200px] reserves enough width for the longest
-                 label variant ("Transcribir y analizar") so the button
-                 doesn't shrink when label switches to "Procesando…". */
-              "inline-flex min-w-[200px] items-center justify-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
-              "font-medium text-sc-on-primary transition-all",
-              "hover:bg-sc-primary-hover",
-              "active:scale-[0.98] disabled:active:scale-100",
-              "disabled:cursor-not-allowed disabled:opacity-60",
-              FOCUS_RING,
-            )}
-          >
-            {action.icon}
-            {action.label}
-          </button>
-          {cost && (
-            <span className="inline-flex items-center gap-1.5 text-sc-xs text-sc-cost-warn">
-              <span aria-hidden className="size-1 rounded-full bg-sc-cost-warn" />
-              {cost}
-            </span>
+      <div className="flex flex-col items-center gap-[var(--sc-space-200)]">
+        <button
+          type="button"
+          onClick={action.onClick}
+          disabled={action.disabled}
+          style={{ fontSize: "var(--sc-font-size-sm)" }}
+          className={cn(
+            /* min-w-[200px] reserves enough width for the longest
+               label variant ("Transcribir y analizar") so the button
+               doesn't shrink when label switches to "Procesando…". */
+            "inline-flex min-w-[200px] items-center justify-center gap-2 rounded-sc-md bg-sc-primary px-4 py-2 shadow-sc-sm",
+            "font-medium text-sc-on-primary transition-all",
+            "hover:bg-sc-primary-hover",
+            "active:scale-[0.98] disabled:active:scale-100",
+            "disabled:cursor-not-allowed disabled:opacity-60",
+            FOCUS_RING,
           )}
-        </div>
+        >
+          {action.icon}
+          {action.label}
+        </button>
+        {cost && (
+          <span className="inline-flex items-center gap-1.5 text-sc-xs text-sc-cost-warn">
+            <span aria-hidden className="size-1 rounded-full bg-sc-cost-warn" />
+            {cost}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
 /* ─────────────────────────────────────────────────────────────────
-   ProcessingState · same split, but preview shimmers via the SC
-   `animate-sc-pulse` token. Right side shows status only.
+   ProcessingState · centered status while a request is in-flight.
+   Spinner + title + caption. No skeleton — the title carries the
+   meaning and the modal already has a small footprint.
    ───────────────────────────────────────────────────────────────── */
 
 function ProcessingState({
-  preview,
   title,
   caption,
 }: {
-  preview: React.ReactNode;
   title: string;
   caption: string;
 }) {
   return (
-    <div className="flex flex-1 items-stretch">
-      <div className="flex flex-1 items-center justify-center border-r border-sc-border-soft bg-sc-surface-muted/40 px-[var(--sc-space-600)] py-[var(--sc-space-500)]">
-        <div className="w-full max-w-[360px] animate-sc-pulse">{preview}</div>
-      </div>
-      <div className="flex w-[280px] shrink-0 flex-col justify-center gap-[var(--sc-space-300)] px-[var(--sc-space-500)] py-[var(--sc-space-500)]">
-        <div className="flex items-center gap-[var(--sc-space-200)]">
-          <Loader2 size={14} className="animate-spin text-sc-accent-strong" />
-          <h3 className="text-sc-md font-semibold leading-[var(--sc-line-height-md)] text-sc-heading">
-            {title}
-          </h3>
-        </div>
-        <p className="text-sc-sm leading-[18px] text-sc-body">{caption}</p>
+    <div className="flex flex-1 flex-col items-center justify-center gap-[var(--sc-space-300)] px-[var(--sc-space-600)] py-[var(--sc-space-500)] text-center">
+      <Loader2
+        size={24}
+        strokeWidth={1.75}
+        className="animate-spin text-sc-accent-strong"
+      />
+      <div className="flex flex-col gap-[var(--sc-space-200)]">
+        <h3 className="text-sc-md font-semibold leading-[var(--sc-line-height-md)] text-sc-heading">
+          {title}
+        </h3>
+        <p className="max-w-[44ch] text-sc-sm leading-[18px] text-sc-body">
+          {caption}
+        </p>
       </div>
     </div>
   );

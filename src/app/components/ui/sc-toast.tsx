@@ -232,17 +232,23 @@ function SCToastView({
       role="status"
       aria-live="polite"
       className={cn(
-        "flex w-[var(--sc-toast-width,360px)] max-w-[440px] gap-3 overflow-hidden rounded-sc-xl border px-4 py-4",
+        /* Width bumped from 360→400 with a slightly higher cap so long
+           messages (typical for error toasts) wrap fewer times before
+           the dismiss × — a tall toast was reading as a column of text
+           rather than a status. Padding and gaps use DS spacing tokens
+           so the toast stays visually consistent with Modal/empty states. */
+        "flex w-[var(--sc-toast-width,400px)] max-w-[480px] overflow-hidden rounded-sc-xl border",
+        "gap-[var(--sc-space-300)] px-[var(--sc-space-400)] py-[var(--sc-space-400)]",
         "border-solid",
         tone.container,
         effectiveLayout === "horizontal" ? "items-center" : "flex-col",
       )}
-      style={{ "--sc-toast-width": "360px" } as React.CSSProperties}
+      style={{ "--sc-toast-width": "400px" } as React.CSSProperties}
     >
       {/* Top row: icon + content + (dismiss when vertical) */}
       <div
         className={cn(
-          "flex min-w-0 items-start gap-3",
+          "flex min-w-0 items-start gap-[var(--sc-space-300)]",
           effectiveLayout === "horizontal" ? "flex-1" : "w-full",
         )}
       >
@@ -256,7 +262,7 @@ function SCToastView({
           <Icon size={14} strokeWidth={2} className={tone.icon} />
         </div>
 
-        <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex min-w-0 flex-1 flex-col gap-[var(--sc-space-200)]">
           {title && (
             <p
               className={cn(
@@ -310,7 +316,7 @@ function SCToastView({
 
       {/* Bottom row: actions (vertical only) */}
       {effectiveLayout === "vertical" && (action || secondaryAction) && (
-        <div className="flex w-full items-center justify-end gap-2">
+        <div className="flex w-full items-center justify-end gap-[var(--sc-space-200)]">
           {secondaryAction && (
             <button
               type="button"
