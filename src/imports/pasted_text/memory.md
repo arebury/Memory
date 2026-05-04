@@ -2096,4 +2096,4 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - **Sec 20 ahora incluye 16 patrones (20.1 a 20.16)**. Cualquier patrón nuevo validado en sesión va aquí, NO solo a auto-memoria.
 - **`memory-archive/`** existirá ahora siempre. Cuando 2026-05 termine, archivar 15.23-15.30 (mes corriente actual) a `memory-archive/2026-05.md` y comprimir.
 - **Próximo session number: 15.31** (deducible del último encabezado del canon).
-- Commit de esta sesión: TBD (tras commit unificado).
+- Commit de esta sesión: `34cfd5b` (pusheado a `origin/main`).
