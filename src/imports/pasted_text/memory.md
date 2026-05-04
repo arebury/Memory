@@ -2156,4 +2156,4 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - La integración `DocumentationModal` sigue funcional en el prototipo pero **NO es el canal oficial**. Si en próxima sesión se decide revertir, los archivos a tocar son: `src/app/components/DocumentationModal.tsx` (borrar), `src/app/components/ConversationsView.tsx` (revertir el popover de 3 items al `Tooltip` simple original con `<HelpCircle>` apuntando a la URL Figma), `src/styles/globals.css` (borrar el bloque `.doc-prose` + el `@media print`), `package.json` (quitar `react-markdown` y `remark-gfm`).
 - Si la decisión es mantener la integración: los `.md` de `docs/` se sincronizan automáticamente al estar importados con `?raw` en `DocumentationModal.tsx` — no hay duplicación.
 - Las dos decisiones de bulk multi-rec (sec 13 items 13 y 14) están cerradas en producto pero no implementadas en código. Antes de tocar `BulkTranscriptionModal.tsx`, leer ambos items + el roadmap de sec 17 para tener el plan completo.
-- Commit de cierre: TBD.
+- Commits de la sesión: `4f39645` (decisiones bulk multi-rec sec 13 + 17), `0d1d9ab` (reescritura docs `.md`), `c1a6442` (cierre — esta entrada).
