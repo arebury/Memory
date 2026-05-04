@@ -1234,6 +1234,29 @@ El backend no notifica errores durante el proceso, solo en los extremos. NO dise
 **12. Reusar `scToast` con prop de acción.**
 Cuando necesites notificar fin de proceso o error, usa `scToast.success({ title, message, action: { label, onClick } })` (o `.error`/`.warning`/`.info`) — no crear toast nuevo. La prop `action` admite `{ label, onClick }` para botones tipo "Ver fallidas".
 
+**13. Bulk con multi-grabación: transcribir TODAS las grabaciones de cada conversación seleccionada.**
+Cuando una conversación tiene N grabaciones (transferencias entre grupos vía IVR), el bulk **no** elige tramo — procesa todas las grabaciones de la conversación. La elección de tramo concreto vive solo en el modo individual (player → `RecordingTimeline`).
+
+Comunicación al usuario antes de confirmar: el `BulkTranscriptionModal` muestra el desglose explícito en subtítulo o caption — algo como `14 conversaciones · 3 con varias grabaciones · 22 transcripciones totales`. El usuario ve el coste real (en número de transcripciones) antes de pulsar Procesar; si le sorprende, puede deseleccionar las multi-grabación manualmente y tratarlas individualmente.
+
+Why: una sola regla, transparente sobre el coste, sin lógica oculta. Encaja con el principio del producto "el bulk no decide por ti — ejecuta todo lo seleccionado" (consistente con la decisión 9, items en proceso se omiten silenciosamente). Trade-off aceptado: pierdes la afordance "elige solo el tramo más relevante" desde el bulk, pero la individual la cubre cuando hace falta precisión.
+
+How to apply:
+- En `mockSamples.ts` / `mockData.ts`, modelar el estado por grabación (cada item de `recordings[]` tiene su propio `hasTranscription`).
+- En `BulkTranscriptionModal`, `nTrans` cuenta **tramos pendientes** (no conversaciones) cuando hay multi-rec en la selección. Subtítulo/caption desglosa "X conversaciones · Y multi-grabación → Z transcripciones".
+- En `ConversationsView.handleBulkConfirm`, el dispatch a `handleRequestTranscription` recibe IDs de tramo, no de conversación, cuando hay multi-rec.
+- Implementación pendiente — ver sec 17.
+
+**14. Invariante `hasTranscription` para multi-grabación: TRUE solo si todas las grabaciones están transcritas.**
+Para una conversación con N>1 grabaciones, `Conversation.hasTranscription === true` significa que las **N** grabaciones están transcritas. Si solo M<N están transcritas, `hasTranscription === false` y la conversación aparece como pendiente en la columna Estado y en `nTrans`.
+
+Why: la invariante "transcrita = completa" mantiene coherencia con el resto del producto. Una conversación parcialmente transcrita es funcionalmente "todavía pendiente" — el supervisor sigue teniendo trabajo abierto sobre ella. Esto también casa con la invariante existente "no análisis sin transcripción" (sec 13 item 7) — el análisis sigue requiriendo que el texto esté completo.
+
+How to apply:
+- Campo derivado opcional: `nRecordingsTranscribed: number` y `nRecordingsTotal: number` (o equivalentes) para cuando el UI quiera mostrar progreso parcial (e.g. "2 de 4 transcritas" en el `RecordingTimeline` si decidimos enseñarlo).
+- `hasTranscription` se computa en el loader (`normalizeChats` o equivalente) a partir del estado por grabación, no se establece manualmente.
+- La columna Estado de la tabla y los iconos de `StatusIcons` siguen leyendo `hasTranscription` agregado — no necesitan saber del estado por tramo.
+
 ### Limitación asumida (consciente, no urgente)
 
 **Pérdida de feedback visual tras logout o inactividad.**
@@ -1447,6 +1470,12 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
 - 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled aun con aria-label "Próximamente: …"). (P3)
 - ~22 archivos shadcn primitives en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). Mantenidos como kit reutilizable; auditar si una pasada de bundle-size lo requiere o si un feature concreto los necesita. (P3)
+- **Implementar regla "bulk transcribe TODAS las grabaciones de cada conversación seleccionada"** (sec 13 decisiones de producto items 13 + 14, cerradas en 15.31). Cambios:
+  1. Modelo: añadir estado `hasTranscription` por grabación dentro de `Conversation.recordings[]`. Computar `Conversation.hasTranscription` agregado en `normalizeChats` (TRUE solo si todas).
+  2. `BulkTranscriptionModal`: `nTrans` cuenta tramos pendientes (no conversaciones) en presencia de multi-rec. Subtítulo o caption muestra desglose explícito `X conversaciones · Y multi-grabación → Z transcripciones totales`.
+  3. `ConversationsView.handleBulkConfirm`: dispatch a `handleRequestTranscription` recibe IDs de tramo cuando hay multi-rec.
+  4. `ConversationPlayerModal` + `RecordingTimeline`: estado del strip refleja el `hasTranscription` por tramo (puede mostrar progreso parcial). Re-transcribir desde el player sigue funcionando por tramo individual.
+  5. Campo derivado opcional `nRecordingsTranscribed / nRecordingsTotal` por si el UI quiere mostrar progreso parcial. (P1)
 
 ### Decisiones del audit 15.18 — estado actual
 
