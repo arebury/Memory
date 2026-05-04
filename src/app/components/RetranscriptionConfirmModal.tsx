@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { X, AlertTriangle, Loader2 } from "lucide-react";
-import { Button } from "./ui/button";
+import { useEffect, useState } from "react";
+import { AlertCircle, AlertTriangle, Loader2, RotateCcw } from "lucide-react";
+
+import { Modal } from "./ui/modal";
+import { cn } from "./ui/utils";
 
 interface RetranscriptionConfirmModalProps {
   isOpen: boolean;
@@ -8,6 +10,17 @@ interface RetranscriptionConfirmModalProps {
   onConfirm: () => Promise<void>;
 }
 
+/**
+ * RetranscriptionConfirmModal · ported to SC Modal system (audit A1)
+ *
+ * Destructive variant: re-running transcription wipes the existing
+ * transcript and any derived analysis. We keep the red destructive box
+ * (multi-line warning + data-loss claim) — the inline cost cue is
+ * insufficient here per the design system rule (yellow / red boxes are
+ * reserved for warnings with two-or-more lines or destructive intent).
+ *
+ * The "type CONFIRMAR" gate guards against accidental clicks.
+ */
 export function RetranscriptionConfirmModal({
   isOpen,
   onClose,
@@ -15,66 +28,84 @@ export function RetranscriptionConfirmModal({
 }: RetranscriptionConfirmModalProps) {
   const [confirmText, setConfirmText] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isValid = confirmText === "CONFIRMAR";
+
+  useEffect(() => {
+    if (!isOpen) {
+      setConfirmText("");
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [isOpen]);
 
   const handleConfirm = async () => {
     if (!isValid) return;
     setIsLoading(true);
+    setError(null);
     try {
       await onConfirm();
+      onClose();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar la re-transcripción. Inténtalo de nuevo.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleClose = () => {
-    if (!isLoading) {
-      setConfirmText("");
-      onClose();
-    }
-  };
-
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+    <Modal
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isLoading) onClose();
+      }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[440px]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
-          <h2 className="font-semibold text-[#233155]">Re-transcribir conversación</h2>
-          <button
-            onClick={handleClose}
-            disabled={isLoading}
-            className="text-[#8D939D] hover:text-[#233155] transition-colors disabled:opacity-40 rounded-md p-0.5"
-          >
-            <X size={17} />
-          </button>
-        </div>
+      <Modal.Content
+        width={460}
+        showClose={!isLoading}
+        onEscapeKeyDown={(e) => isLoading && e.preventDefault()}
+        onPointerDownOutside={(e) => isLoading && e.preventDefault()}
+      >
+        <Modal.Header
+          icon={<RotateCcw className="size-full" strokeWidth={1.75} />}
+          title="Re-transcribir conversación"
+          subtitle="Acción destructiva"
+        />
 
-        <div className="px-5 py-4 space-y-4">
-          {/* Destructive warning */}
-          <div className="flex items-start gap-3 bg-[#FFF1F2] border border-[#F43F5E]/30 rounded-lg px-3.5 py-3">
-            <AlertTriangle size={14} className="text-[#F43F5E] shrink-0 mt-0.5" />
+        <Modal.Body>
+          {/* Destructive warning — multi-line, justifies the red box. */}
+          <div
+            role="alert"
+            className="flex items-start gap-3 rounded-sc-md border border-sc-error-base bg-sc-error-soft px-3 py-3"
+          >
+            <AlertTriangle
+              size={14}
+              className="mt-0.5 shrink-0 text-sc-error-strong"
+            />
             <div className="space-y-1">
-              <p className="text-sm text-[#881337]">
+              <p className="text-sc-base font-semibold leading-[var(--sc-line-height-body2)] text-sc-error-strong">
                 Esta acción reemplazará la transcripción existente.
               </p>
-              <p className="text-xs text-[#9F1239]">
-                La transcripción actual y todos sus análisis derivados se eliminarán y se
-                generará una nueva. Este proceso generará costes adicionales.
+              <p className="text-sc-sm leading-[18px] text-sc-body">
+                La transcripción actual y todos sus análisis derivados se
+                eliminarán y se generará una nueva.
+              </p>
+              <p className="text-sc-sm font-normal leading-[18px] text-sc-cost-warn">
+                Genera coste adicional.
               </p>
             </div>
           </div>
 
-          {/* Confirmation input */}
-          <div className="space-y-2">
-            <label className="block text-sm text-[#5F6776]">
+          {/* Confirmation gate */}
+          <div className="mt-4 space-y-2">
+            <label className="block text-sc-sm text-sc-body">
               Escribe{" "}
-              <span className="font-mono font-semibold text-[#233155] tracking-widest">
+              <span className="font-mono font-semibold tracking-widest text-sc-heading">
                 CONFIRMAR
               </span>{" "}
               para continuar:
@@ -86,43 +117,51 @@ export function RetranscriptionConfirmModal({
               disabled={isLoading}
               placeholder="CONFIRMAR"
               autoFocus
-              className={`w-full h-9 px-3 text-sm rounded-lg border transition-colors outline-none font-mono tracking-wider ${
+              className={cn(
+                "h-9 w-full rounded-sc-md border bg-sc-surface px-3 font-mono text-sc-sm tracking-wider outline-none transition-colors",
                 confirmText && !isValid
-                  ? "border-[#F43F5E]/50 bg-[#FFF1F2]"
+                  ? "border-sc-error-base bg-sc-error-soft"
                   : isValid
-                  ? "border-[#10B981] bg-[#F0FDF4]"
-                  : "border-[#D2D6E0] focus:border-[#60D3E4]"
-              }`}
+                    ? "border-sc-success-strong bg-sc-success-soft"
+                    : "border-sc-border focus:border-sc-accent",
+              )}
             />
           </div>
-        </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[#E5E7EB]">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-            className="border-[#D2D6E0] text-[#5F6776] hover:bg-[#F4F6FC]"
-          >
-            Cancelar
-          </Button>
-          <Button
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 flex items-start gap-2 rounded-sc-md border border-sc-error-base bg-sc-error-soft px-3 py-2"
+            >
+              <AlertCircle
+                size={14}
+                className="mt-0.5 shrink-0 text-sc-error-strong"
+              />
+              <p className="text-sc-sm leading-[18px] text-sc-error-strong">
+                {error}
+              </p>
+            </div>
+          )}
+        </Modal.Body>
+
+        <Modal.Footer>
+          <Modal.Cancel disabled={isLoading}>Cerrar</Modal.Cancel>
+          <Modal.Action
             onClick={handleConfirm}
             disabled={!isValid || isLoading}
-            className="bg-[#F43F5E] hover:bg-[#E11D48] text-white gap-2 min-w-[140px] disabled:opacity-30"
+            className="min-w-[140px] !bg-sc-error-strong hover:!bg-sc-error-strong/90 transition-transform active:scale-[0.98] disabled:active:scale-100"
           >
             {isLoading ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
-                Procesando...
+                <Loader2 size={14} className="mr-2 animate-spin" />
+                Procesando…
               </>
             ) : (
               "Re-transcribir"
             )}
-          </Button>
-        </div>
-      </div>
-    </div>
+          </Modal.Action>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
   );
 }

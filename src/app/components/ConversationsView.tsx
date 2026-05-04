@@ -8,6 +8,7 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 import { Toaster } from "./ui/sonner";
+import { scToast } from "./ui/sc-toast";
 import { ConversationFilters } from "./ConversationFilters";
 import { ConversationTable } from "./ConversationTable";
 import { TypeFilterPanel } from "./TypeFilterPanel";
@@ -243,6 +244,13 @@ export function ConversationsView({
           };
         }),
       );
+      const n = idArray.length;
+      scToast.success({
+        title: n === 1 ? "Transcripción lista" : `${n} transcripciones listas`,
+        message: n === 1
+          ? "Ya puedes consultarla en el reproductor."
+          : "Ya están disponibles en la tabla.",
+      });
     }, 6000);
   };
 
@@ -277,6 +285,13 @@ export function ConversationsView({
           };
         }),
       );
+      const n = idArray.length;
+      scToast.success({
+        title: n === 1 ? "Análisis listo" : `${n} análisis listos`,
+        message: n === 1
+          ? "Resumen y sentimiento ya disponibles."
+          : "Resumen y sentimiento ya disponibles.",
+      });
     }, 4000);
   };
 
@@ -345,6 +360,19 @@ export function ConversationsView({
       // transcribed ids in eligibleIds shouldn't happen (the modal
       // sends only `readyToTranscribe` when toggle is off), but guard.
       if (needsTranscription.length > 0) handleRequestTranscription(needsTranscription);
+    }
+
+    // Kickoff acknowledgement — the modal closes silently otherwise.
+    const total = eligibleIds.length;
+    if (total > 0) {
+      scToast.info({
+        title: opts.includeAnalysis
+          ? `${total} conversación(es) en proceso`
+          : `${total} transcripción(es) en proceso`,
+        message: opts.includeAnalysis
+          ? "Te avisaremos cuando terminen transcripción y análisis."
+          : "Te avisaremos cuando terminen.",
+      });
     }
   };
 

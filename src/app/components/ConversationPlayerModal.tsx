@@ -19,6 +19,8 @@ import {
 import { Modal } from "./ui/modal";
 import { cn } from "./ui/utils";
 import { FOCUS_RING } from "./ui/focus";
+import { TranscriptionRequestModal } from "./TranscriptionRequestModal";
+import { RetranscriptionConfirmModal } from "./RetranscriptionConfirmModal";
 import { Conversation } from "../data/mockData";
 
 interface ConversationPlayerModalProps {
@@ -72,6 +74,8 @@ export function ConversationPlayerModal({
   const [searchTerm, setSearchTerm] = useState("");
   const [requestingTranscription, setRequestingTranscription] = useState(false);
   const [requestingAnalysis, setRequestingAnalysis] = useState(false);
+  const [showTranscriptionConfirm, setShowTranscriptionConfirm] = useState(false);
+  const [showRetranscriptionConfirm, setShowRetranscriptionConfirm] = useState(false);
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
 
   /* ── Reset transient state when the modal opens or conversation changes ── */
@@ -128,14 +132,33 @@ export function ConversationPlayerModal({
   const handleSeek = (t: number) =>
     setCurrentTime(Math.max(0, Math.min(totalDuration, t)));
 
-  /* ── Per-conversation request handlers ── */
-  const handleTranscriptionRequest = async () => {
+  /* ── Per-conversation request handlers ──
+     handleTranscriptionRequest only OPENS the confirmation modal;
+     the actual dispatch happens in confirmTranscription so the user
+     gets a cost-warning step (audit A2). */
+  const handleTranscriptionRequest = () => {
+    if (!conversation || !onRequestTranscription) return;
+    setShowTranscriptionConfirm(true);
+  };
+
+  const confirmTranscription = async () => {
     if (!conversation || !onRequestTranscription) return;
     setRequestingTranscription(true);
     try {
       await Promise.resolve(onRequestTranscription(conversation.id));
     } finally {
-      // Parent owns the timer; we just unblock the local button quickly.
+      setTimeout(() => setRequestingTranscription(false), 600);
+    }
+  };
+
+  const confirmRetranscription = async () => {
+    if (!conversation || !onRequestTranscription) return;
+    // Re-uses the same dispatch; the parent will overwrite the
+    // existing transcription/analysis when re-running.
+    setRequestingTranscription(true);
+    try {
+      await Promise.resolve(onRequestTranscription(conversation.id));
+    } finally {
       setTimeout(() => setRequestingTranscription(false), 600);
     }
   };
@@ -333,10 +356,26 @@ export function ConversationPlayerModal({
               icon={<Sparkles size={14} />}
               label="Análisis"
             />
-            {/* Download — channel-agnostic. For calls it sits in the
-                audio player too; for chats this is the only download
-                affordance. Same icon, same tooltip — recognizable. */}
-            <span className="ml-auto pr-[var(--sc-space-300)] py-[var(--sc-space-200)]">
+            {/* Right-aligned actions: Re-transcribe (when applicable) + Download.
+                Re-transcribe is destructive (replaces transcript + derived
+                analysis) — kept low-key as a neutral icon button to avoid
+                accidental clicks; the modal has the CONFIRMAR gate. */}
+            <span className="ml-auto flex items-center gap-1 pr-[var(--sc-space-300)] py-[var(--sc-space-200)]">
+              {conversation.hasTranscription && (
+                <button
+                  type="button"
+                  aria-label="Re-transcribir conversación"
+                  title="Re-transcribir"
+                  className={cn(
+                    "flex size-8 cursor-pointer items-center justify-center rounded-sc-md text-sc-muted transition-colors",
+                    "hover:bg-sc-border-soft hover:text-sc-heading",
+                    FOCUS_RING,
+                  )}
+                  onClick={() => setShowRetranscriptionConfirm(true)}
+                >
+                  <RotateCcw size={15} />
+                </button>
+              )}
               <button
                 type="button"
                 aria-label={isChat ? "Descargar conversación como texto" : "Descargar audio y transcripción"}
@@ -388,6 +427,19 @@ export function ConversationPlayerModal({
           <Modal.Cancel>Cerrar</Modal.Cancel>
         </Modal.Footer>
       </Modal.Content>
+
+      <TranscriptionRequestModal
+        isOpen={showTranscriptionConfirm}
+        onClose={() => setShowTranscriptionConfirm(false)}
+        duration={conversation.duration}
+        onConfirm={confirmTranscription}
+      />
+
+      <RetranscriptionConfirmModal
+        isOpen={showRetranscriptionConfirm}
+        onClose={() => setShowRetranscriptionConfirm(false)}
+        onConfirm={confirmRetranscription}
+      />
     </Modal>
   );
 }

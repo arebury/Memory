@@ -1,134 +1,122 @@
-import { useState } from "react";
-import { X, Mic, AlertTriangle, Loader2 } from "lucide-react";
-import { Button } from "./ui/button";
-import { Checkbox } from "./ui/checkbox";
+import { useEffect, useState } from "react";
+import { AlertCircle, Loader2, Mic } from "lucide-react";
+
+import { Modal } from "./ui/modal";
 
 interface TranscriptionRequestModalProps {
   isOpen: boolean;
   onClose: () => void;
   duration: string;
-  onConfirm: (options: { diarization: boolean }) => Promise<void>;
+  onConfirm: () => Promise<void>;
 }
 
+/**
+ * TranscriptionRequestModal · ported to SC Modal system (audit A1)
+ *
+ * Single confirmation step before kicking off a transcription on the
+ * conversation currently open in the player. Cost is communicated
+ * inline (`text-sc-cost-warn`) — same pattern as BulkTranscriptionModal,
+ * which avoids the yellow alert box for single-line warnings.
+ *
+ * Diarización was removed from product (no longer a separate step or
+ * option) so this modal has no toggle — it's a plain confirmation.
+ */
 export function TranscriptionRequestModal({
   isOpen,
   onClose,
   duration,
   onConfirm,
 }: TranscriptionRequestModalProps) {
-  const [diarization, setDiarization] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Reset error state on open / close so it doesn't bleed between sessions.
+  useEffect(() => {
+    if (!isOpen) {
+      setIsLoading(false);
+      setError(null);
+    }
+  }, [isOpen]);
 
   const handleConfirm = async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      await onConfirm({ diarization });
+      await onConfirm();
+      onClose();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar la transcripción. Inténtalo de nuevo.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleClose = () => {
-    if (!isLoading) {
-      setDiarization(false);
-      onClose();
-    }
-  };
-
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4"
-      onClick={(e) => { if (e.target === e.currentTarget) handleClose(); }}
+    <Modal
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open && !isLoading) onClose();
+      }}
     >
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-[420px]">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E7EB]">
-          <h2 className="font-semibold text-[#233155]">Solicitar transcripción</h2>
-          <button
-            onClick={handleClose}
-            disabled={isLoading}
-            className="text-[#8D939D] hover:text-[#233155] transition-colors disabled:opacity-40 rounded-md p-0.5"
-          >
-            <X size={17} />
-          </button>
-        </div>
+      <Modal.Content
+        width={460}
+        showClose={!isLoading}
+        onEscapeKeyDown={(e) => isLoading && e.preventDefault()}
+        onPointerDownOutside={(e) => isLoading && e.preventDefault()}
+      >
+        <Modal.Header
+          icon={<Mic className="size-full" strokeWidth={1.75} />}
+          title="Solicitar transcripción"
+          subtitle={`Grabación de ${duration}`}
+        />
 
-        <div className="px-5 py-4 space-y-4">
-          {/* Recording info */}
-          <div className="flex items-center gap-2.5 text-sm text-[#5F6776]">
-            <Mic size={14} className="text-[#8D939D] shrink-0" />
-            <span>Grabación de {duration}</span>
-          </div>
+        <Modal.Body>
+          <p className="text-sc-base text-sc-body leading-[var(--sc-line-height-body2)]">
+            Se transcribirá la conversación seleccionada. Te avisaremos cuando
+            esté lista.
+          </p>
+          <p className="mt-2 text-sc-base font-normal leading-[var(--sc-line-height-body2)] text-sc-cost-warn">
+            Genera coste · tarda unos segundos
+          </p>
 
-          {/* Cost warning */}
-          <div className="flex items-start gap-3 bg-[#FFFBEB] border border-[#F59E0B]/30 rounded-lg px-3.5 py-3">
-            <AlertTriangle size={14} className="text-[#F59E0B] shrink-0 mt-0.5" />
-            <p className="text-sm text-[#92400E]">Este proceso generará costes de transcripción.</p>
-          </div>
-
-          {/* Options */}
-          <div className="space-y-2">
-            {/* Transcription – always checked, disabled */}
-            <div className="flex items-center gap-3 px-3.5 py-3 rounded-lg border border-[#E5E7EB] bg-[#F4F6FC] cursor-not-allowed">
-              <Checkbox
-                checked={true}
-                disabled
-                className="data-[state=checked]:bg-[#233155] data-[state=checked]:border-[#233155] opacity-60"
-              />
-              <span className="text-sm text-[#5F6776]">Transcripción</span>
-            </div>
-
-            {/* Diarization – optional */}
-            <label
-              className={`flex items-start gap-3 px-3.5 py-3 rounded-lg border transition-colors cursor-pointer ${
-                diarization
-                  ? "border-[#60D3E4] bg-[#EEFBFD]"
-                  : "border-[#E5E7EB] hover:border-[#A3A8B0] bg-white"
-              }`}
+          {error && (
+            <div
+              role="alert"
+              className="mt-4 flex items-start gap-2 rounded-sc-md border border-sc-error-base bg-sc-error-soft px-3 py-2"
             >
-              <Checkbox
-                checked={diarization}
-                onCheckedChange={(v) => setDiarization(!!v)}
-                className="mt-0.5 data-[state=checked]:bg-[#60D3E4] data-[state=checked]:border-[#60D3E4]"
+              <AlertCircle
+                size={14}
+                className="mt-0.5 shrink-0 text-sc-error-strong"
               />
-              <div>
-                <p className="text-sm text-[#233155]">Diarización</p>
-                <p className="text-xs text-[#8D939D] mt-0.5">
-                  Identifica qué agente habla en cada momento.
-                </p>
-              </div>
-            </label>
-          </div>
-        </div>
+              <p className="text-sc-sm leading-[18px] text-sc-error-strong">
+                {error}
+              </p>
+            </div>
+          )}
+        </Modal.Body>
 
-        {/* Footer */}
-        <div className="flex items-center justify-end gap-3 px-5 py-4 border-t border-[#E5E7EB]">
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={isLoading}
-            className="border-[#D2D6E0] text-[#5F6776] hover:bg-[#F4F6FC]"
-          >
-            Cancelar
-          </Button>
-          <Button
+        <Modal.Footer>
+          <Modal.Cancel disabled={isLoading}>Cerrar</Modal.Cancel>
+          <Modal.Action
             onClick={handleConfirm}
             disabled={isLoading}
-            className="bg-[#233155] hover:bg-[#1C283D] text-white gap-2 min-w-[120px]"
+            className="min-w-[120px] transition-transform active:scale-[0.98] disabled:active:scale-100"
           >
             {isLoading ? (
               <>
-                <Loader2 size={14} className="animate-spin" />
-                Procesando...
+                <Loader2 size={14} className="mr-2 animate-spin" />
+                Procesando…
               </>
             ) : (
               "Transcribir"
             )}
-          </Button>
-        </div>
-      </div>
-    </div>
+          </Modal.Action>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
   );
 }

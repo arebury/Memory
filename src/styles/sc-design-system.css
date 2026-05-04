@@ -45,10 +45,20 @@
   --sc-accent-600:   #48B8C9;   /* strong accent · ON-state captions */
 
   /* Status */
+  --sc-success-50:   #F0FDF4;   /* toast Light bg */
   --sc-success-500:  #10B981;
+  --sc-success-600:  #16A34A;   /* toast Solid bg / Light border */
+  --sc-warning-50:   #FFFBEB;   /* toast Light bg */
   --sc-warning-500:  #F59E0B;
   --sc-warning-600:  #D97706;   /* deeper amber · "Genera coste" */
   --sc-danger-500:   #D4183D;
+  --sc-error-50:     #FEF2F2;   /* toast Light bg */
+  --sc-error-400:    #EF4444;   /* toast Light border */
+  --sc-error-600:    #DC2626;   /* toast Solid bg */
+  --sc-info-50:      #EEF4FF;   /* toast Light bg */
+  --sc-info-600:     #1464FE;   /* toast Solid bg / Light border */
+  --sc-indigo-50:    #F5F0FF;   /* toast Light bg */
+  --sc-indigo-600:   #8A1FE6;   /* toast Solid bg / Light border */
 
   /* ────────────────────────────────────────────
      L2 · Semantic
@@ -249,9 +259,20 @@
   --color-sc-accent-soft:       var(--sc-accent-soft);
 
   --color-sc-success:           var(--sc-success-500);
+  --color-sc-success-soft:      var(--sc-success-50);
+  --color-sc-success-strong:    var(--sc-success-600);
   --color-sc-warning:           var(--sc-warning-500);
+  --color-sc-warning-soft:      var(--sc-warning-50);
+  --color-sc-warning-strong:    var(--sc-warning-600);
   --color-sc-cost-warn:         var(--sc-cost-warn);
   --color-sc-danger:            var(--sc-danger-500);
+  --color-sc-error-soft:        var(--sc-error-50);
+  --color-sc-error-base:        var(--sc-error-400);
+  --color-sc-error-strong:      var(--sc-error-600);
+  --color-sc-info-soft:         var(--sc-info-50);
+  --color-sc-info-strong:       var(--sc-info-600);
+  --color-sc-indigo-soft:       var(--sc-indigo-50);
+  --color-sc-indigo-strong:     var(--sc-indigo-600);
 
   /* Radii */
   --radius-sc-xs:               var(--sc-radius-xs);

@@ -2315,3 +2315,42 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
   3. Para counters/IDs/tiempos en interacción → `tabular-nums`.
   4. Para CTAs con label dinámico → `min-w-[Npx]` con N = ancho del label más largo.
 - Si un futuro componente añade un CTA con label que cambia, hacer el cálculo del ancho del label más largo y aplicar `min-w` desde el día 1.
+
+### 15.23 · 2026-05-04 · Claude Code · audit transcripción + componente toast SC + diarización deprecada
+
+**Hecho**:
+- **Componente toast nuevo** `<scToast>` con paridad Figma DS (node `1050:355`) y comportamiento PrimeNG. API: `scToast.{success,error,warning,info,indigo}({ title, message, action, secondaryAction, duration, layout, appearance, dismiss })`. 5 severities × Light/Solid × Horizontal/Vertical. Auto-promote a vertical si hay 2 acciones. `duration: Infinity` = sticky. Usa `sonner` como motor (queue + position + a11y + life timing). archivos: `src/app/components/ui/sc-toast.tsx`.
+- **Tokens de severity** añadidos al DS: L1 `--sc-{success,warning,error,info,indigo}-{50,400,600}`. L3 alias `--color-sc-{success,warning,error,info,indigo}-{soft,strong}` + `--color-sc-error-base`. archivos: `src/styles/sc-design-system.css`.
+- **Toaster defaults** configurados: `position=bottom-right`, `duration=3000`, `gap=12`, `offset=24`, `visibleToasts=4`. archivos: `src/app/components/ui/sonner.tsx`.
+- **Toast cableado** en `ConversationsView`: success al completar `handleRequestTranscription` y `handleRequestAnalysis`; info al kickoff de `handleBulkConfirm`. Cierra audit-A3 (toast feedback tras kickoff). archivos: `src/app/components/ConversationsView.tsx`.
+- **Dead code borrado** (audit-A1): `PlayerModal.tsx`, `BulkActionBar.tsx`, `DiarizationRequestModal.tsx`. Eran orphan — ningún import activo los referenciaba. archivos: `src/app/components/PlayerModal.tsx`, `src/app/components/BulkActionBar.tsx`, `src/app/components/DiarizationRequestModal.tsx` (todos ❌).
+- **`TranscriptionRequestModal` reescrito** al sistema SC `Modal` (audit-A1). Estructura: `Modal.Header` con icon Mic + subtitle "Grabación de {duration}", `Modal.Body` con descripción + cost cue inline `text-sc-cost-warn` (no caja amarilla), error state inline si `onConfirm` rechaza. Loading "Procesando…" (Unicode ellipsis). Cancel "Cerrar". Action "Transcribir". **Diarización eliminada** (deprecada como concepto de producto — solo "Transcripción" y "Análisis"). archivos: `src/app/components/TranscriptionRequestModal.tsx`.
+- **`RetranscriptionConfirmModal` reescrito** al sistema SC `Modal` (audit-A1). Mantiene caja roja destructiva (justified — multi-línea + data-loss). CONFIRMAR gate. Error state. Mismo bracket de copy/labels que el de transcripción. Action button rojo `!bg-sc-error-strong`. archivos: `src/app/components/RetranscriptionConfirmModal.tsx`.
+- **Modal unitario cableado** en `ConversationPlayerModal` (audit-A2). Click en "Solicitar transcripción" abre `TranscriptionRequestModal` (no dispatcha directo). Botón nuevo de re-transcribir (icono `RotateCcw` + tooltip "Re-transcribir") junto al Download cuando `hasTranscription === true` → abre `RetranscriptionConfirmModal`. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+
+**Decidido**:
+- **Diarización eliminada** del producto entero. Antes era "transcripción + opcional diarización" (separación de hablantes). Ahora solo existen Transcripción y Análisis. Razón: simplificar mental model. **NO confundir** con la tab "Análisis" del player — esa SÍ se queda y contiene resumen + sentimiento (fundamental).
+- **Errores en batch (audit-A4 alternativa elegida)**: en vez de omitir silenciosamente filas en proceso de la selección masiva, **deshabilitar el checkbox** de la fila cuando esté en `processingIds`/`analyzingIds`. Más elegante; el modal masivo no añade ruido de "X omitidas". (Pendiente de implementar — ver sec 17.)
+- **Errores con fila roja + toast** (decisión cerrada en sesión anterior, sigue vigente): subtle red row + toast con botón "Ver fallidas" que filtra. **NO** rompe la regla "color en fila solo si accionable" porque error es un estado que requiere decisión cognitiva (mismo principio que amarillo "en proceso").
+- **Cost warning copy unificado**: "Genera coste · tarda unos segundos" inline `text-sc-cost-warn` para confirmaciones de un paso. La caja amarilla/roja con `AlertTriangle` queda reservada para warnings con ≥2 líneas o destructive intent (re-transcripción, no transcripción simple).
+- **Verbo de confirm**: "Transcribir" (modal unitario), "Procesar" (modal masivo), "Re-transcribir" (destructive). Drop "Solicitar X" del trigger inicial — añadía paso semántico innecesario.
+- **Cancel = "Cerrar"** en todos los modales (no "Cancelar") porque pre-submit no hay nada que cancelar; durante loading el botón está disabled.
+
+**Pendiente** (todos reflejados en sec 17):
+- **A4**: deshabilitar checkboxes de filas en `processingIds`/`analyzingIds` en `ConversationTable`. (P1)
+- **A5**: refactor de affordance en `ConversationTable` — wrap `<StatusIcon>` en `<button>` con cursor + hover ring; quitar click del row entero (row click pasa a "select"). (P1)
+- **A6**: añadir error states a `BulkTranscriptionModal` (no captura `catch` actualmente, errores se tragan). (P2)
+- **Minor consistency**: hex literales → tokens `sc-*` en `ConversationTable.tsx`, `ConversationsView.tsx`. "Esta llamada" → "Esta conversación" en `ConversationPlayerModal.tsx:483`. Yellow row tras transcribir (`getRowBg`) → cambiar a badge "Nuevo" para no romper canon "yellow = en proceso". (P2)
+- **Multi-recording UI**: extender data model `Conversation.recordings: Array<{id, duration, startTime}>` opcional + picker dropdown sobre el audio bar (matches Figma tooltip dark con badge+chevron). Decisión: el usuario escoge qué grabación transcribir cuando hay N. (P2)
+- **failedIds + filtro "Ver fallidas"**: añadir estado `failedIds` a `ConversationsView`, simulación en mock de fallo aleatorio post-batch, fila roja sutil + toast con action button "Ver fallidas" que filtra. (P2)
+- **Status chip "Pendiente"** en columna en lugar de pintar fila completa. Roadmap evolución: cuando se haga, retirar pintado de fila completa (rojo/amarillo). (P3)
+- **Retry manual** de transcripciones fallidas (cuando exista API). (P3)
+
+**Notas para próxima sesión**:
+- **No correr `npm run dev` en background con sandbox restrictivo** — esbuild se cae con "service was stopped". Si el usuario reporta localhost roto, verificar primero si está corriendo: `lsof -nP -iTCP:5173`. Si hay PID node escuchando pero no responde, kill y relanzar.
+- **Auto-deploy Netlify** dispara con cada push a `main` (https://memoryplus3.netlify.app/). Pushear en bloque al final de sesión, no commit a commit.
+- **Snapshot técnico** completo en memoria persistente: `~/.claude/projects/-Users-rafareses-Desktop-Memory-3-0/memory/project_session_status.md` (incluye API del toast, archivos modificados, plan de retoma punto por punto).
+- **Para retomar A4**: editar `ConversationTable.tsx` ~líneas 295-310, añadir `disabled={processingIds.includes(conv.id) || analyzingIds.includes(conv.id)}` al `<Checkbox>` de la fila + tooltip "En proceso".
+- **Para retomar A5**: en mismo archivo, líneas ~295-299, quitar `cursor-pointer` y `onClick` de `<TableRow>`; envolver `<StatusIcon>` en `<button type="button" className="cursor-pointer hover:bg-sc-border-soft rounded-sc-md p-1" aria-label="Abrir conversación" onClick={() => handleRowClick(conv)}>`. Row click pasa a "toggle selección" (o nada).
+- **Para multi-recording**: empezar en `mockData.ts` añadiendo `recordings?: Array<...>` opcional. Poblar 2-3 conversaciones de muestra con 2-4 recordings. Después crear `<RecordingPicker conversation />` con popover dark (matches Figma DS file `Dle87qs0Pjq0OjIaaCfmm7` node 1050:355 vecindad — tooltip "Grabaciones") sobre el audio bar de `ConversationPlayerModal`.
+- **Push hecho desde sesión** sin verificación visual end-to-end (usuario reportó localhost roto). Type-check `tsc --noEmit` pasa limpio. La build de Netlify es la verificación real.
