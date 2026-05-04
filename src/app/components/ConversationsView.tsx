@@ -69,6 +69,7 @@ export function ConversationsView({
   const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [newlyTranscribedIds, setNewlyTranscribedIds] = useState<string[]>([]);
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
+  const [showOnlyFailed, setShowOnlyFailed] = useState(false);
 
   /* Mock-data sample switching ──────────────────────────────────────
      `currentSampleId` is the active preset; `conversations` is the
@@ -89,6 +90,10 @@ export function ConversationsView({
     setAnalyzingIds([]);
     setNewlyTranscribedIds([]);
 
+    // Reset the failure filter when changing samples — different
+    // samples have different failure sets (or none at all).
+    setShowOnlyFailed(false);
+
     // Demo affordance: when the failed-transcription sample loads,
     // surface the error toast pattern with the "Ver fallidas" action
     // — same shape the real product would use after a batch run that
@@ -100,15 +105,7 @@ export function ConversationsView({
         message: "Audio en silencio o formato no soportado en algunas conversaciones.",
         action: {
           label: "Ver fallidas",
-          onClick: () => {
-            // Lightweight filter: select the failed rows so they're
-            // visible at a glance. A real impl would set a column
-            // filter; this keeps the demo discoverable.
-            const failedIds = next
-              .filter((c) => c.hasFailedTranscription)
-              .map((c) => c.id);
-            setSelectedIds(failedIds);
-          },
+          onClick: () => setShowOnlyFailed(true),
         },
         duration: 8000,
       });
@@ -195,6 +192,9 @@ export function ConversationsView({
 
   const filteredConversations = useMemo(() => {
     return conversations.filter(conv => {
+      // "Ver fallidas" filter — applied first so an error-ridden batch
+      // can be reviewed without losing other column filters.
+      if (showOnlyFailed && !conv.hasFailedTranscription) return false;
       if (filters.services.length > 0) {
         const serviceMatch = filters.services.some(v => conv.service.toLowerCase().includes(v.toLowerCase()));
         if (!serviceMatch) return false;
@@ -244,7 +244,7 @@ export function ConversationsView({
       if (columnFilters.id && !conv.id.toLowerCase().includes(columnFilters.id.toLowerCase())) return false;
       return true;
     });
-  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories]);
+  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed]);
 
   const handleDownload = () => {
     alert(`Descargando ${selectedIds.length} conversación(es)`);
@@ -595,6 +595,17 @@ export function ConversationsView({
 
           {/* Result count */}
           <div className="flex items-center gap-4">
+            {showOnlyFailed && (
+              <button
+                type="button"
+                onClick={() => setShowOnlyFailed(false)}
+                className="flex items-center gap-1.5 rounded-full border border-sc-error-base bg-sc-error-soft px-3 py-1 text-xs text-sc-error-strong hover:bg-sc-error-soft/70 cursor-pointer transition-colors"
+              >
+                <span className="font-medium">Solo fallidas</span>
+                <span aria-hidden>·</span>
+                <span>Limpiar filtro</span>
+              </button>
+            )}
             <div className="text-sm text-[#8D939D]">
               Resultados: <span className="text-[#233155] font-medium tabular-nums">{filteredConversations.length}</span> | Última Búsqueda: <span className="text-[#233155] font-light tabular-nums">{lastSearchTime}</span>
             </div>

@@ -21,6 +21,7 @@ import { cn } from "./ui/utils";
 import { FOCUS_RING } from "./ui/focus";
 import { TranscriptionRequestModal } from "./TranscriptionRequestModal";
 import { RetranscriptionConfirmModal } from "./RetranscriptionConfirmModal";
+import { RecordingPicker } from "./RecordingPicker";
 import { Conversation } from "../data/mockData";
 
 interface ConversationPlayerModalProps {
@@ -76,6 +77,7 @@ export function ConversationPlayerModal({
   const [requestingAnalysis, setRequestingAnalysis] = useState(false);
   const [showTranscriptionConfirm, setShowTranscriptionConfirm] = useState(false);
   const [showRetranscriptionConfirm, setShowRetranscriptionConfirm] = useState(false);
+  const [selectedRecordingId, setSelectedRecordingId] = useState<string | null>(null);
   const transcriptScrollRef = useRef<HTMLDivElement>(null);
 
   /* ── Reset transient state when the modal opens or conversation changes ── */
@@ -92,6 +94,12 @@ export function ConversationPlayerModal({
     } else {
       setActiveTab("transcription");
     }
+    // Default selected recording: first one (or null when none / single).
+    if (conversation?.recordings && conversation.recordings.length > 1) {
+      setSelectedRecordingId(conversation.recordings[0].id);
+    } else {
+      setSelectedRecordingId(null);
+    }
   }, [isOpen, conversation?.id]);
 
   /* ── Duration parsing & playback simulation ── */
@@ -103,10 +111,15 @@ export function ConversationPlayerModal({
     return 0;
   };
 
-  const totalDuration = useMemo(
-    () => parseDuration(conversation?.duration) || 103,
-    [conversation?.duration],
-  );
+  // When a multi-recording conversation has a selected leg, the audio
+  // bar timing reflects that leg, not the aggregated conversation
+  // duration. Falls back to the conversation duration otherwise.
+  const totalDuration = useMemo(() => {
+    const selectedRec = selectedRecordingId
+      ? conversation?.recordings?.find((r) => r.id === selectedRecordingId)
+      : null;
+    return parseDuration(selectedRec?.duration ?? conversation?.duration) || 103;
+  }, [conversation?.duration, conversation?.recordings, selectedRecordingId]);
 
   useEffect(() => {
     if (!isPlaying) return;
@@ -235,24 +248,23 @@ export function ConversationPlayerModal({
         />
 
         <Modal.Body className="!p-0">
-          {/* Multi-recording notice — when the conversation passed through
-              IVR transfers, it carries N audio legs. Picker UI lives in
-              roadmap; for now we acknowledge the data so the audio bar
-              isn't silently misleading (it shows only the first recording). */}
+          {/* Multi-recording picker — when the conversation passed through
+              IVR transfers, it carries N audio legs. The picker lets the
+              user choose which leg to play / transcribe. */}
           {conversation.recordings && conversation.recordings.length > 1 && (
-            <div
-              role="note"
-              className="flex items-start gap-3 border-b border-sc-info-strong/30 bg-sc-info-soft px-[var(--sc-space-600)] py-[var(--sc-space-300)]"
-            >
-              <Phone size={14} className="mt-0.5 shrink-0 text-sc-info-strong" />
-              <div className="text-sc-sm leading-[18px] text-sc-body">
-                <p className="font-medium text-sc-heading">
-                  Esta conversación tiene {conversation.recordings.length} grabaciones
-                </p>
-                <p className="mt-0.5 text-sc-muted">
-                  Pasó por IVR con transferencia entre grupos. Próximamente podrás escoger qué grabación transcribir.
-                </p>
-              </div>
+            <div className="flex items-center justify-between gap-3 border-b border-sc-border-soft bg-sc-info-soft/40 px-[var(--sc-space-600)] py-[var(--sc-space-300)]">
+              <RecordingPicker
+                recordings={conversation.recordings}
+                selectedId={selectedRecordingId ?? conversation.recordings[0].id}
+                onSelect={(id) => {
+                  setSelectedRecordingId(id);
+                  setIsPlaying(false);
+                  setCurrentTime(0);
+                }}
+              />
+              <span className="text-sc-sm text-sc-muted">
+                Pasó por IVR · escoge qué grabación procesar
+              </span>
             </div>
           )}
 
@@ -553,7 +565,7 @@ function TranscriptionTab({
     return (
       <EmptyState
         icon={<FileText size={22} />}
-        title="Esta llamada todavía no se ha transcrito"
+        title="Esta conversación todavía no se ha transcrito"
         description="Solicita la transcripción para activar la búsqueda dentro del audio y desbloquear el resumen y el sentimiento por IA."
         highlights={["Búsqueda en el audio", "Resumen IA", "Sentimiento"]}
         action={{

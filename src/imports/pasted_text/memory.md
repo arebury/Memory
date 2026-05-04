@@ -2387,3 +2387,34 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - El bug del "+55 fantasma" era reproducible siguiendo: abrir modal → toggle ON → cerrar sin procesar → reabrir → +55 visible sin haber tocado nada. Verificar tras el fix que ya no aparece.
 - Cuando se implemente `failedIds` real (reemplazando el sample-based), reemplazar el handler del toast en `handleSampleChange` para que use el state real en vez de derivar de `next.filter(...)`.
 - Cuando se construya `<RecordingPicker>`, leer la spec de Figma DS file `Dle87qs0Pjq0OjIaaCfmm7` zona node 1050:355 (toast vecindad — dropdown dark con altura mín 2 / max 4 antes de scroll, cada item con play+icono+Hora+Duración).
+
+### 15.25 · 2026-05-04 · Claude Code · audit cierre · A4/A5/A6 + RecordingPicker + filtro "Ver fallidas"
+
+**Hecho**:
+- **Audit A4 cerrado** — checkboxes de filas en `processingIds`/`analyzingIds` quedan **deshabilitados** con `cursor-not-allowed` + tooltip "En proceso · no se puede seleccionar". `toggleAll` ahora sólo opera sobre `selectableConvs` (no incluye in-process). `toggleRow` lleva guard `if (isLocked(id)) return`. archivos: `src/app/components/ConversationTable.tsx`.
+- **Audit A5 cerrado** — `<StatusIcon>` ahora vive dentro de un `<button>` explícito con `aria-label="Abrir llamada/chat"`, `cursor-pointer`, `hover:bg-sc-border-soft`, `FOCUS_RING`. El click del `<TableRow>` ya **no** abre el player, ahora dispara `toggleRow(conv.id)` (alterna selección). Para abrir el player → click en el icono de estado. Esto separa dos affordances que antes colisionaban. archivos: `src/app/components/ConversationTable.tsx`.
+- **Audit A6 cerrado** — `BulkTranscriptionModal` ahora captura excepciones de `onConfirm`. Estado `error: string | null` local, banda inline `text-sc-error-strong` debajo del cuerpo (border-top en `--sc-error-base`, fondo `--sc-error-soft`). Modal queda abierto tras error para permitir retry sin perder toggle/selección. Reset de `error` en open/sel-change effect. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
+- **Minor** — empty state "Esta llamada todavía no se ha transcrito" → **"Esta conversación todavía no se ha transcrito"** (channel-neutral, defensivo aunque actualmente solo lo hitean calls). archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Componente nuevo `<RecordingPicker>`** — dropdown dark (Figma DS 1050:355 vecindad) que muestra todas las grabaciones de una conversación multi-leg. Trigger: badge con count + icono Phone + label "Grabación N · Soporte Taller · 02:18" + chevron. Popover dark `#3C434D` con `max-h-[280px] overflow-y-auto` (≈ 4 items antes de scroll, matches Figma altura máxima). Cada item: play icon white + número + label de leg + Hora/Duración. archivos: `src/app/components/RecordingPicker.tsx`.
+- **Multi-recording cableado en player** — el banner informativo se reemplaza por el `<RecordingPicker>` real. Estado `selectedRecordingId` resetea al primer recording cuando se abre la conversación. Al cambiar de recording: pause + currentTime=0. La duración del audio bar usa la del recording seleccionado (no la duración total agregada). Si `recordings.length <= 1` → no se renderiza el picker (single-audio). archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Filtro "Ver fallidas" funcional** — estado `showOnlyFailed: boolean` en `ConversationsView`. `filteredConversations` lo respeta como primer filtro. La acción del toast (`onClick: () => setShowOnlyFailed(true)`) ahora sí filtra en lugar de solo seleccionar. Chip rojo en la barra de resultados ("Solo fallidas · Limpiar filtro") visible cuando el filtro está activo. Reset automático al cambiar de sample. archivos: `src/app/components/ConversationsView.tsx`.
+
+**Decidido**:
+- **A4 vía deshabilitar (no omitir silenciosamente)**: el usuario eligió esta variante en sesión anterior. Razón: más elegante que filtrar en el modal masivo (no añade ruido tipo "X omitidas"). El feedback es directo en la fila — cursor-not-allowed + tooltip.
+- **A5 row-click → toggle selección, icono → abrir player**: separa intenciones. El usuario que quiere ver una conversación tiene un click target preciso (el icono); el que quiere multi-seleccionar puede hacerlo en cualquier parte de la fila sin abrir el player accidentalmente.
+- **RecordingPicker dark theme**: el resto del player es light, pero el picker hereda la estética del Figma (toast/popover dark). Crea contraste fuerte para que el usuario sepa que está en un selector temporal, no en el contenido principal.
+- **Audio bar usa duración del leg seleccionado**: lo natural es que el reproductor refleje qué leg está reproduciendo. Si fuera la duración total, los cambios de leg romperían la metáfora.
+- **`hasFailedTranscription` como source de verdad** (de momento). El estado real `failedIds` que era roadmap — se pospone porque la propiedad en mockData ya cubre el caso del demo. Cuando el backend real notifique fallos, se promueve a estado y se mapea desde ahí.
+
+**Pendiente** (todos reflejados en sec 17):
+- Renombrar `newlyTranscribedIds` → `recentlyChangedIds` para reflejar la semántica actualizada (yellow = transcripción O análisis recientemente). (P3)
+- Hex literales pendientes en `ConversationTable` (`#CFD3DE`, `#5F6776`, etc.) y `ConversationsView` — migrar a `--sc-*` tokens. (P2)
+- Yellow row → badge "Nuevo" pequeño junto al icono — explorar como evolución cuando se haga el status chip "Pendiente". (P3)
+- Status chip "Pendiente" en columna en lugar de pintar fila completa (`getRowBg`). Cuando se haga, retirar el pintado completo. (P3)
+- Retry manual de transcripciones fallidas (cuando exista API). El click "Re-transcribir" del player hoy reusa `onRequestTranscription`; cuando `failedIds` sea estado real, debería mover el id de failedIds a processingIds. (P3)
+
+**Notas para próxima sesión**:
+- Probar el flujo "Errores de transcripción": el toast aparece automáticamente al cambiar de sample → "Ver fallidas" filtra la tabla → chip rojo "Solo fallidas · Limpiar filtro" visible junto al contador.
+- Probar el flujo "Conversaciones multi-grabación": click en una fila con badge (4) → abre player → se ve `<RecordingPicker>` arriba → click → dropdown dark con las 4 grabaciones → seleccionar una → audio bar refleja la duración nueva.
+- Para A4/A5: verificar que cuando hay filas en proceso, el "select all" del header **no** las incluye (toggleAll opera solo sobre selectableConvs).
+- Para A6: simular un error desde `handleBulkConfirm` (por ejemplo `throw new Error("...")` antes del setTimeout) para ver el banner inline de error y comprobar que el modal queda abierto.

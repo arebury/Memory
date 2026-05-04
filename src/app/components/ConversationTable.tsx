@@ -10,6 +10,8 @@ import { RecordingFilter } from "./RecordingFilter";
 import { DurationFilter } from "./DurationFilter";
 import { DateRangePicker } from "./DateRangePicker";
 import { StatusIcon } from "./StatusIcons";
+import { cn } from "./ui/utils";
+import { FOCUS_RING } from "./ui/focus";
 import {
   Tooltip,
   TooltipContent,
@@ -77,18 +79,30 @@ export function ConversationTable({
     ? conversations.find((c) => c.id === playerConversationId) ?? null
     : null;
 
-  const allSelected = conversations.length > 0 && conversations.every(conv => selectedIds.includes(conv.id));
+  // Audit A4: rows currently being processed cannot be selected — they
+  // can't be acted on (no parallel ops on the same conversation) and
+  // selecting them would leak into bulk counters as ineligible noise.
+  const isLocked = (id: string) =>
+    processingIds.includes(id) || analyzingIds.includes(id);
+
+  const selectableConvs = conversations.filter((c) => !isLocked(c.id));
+  const allSelected =
+    selectableConvs.length > 0 &&
+    selectableConvs.every((conv) => selectedIds.includes(conv.id));
   const someSelected = selectedIds.length > 0 && !allSelected;
 
   const toggleAll = () => {
     if (allSelected) {
-      onSelectionChange([]);
+      // Keep any non-row selections that may have come from outside (none today).
+      onSelectionChange(selectedIds.filter((id) => !selectableConvs.some((c) => c.id === id)));
     } else {
-      onSelectionChange(conversations.map(conv => conv.id));
+      // Replace selection with everything that's currently selectable.
+      onSelectionChange(selectableConvs.map((conv) => conv.id));
     }
   };
 
   const toggleRow = (id: string) => {
+    if (isLocked(id)) return; // audit A4 — locked rows aren't selectable
     if (selectedIds.includes(id)) {
       onSelectionChange(selectedIds.filter(selectedId => selectedId !== id));
     } else {
@@ -294,27 +308,53 @@ export function ConversationTable({
                 </TableCell>
               </TableRow>
             ) : (
-              conversations.map((conv) => (
-                <TableRow 
-                  key={conv.id} 
-                  className={`border-b border-[#CFD3DE] hover:bg-[#EEFBFD]/50 cursor-pointer transition-colors h-14 ${isRowDimmed(conv) ? 'opacity-50' : ''} ${getRowBg(conv)}`}
-                  onClick={() => handleRowClick(conv)}
+              conversations.map((conv) => {
+                const locked = isLocked(conv.id);
+                return (
+                <TableRow
+                  key={conv.id}
+                  className={cn(
+                    "border-b border-[#CFD3DE] transition-colors h-14",
+                    locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-[#EEFBFD]/50",
+                    isRowDimmed(conv) && "opacity-50",
+                    getRowBg(conv),
+                  )}
+                  // Audit A5: row click toggles selection (no longer opens
+                  // the player). The StatusIcon is the explicit affordance
+                  // for opening the conversation viewer.
+                  onClick={() => toggleRow(conv.id)}
                 >
                   <TableCell className="w-[50px] py-3" onClick={(e) => e.stopPropagation()}>
-                    <Checkbox 
+                    <Checkbox
                       checked={selectedIds.includes(conv.id)}
                       onCheckedChange={() => toggleRow(conv.id)}
-                      className="border-[#A3A8B0]" 
+                      disabled={locked}
+                      title={locked ? "En proceso · no se puede seleccionar" : undefined}
+                      className="border-[#A3A8B0] disabled:opacity-40 disabled:cursor-not-allowed"
                     />
                   </TableCell>
-                  
+
                   {/* STATUS Column — combined channel + processing-state pictogram.
-                       Two optional overlays (mock-only signals):
-                       · failed-transcription → red AlertCircle bottom-right
-                       · multi-recording      → count badge top-right */}
+                       Audit A5: explicit button affordance to open the player.
+                       Overlays (mock-only signals):
+                         · failed-transcription → red AlertCircle bottom-right
+                         · multi-recording      → count badge top-right */}
                   <TableCell className="w-[80px] py-3">
-                    <div className="flex items-center justify-center">
-                      <div className="relative inline-flex">
+                    <div
+                      className="flex items-center justify-center"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        aria-label={`Abrir ${conv.channel === "chat" ? "chat" : "llamada"}`}
+                        title="Abrir en el reproductor"
+                        onClick={() => handleRowClick(conv)}
+                        className={cn(
+                          "relative inline-flex cursor-pointer items-center justify-center rounded-sc-md p-1 transition-colors",
+                          "hover:bg-sc-border-soft",
+                          FOCUS_RING,
+                        )}
+                      >
                         <StatusIcon
                           conversation={conv}
                           isProcessing={processingIds.includes(conv.id)}
@@ -323,8 +363,7 @@ export function ConversationTable({
                         {conv.hasFailedTranscription && (
                           <span
                             aria-label="Transcripción fallida"
-                            title="Transcripción fallida"
-                            className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-white"
+                            className="pointer-events-none absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-white"
                           >
                             <AlertCircle
                               size={12}
@@ -336,13 +375,12 @@ export function ConversationTable({
                         {conv.recordings && conv.recordings.length > 1 && (
                           <span
                             aria-label={`${conv.recordings.length} grabaciones`}
-                            title={`${conv.recordings.length} grabaciones — abre el reproductor para elegir`}
-                            className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sc-info-strong px-1 text-[10px] font-semibold leading-none tabular-nums text-white"
+                            className="pointer-events-none absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sc-info-strong px-1 text-[10px] font-semibold leading-none tabular-nums text-white"
                           >
                             {conv.recordings.length}
                           </span>
                         )}
-                      </div>
+                      </button>
                     </div>
                   </TableCell>
 
@@ -360,7 +398,8 @@ export function ConversationTable({
                   <TableCell className="w-[110px] text-sm text-[#5F6776] py-3">{conv.waiting}</TableCell>
                   <TableCell className="w-[140px] text-xs text-[#5F6776] py-3 font-light font-mono">{conv.id}</TableCell>
                 </TableRow>
-              ))
+              );
+              })
             )}
           </TableBody>
         </table>

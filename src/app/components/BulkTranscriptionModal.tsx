@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { AlignLeft, Loader2 } from "lucide-react";
+import { AlertCircle, AlignLeft, Loader2 } from "lucide-react";
 
 import { Switch } from "./ui/switch";
 import { Modal } from "./ui/modal";
@@ -80,6 +80,7 @@ export function BulkTranscriptionModal({
   const naturalDefault = (t: number, a: number) => t === 0 && a > 0;
   const [userOn, setUserOn] = useState(() => naturalDefault(nTrans, nAnBase));
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Reset toggle to its natural default whenever the modal opens or the
   // selection changes. Selection compared by id list (not array identity)
@@ -93,6 +94,7 @@ export function BulkTranscriptionModal({
       lastSelKey.current = key;
       setUserOn(naturalDefault(nTrans, nAnBase));
       setIsLoading(false);
+      setError(null); // audit A6 — clear stale error from previous attempt
       // Clear any leftover delta flash from a previous open. The
       // CSS animation isn't `forwards` so a stale flash element keeps
       // rendering in DOM until next toggle. Resetting on open prevents
@@ -158,8 +160,18 @@ export function BulkTranscriptionModal({
       : readyToTranscribe.map((c) => c.id);
 
     setIsLoading(true);
+    setError(null);
     try {
       await onConfirm({ includeAnalysis: toggleOn }, eligibleIds);
+    } catch (err) {
+      // Audit A6 — surface a recoverable inline error instead of
+      // silently swallowing the rejection. Modal stays open so the
+      // user can retry without losing the toggle state.
+      setError(
+        err instanceof Error
+          ? err.message
+          : "No se pudo iniciar el proceso. Inténtalo de nuevo.",
+      );
     } finally {
       setIsLoading(false);
     }
@@ -361,6 +373,24 @@ export function BulkTranscriptionModal({
               </div>
             </section>
           </div>
+
+          {/* Audit A6 — recoverable error surface. Inline strip below the
+               two-cell body so the layout doesn't reflow when an error
+               appears or clears. */}
+          {error && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 border-t border-sc-error-base bg-sc-error-soft px-[var(--sc-space-600)] py-[var(--sc-space-300)]"
+            >
+              <AlertCircle
+                size={14}
+                className="mt-0.5 shrink-0 text-sc-error-strong"
+              />
+              <p className="text-sc-sm leading-[18px] text-sc-error-strong">
+                {error}
+              </p>
+            </div>
+          )}
         </Modal.Body>
 
         <Modal.Footer>
