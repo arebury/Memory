@@ -235,6 +235,27 @@ export function ConversationPlayerModal({
         />
 
         <Modal.Body className="!p-0">
+          {/* Multi-recording notice — when the conversation passed through
+              IVR transfers, it carries N audio legs. Picker UI lives in
+              roadmap; for now we acknowledge the data so the audio bar
+              isn't silently misleading (it shows only the first recording). */}
+          {conversation.recordings && conversation.recordings.length > 1 && (
+            <div
+              role="note"
+              className="flex items-start gap-3 border-b border-sc-info-strong/30 bg-sc-info-soft px-[var(--sc-space-600)] py-[var(--sc-space-300)]"
+            >
+              <Phone size={14} className="mt-0.5 shrink-0 text-sc-info-strong" />
+              <div className="text-sc-sm leading-[18px] text-sc-body">
+                <p className="font-medium text-sc-heading">
+                  Esta conversación tiene {conversation.recordings.length} grabaciones
+                </p>
+                <p className="mt-0.5 text-sc-muted">
+                  Pasó por IVR con transferencia entre grupos. Próximamente podrás escoger qué grabación transcribir.
+                </p>
+              </div>
+            </div>
+          )}
+
           {/* ── Audio player ─ only for calls; chats have no audio.
                 For calls without recording, the same row renders with
                 disabled controls so the structure stays consistent. ── */}

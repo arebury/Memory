@@ -93,6 +93,11 @@ export function BulkTranscriptionModal({
       lastSelKey.current = key;
       setUserOn(naturalDefault(nTrans, nAnBase));
       setIsLoading(false);
+      // Clear any leftover delta flash from a previous open. The
+      // CSS animation isn't `forwards` so a stale flash element keeps
+      // rendering in DOM until next toggle. Resetting on open prevents
+      // ghost "+N" deltas next time the modal mounts.
+      setFlash(null);
     }
     wasOpen.current = isOpen;
   }, [isOpen, selectedConversations, nTrans, nAnBase]);

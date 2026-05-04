@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search } from "lucide-react";
+import { Search, AlertCircle } from "lucide-react";
 import { Conversation } from "../data/mockData";
 import { ConversationPlayerModal } from "./ConversationPlayerModal";
 import { Input } from "./ui/input";
@@ -112,6 +112,9 @@ export function ConversationTable({
   };
 
   const getRowBg = (conv: Conversation): string => {
+    // Failed wins over newly-transcribed: an error is more actionable than a
+    // post-completion notice. Subtle red soft (`--sc-error-soft` = #FEF2F2).
+    if (conv.hasFailedTranscription) return "bg-sc-error-soft";
     if (newlyTranscribedIds.includes(conv.id)) return "bg-yellow-50";
     return "";
   };
@@ -305,14 +308,41 @@ export function ConversationTable({
                     />
                   </TableCell>
                   
-                  {/* STATUS Column — combined channel + processing-state pictogram */}
+                  {/* STATUS Column — combined channel + processing-state pictogram.
+                       Two optional overlays (mock-only signals):
+                       · failed-transcription → red AlertCircle bottom-right
+                       · multi-recording      → count badge top-right */}
                   <TableCell className="w-[80px] py-3">
                     <div className="flex items-center justify-center">
-                      <StatusIcon
-                        conversation={conv}
-                        isProcessing={processingIds.includes(conv.id)}
-                        isAnalyzing={analyzingIds.includes(conv.id)}
-                      />
+                      <div className="relative inline-flex">
+                        <StatusIcon
+                          conversation={conv}
+                          isProcessing={processingIds.includes(conv.id)}
+                          isAnalyzing={analyzingIds.includes(conv.id)}
+                        />
+                        {conv.hasFailedTranscription && (
+                          <span
+                            aria-label="Transcripción fallida"
+                            title="Transcripción fallida"
+                            className="absolute -bottom-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-white"
+                          >
+                            <AlertCircle
+                              size={12}
+                              strokeWidth={2.5}
+                              className="text-sc-error-strong"
+                            />
+                          </span>
+                        )}
+                        {conv.recordings && conv.recordings.length > 1 && (
+                          <span
+                            aria-label={`${conv.recordings.length} grabaciones`}
+                            title={`${conv.recordings.length} grabaciones — abre el reproductor para elegir`}
+                            className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-sc-info-strong px-1 text-[10px] font-semibold leading-none tabular-nums text-white"
+                          >
+                            {conv.recordings.length}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </TableCell>
 

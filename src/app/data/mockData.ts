@@ -106,6 +106,19 @@ export interface TranscriptionLine {
   text: string;
 }
 
+/**
+ * One audio segment of a conversation. Calls routed through an IVR may
+ * end up split into N recordings (transfer to group A → back to IVR →
+ * transfer to group B, each leg its own recording). When `recordings`
+ * is undefined or has length 1, treat the conversation as single-audio.
+ */
+export interface Recording {
+  id: string;
+  duration: string; // mm:ss like "02:14"
+  startTime: string; // hh:mm like "12:50"
+  label?: string; // e.g. "Soporte Taller", "IVR retorno"
+}
+
 export interface Conversation {
   hour: string;
   date: string;
@@ -121,6 +134,13 @@ export interface Conversation {
   hasTranscription?: boolean;
   hasDiarization?: boolean;
   hasAnalysis?: boolean;
+  /** Mock-only: marks a conversation whose transcription attempt failed. The
+   *  table paints the row red and surfaces a "Ver fallidas" toast action.
+   *  Cleared once the user successfully re-runs the transcription. */
+  hasFailedTranscription?: boolean;
+  /** When defined and length > 1 → multi-recording conversation (IVR
+   *  transfers). Length 1 or undefined → single-audio. */
+  recordings?: Recording[];
   transcription?: TranscriptionLine[];
   type: "interna" | "externa";
   channel: "llamada" | "chat";

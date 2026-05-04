@@ -2354,3 +2354,36 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - **Para retomar A5**: en mismo archivo, líneas ~295-299, quitar `cursor-pointer` y `onClick` de `<TableRow>`; envolver `<StatusIcon>` en `<button type="button" className="cursor-pointer hover:bg-sc-border-soft rounded-sc-md p-1" aria-label="Abrir conversación" onClick={() => handleRowClick(conv)}>`. Row click pasa a "toggle selección" (o nada).
 - **Para multi-recording**: empezar en `mockData.ts` añadiendo `recordings?: Array<...>` opcional. Poblar 2-3 conversaciones de muestra con 2-4 recordings. Después crear `<RecordingPicker conversation />` con popover dark (matches Figma DS file `Dle87qs0Pjq0OjIaaCfmm7` node 1050:355 vecindad — tooltip "Grabaciones") sobre el audio bar de `ConversationPlayerModal`.
 - **Push hecho desde sesión** sin verificación visual end-to-end (usuario reportó localhost roto). Type-check `tsc --noEmit` pasa limpio. La build de Netlify es la verificación real.
+
+### 15.24 · 2026-05-04 · Claude Code · samples demo nuevos + bugfixes amarillo persistente y flash fantasma
+
+**Hecho**:
+- **Modelo `Conversation` extendido** con `recordings?: Recording[]` (segmentos de audio cuando una llamada pasa por IVR con transferencia entre grupos) y `hasFailedTranscription?: boolean` (marca mock-only para visualizar fila roja). Nueva interfaz `Recording { id, duration, startTime, label? }`. archivos: `src/app/data/mockData.ts`.
+- **Sample nuevo "Conversaciones multi-grabación"**: 5 llamadas con 2-4 recordings cada una (legs IVR + grupo destino + retorno IVR + atención). Forzadas a `hasTranscription: false` para que el usuario tenga que escoger cuál transcribir. archivos: `src/app/data/mockSamples.ts`.
+- **Sample nuevo "Errores de transcripción"**: ⅓ de las llamadas marcadas `hasFailedTranscription: true` sobre un canvas reset (estilo `all-pending`). archivos: `src/app/data/mockSamples.ts`.
+- **Visuales en `ConversationTable`**: `getRowBg` ahora prioriza `bg-sc-error-soft` (fila fallida) sobre `bg-yellow-50` (recién procesada). Nuevos overlays sobre `<StatusIcon>`: `<AlertCircle>` rojo abajo-derecha si `hasFailedTranscription`, badge azul con count arriba-derecha si `recordings.length > 1`. archivos: `src/app/components/ConversationTable.tsx`.
+- **Aviso multi-grabación en player**: cuando la conversación tiene >1 recording, banner azul informativo en la parte superior del body explicando "Esta conversación tiene N grabaciones · Próximamente podrás escoger cuál transcribir". Acknowledges la data sin construir el picker todavía. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Toast en sample switch**: cuando se carga el sample "Errores de transcripción", `handleSampleChange` dispara automáticamente un `scToast.error` con título "X transcripciones fallaron" + acción "Ver fallidas" que selecciona las filas fallidas (mock equivalente al filtro real). Demuestra el patrón error+toast+acción de la decisión cerrada. archivos: `src/app/components/ConversationsView.tsx`.
+- **Bugfix — yellow row persistente tras análisis**: `handleRequestAnalysis` ahora también añade los IDs a `newlyTranscribedIds`. Antes solo lo hacía `handleRequestTranscription`, así que en bulk runs los IDs already-transcribed que iban por la rama analysis-only perdían el cue amarillo. Yellow ahora marca cualquier fila recientemente cambiada (transcripción O análisis), no solo transcripción. archivos: `src/app/components/ConversationsView.tsx`.
+- **Bugfix — flash "+N" fantasma en BulkTranscriptionModal**: el estado `flash` no se reseteaba al cerrar/reabrir el modal. La animación CSS `animate-sc-delta-fly` no es `forwards`, así que el span con el delta seguía renderizado en DOM al reabrir, pintándose un "+55" sin que el usuario tocara el toggle. Fix: `setFlash(null)` dentro del effect que dispara al abrir o al cambiar la selección. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
+
+**Decidido**:
+- **Yellow = "fila recientemente cambiada"** (transcripción o análisis), no solo "recién transcrita". Más útil porque en bulk operations el usuario quiere ver TODAS las filas que se modificaron, no solo las que pasaron por transcripción. Renombrar el estado más adelante (de `newlyTranscribedIds` a `recentlyChangedIds`) — pero por ahora se mantiene el nombre por scope.
+- **Multi-recording: solo badge + banner por ahora**. El picker dropdown completo (matches Figma DS 1050:355 vecindad) se difiere a roadmap. El banner informativo evita misleading UX (audio bar muestra solo la primera grabación silenciosamente).
+- **Failed-transcription: visual + toast con acción ya cableado**. Aprovecha el `scToast` recién creado para demostrar el patrón error completo, aunque la mecánica real de `failedIds` (estado en `ConversationsView` + filtro "Ver fallidas" como column filter) sigue pendiente. El click "Ver fallidas" del toast selecciona las filas como mock equivalente.
+- **Reservar `flash`/animaciones efímeras al ciclo open→close**: cualquier estado visual transitorio dentro de un modal se debe resetear explícitamente cuando el modal se reabre. Si la animación CSS no es `forwards` el elemento queda visible en DOM al reabrir.
+
+**Pendiente** (todos reflejados en sec 17):
+- **A4** sigue pendiente — disabled checkboxes para filas en proceso. (P1)
+- **A5** sigue pendiente — StatusIcon como botón explícito. (P1)
+- **A6 resto** — error states en `BulkTranscriptionModal` (no captura `catch` actualmente). (P2)
+- **Minor consistency** sigue pendiente — hex→tokens, "Esta llamada"→"Esta conversación", yellow row→badge. (P2)
+- **`<RecordingPicker>` real** — dropdown dark con badge+chevron sobre el audio bar (matches Figma DS). Ahora hay banner informativo + badge en tabla, pero falta el picker funcional para escoger qué grabación transcribir. (P2)
+- **`failedIds` real en estado** + filtro/column filter "Ver fallidas" funcional. Hoy el sample "Errores de transcripción" usa `hasFailedTranscription` directo sobre el modelo y el "Ver fallidas" del toast solo selecciona filas. (P2)
+- Renombrar `newlyTranscribedIds` → `recentlyChangedIds` para reflejar la semántica actualizada. (P3)
+
+**Notas para próxima sesión**:
+- Demos del switcher: probar **"Conversaciones multi-grabación"** para ver badge en tabla + banner en player. Probar **"Errores de transcripción"** para ver fila roja + toast con acción "Ver fallidas".
+- El bug del "+55 fantasma" era reproducible siguiendo: abrir modal → toggle ON → cerrar sin procesar → reabrir → +55 visible sin haber tocado nada. Verificar tras el fix que ya no aparece.
+- Cuando se implemente `failedIds` real (reemplazando el sample-based), reemplazar el handler del toast en `handleSampleChange` para que use el state real en vez de derivar de `next.filter(...)`.
+- Cuando se construya `<RecordingPicker>`, leer la spec de Figma DS file `Dle87qs0Pjq0OjIaaCfmm7` zona node 1050:355 (toast vecindad — dropdown dark con altura mín 2 / max 4 antes de scroll, cada item con play+icono+Hora+Duración).

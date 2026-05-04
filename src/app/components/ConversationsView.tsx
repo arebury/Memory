@@ -82,11 +82,37 @@ export function ConversationsView({
   const handleSampleChange = (sampleId: string) => {
     if (sampleId === currentSampleId) return;
     setCurrentSampleId(sampleId);
-    setConversations(getSample(sampleId).build());
+    const next = getSample(sampleId).build();
+    setConversations(next);
     setSelectedIds([]);
     setProcessingIds([]);
     setAnalyzingIds([]);
     setNewlyTranscribedIds([]);
+
+    // Demo affordance: when the failed-transcription sample loads,
+    // surface the error toast pattern with the "Ver fallidas" action
+    // — same shape the real product would use after a batch run that
+    // ended with failures.
+    const failedCount = next.filter((c) => c.hasFailedTranscription).length;
+    if (failedCount > 0) {
+      scToast.error({
+        title: `${failedCount} transcripciones fallaron`,
+        message: "Audio en silencio o formato no soportado en algunas conversaciones.",
+        action: {
+          label: "Ver fallidas",
+          onClick: () => {
+            // Lightweight filter: select the failed rows so they're
+            // visible at a glance. A real impl would set a column
+            // filter; this keeps the demo discoverable.
+            const failedIds = next
+              .filter((c) => c.hasFailedTranscription)
+              .map((c) => c.id);
+            setSelectedIds(failedIds);
+          },
+        },
+        duration: 8000,
+      });
+    }
   };
 
   const [columnFilters, setColumnFilters] = useState({
@@ -268,6 +294,12 @@ export function ConversationsView({
     setAnalyzingIds(prev => [...new Set([...prev, ...idArray])]);
     setTimeout(() => {
       setAnalyzingIds(prev => prev.filter(id => !idArray.includes(id)));
+      // Yellow-row marker: any row that completed a state-changing op
+      // (transcription OR analysis) should flag as "recently changed"
+      // until the user clicks it. Previously only transcription added
+      // here → bulk runs that fed already-transcribed rows through the
+      // analysis-only path lost the yellow cue.
+      setNewlyTranscribedIds(prev => [...new Set([...prev, ...idArray])]);
       setConversations(prev =>
         prev.map(c => {
           if (!idArray.includes(c.id)) return c;
