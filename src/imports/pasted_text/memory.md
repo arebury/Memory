@@ -1166,7 +1166,7 @@ pnpm preview
 
 6. **BulkTranscriptionModal v25**: La versión actual sustituyó la taxonomía v11 de 3 destinos por un layout más simple de 2 columnas (hero number + análisis toggle) con 6 casos derivados (C1–C6). Versiones anteriores (v1–v24) están como referencia en los archivos de spec en `src/app/imports/pasted_text/`. La pieza es ahora consumidora del shell oficial `<Modal>` del SC design system: si el shell cambia, los demás modales lo heredan automáticamente.
 
-7. **Diarización separada de transcripción**: En `TranscriptionRequestModal`, la diarización es una opción checkbox (no un modal separado). `DiarizationRequestModal` existe para conversaciones YA transcritas que quieren añadir diarización a posteriori.
+7. **Diarización · DEPRECADA en 15.23**. Históricamente era checkbox dentro de `TranscriptionRequestModal` y existía un `DiarizationRequestModal` separado para añadirla a posteriori. **Eliminada del producto entero** — solo existen "Transcripción" y "Análisis" (resumen + sentimiento). `DiarizationRequestModal` borrado en 15.23 (deprecado como concepto), `TranscriptionRequestModal` borrado en 15.28 (modal innecesario, sec 20.14). Cualquier modal/checkbox/copy con "diarización" en el repo hoy es bug. El campo `Conversation.hasDiarization` sigue en el modelo de datos pendiente de schema cleanup (sec 17 P3).
 
 ### Workarounds / Hacks
 
@@ -1187,6 +1187,61 @@ pnpm preview
 - `ConversationTable.tsx` probablemente es muy grande — candidato a dividir en subcomponentes
 - Los efectos de sincronización en `ConversationsView` (`typeFilters` + `ruleFilters` derivados de `unifiedTypeFilters` vía `useEffect`) podrían ser un `useMemo` en lugar de estado derivado
 - Falta prop drilling → considerar context para filtros de conversaciones
+
+### Decisiones de producto cerradas
+
+> Decisiones del producto (NO patrones técnicos — esos van a sec 20). El primer bloque (items 1-12) viene de la review de batch transcripción masiva, originalmente capturada en auto-memoria (`project_transcripcion_masiva.md`); copiada aquí para que sea discoverable desde el canon. Decisiones futuras se añaden numeradas al final, agrupadas por feature si tiene sentido.
+
+**1. Color en filas de tabla solo si son accionables.**
+El color en una fila comunica "puedes hacer algo aquí", no es decorativo. Si añades color rojo/amarillo/etc., justifica qué acción puede tomar el usuario sobre ella. "Accionable" incluye estados que requieren decisión cognitiva (error, en proceso) — no solo botones de retry.
+
+**2. Conversación multi-grabación: usuario elige el tramo.**
+Una conversación puede tener N grabaciones (transferencias entre grupos vía IVR). El sistema NO decide automáticamente cuál transcribir — el usuario elige. Implementación actual: `RecordingTimeline` (strip proporcional, sec 20.15) en `ConversationPlayerModal`. El flujo de transcripción (unitario y masivo) debe contemplar conversaciones de 1 grabación y de N grabaciones.
+
+**3. Transcripción unitaria se accede vía modal del reproductor.**
+Click en icono de canal/estado de la fila → modal del reproductor → CTA "Transcribir" en la tab Transcripción (15.28: dispatch directo, sin modal de confirmación intermedio — sec 20.14). NO hay botón inline en la fila para transcripción unitaria. Multi-select con checkbox para batch sí está cableado.
+
+**4. Tab "Análisis" reemplaza dropdown de transcripción duplicado en tabla.**
+Existía una columna en la tabla con dropdown que mostraba transcripción + resumen + sentimiento — duplicaba info ya visible en el reproductor. La columna se OCULTA (quirk `{false && showCategoryFilter && ...}` en `ConversationsView.tsx`, ver "Workarounds" item 3 arriba), no se borra. La tab del player se renombra "Análisis" e incluye Resumen + Sentimiento.
+
+**5. Diarización DEPRECADA.**
+Ver "Decisiones de diseño/arquitectura" item 7 arriba y sec 15.23. El árbol del producto es: Transcripción → Análisis. Punto.
+
+**6. Vista por rol — toggle interno en prototipo.**
+Roles: superadmin, admin, supervisor, agente. Los **agentes NO acceden a transcripción/análisis** (genera coste). Hay que poder previsualizar la vista de cada rol en el prototipo con un toggle visible — marcar como "esto es para nosotros, no producción".
+
+**7. Errores en batch: fila roja sutil + toast con acción al final.**
+Patrón cerrado para feedback de errores tras batch:
+- Fila pintada con rojo sutil (NO agresivo) + icono de error a la izquierda. Color nunca es el único indicador (a11y).
+- Toast al final reutilizando `scToast`, con botón "Ver fallidas" que filtra la tabla.
+- NO pintar éxito en verde (éxito = estado normal, sin color).
+- Amarillo (en proceso) y rojo (fallido) son secuenciales, casi nunca simultáneos.
+
+Why: combina discoverability (toast) con persistencia espacial (fila). Toast solo no basta — rompe "recognition over recall" (Nielsen 6) y mismatch entre estado persistente y feedback efímero (Nielsen 1). Pintar la fila NO rompe la regla "color solo accionable" (item 1) porque el error es un estado que requiere decisión cognitiva.
+
+**8. Análisis espera a que terminen TODAS las transcripciones.**
+Si el usuario lanza un batch "transcribir + analizar", el análisis se encola tras la transcripción, no en paralelo. Razón: APIs distintas, evitar conflictos sobre la misma conversación. Implementación: chain event-driven en `ConversationsView` (`chainAnalysisIds` + `useEffect` que drena cuando `hasTranscription` flipa, sec 15.20).
+
+**9. Items en proceso se omiten automáticamente en multi-select.**
+Si el usuario selecciona 200 conversaciones y 100 ya están procesándose, el sistema solo trabaja con las otras 100. Mensaje al usuario: "se las omite". Razón: no se pueden ejecutar dos procesos sobre la misma conversación a la vez. El modal de confirmación de batch debe contar y mostrar items disponibles vs. items omitidos por estar en proceso.
+
+**10. NO hay cancelación de batch a mitad de proceso.**
+Una vez disparada la transcripción/análisis, el coste se genera completo aunque el usuario quisiera parar. Limitación técnica actual — la cola es aleatoria, no cronológica, y las APIs no permiten cancelación granular. El modal de confirmación debe dejar claro que iniciar = pagar todo. NO prometer "cancelar" en copy. Mejora futura tracked en `project_transcripcion_masiva_roadmap.md` (auto-memoria).
+
+**11. Errores se notifican solo al INICIO y FIN del batch.**
+El backend no notifica errores durante el proceso, solo en los extremos. NO diseñar feedback granular tipo "fallo en la 27 de 50". Cualquier feedback de error llega al final del batch completo.
+
+**12. Reusar `scToast` con prop de acción.**
+Cuando necesites notificar fin de proceso o error, usa `scToast.success({ title, message, action: { label, onClick } })` (o `.error`/`.warning`/`.info`) — no crear toast nuevo. La prop `action` admite `{ label, onClick }` para botones tipo "Ver fallidas".
+
+### Limitación asumida (consciente, no urgente)
+
+**Pérdida de feedback visual tras logout o inactividad.**
+Si el usuario cierra sesión durante un batch, el backend sigue procesando. Al volver:
+- Las transcripciones nuevas (post-login) muestran feedback visual (fila amarilla, contador progresivo).
+- Las que se procesaron mientras estaba fuera pierden indicador visual — no se pueden identificar.
+
+Razón: el backend puede forzar la barra de progreso en peticiones nuevas, pero no reconstruir feedback histórico (requeriría una DB de actividad por usuario). Aceptado como limitación. Concepto futuro: indicador persistente tipo "marcar como leído" de Gmail/Teams.
 
 ---
 
@@ -1307,172 +1362,19 @@ import { toast } from "sonner@2.0.3"; // Con versión específica
 
 > Esta sección documenta exhaustivamente lo decidido, hecho, refactorizado y pendiente en la sesión que sustituyó el modal de transcripción masiva v11 por el shell oficial del Smart Contact Design System y construyó el body v25. Lectura obligatoria si se reabre el proyecto.
 
-### 15.1 · Setup local · gestor de paquetes
+### 15.archivo-2026-04-25 · resumen comprimido · setup + Modal shell + BulkTranscriptionModal v25
 
-**Decisión**: el proyecto declara `pnpm` como gestor preferido en memory.md, pero NO existe `pnpm-lock.yaml` en el árbol y la máquina del usuario NO tiene `pnpm` ni `corepack` instalados. `npm install` falla porque el `package.json` contiene claves estilo `"sonner@2.0.3": "npm:sonner@2.0.3"` (quirk de Figma Make) que npm rechaza con `EINVALIDPACKAGENAME`.
+> Sesión inaugural del SC Design System (2026-04-25, sub-secciones 15.1 → 15.9). **Detalle completo (167 líneas)** en [`memory-archive/2026-04.md`](../../../memory-archive/2026-04.md#sesión-2026-04-25--sc-design-system-modal--bulktranscriptionmodal-v25-151--159). Comprimido en 15.30 (compactación sec 19).
 
-**Solución aplicada**: usar `npx -y pnpm@latest install` y `npx -y pnpm@latest dev`. Esto ejecuta pnpm vía npx sin instalación global y resuelve correctamente las claves versioned. Funcionó: pnpm 10.33.2, install en ~13s, dev server en 1.3s.
-
-**Comando recomendado en sesiones futuras**:
-```bash
-npx -y pnpm@latest install
-npx -y pnpm@latest dev    # http://localhost:5173
-```
-
-Si el usuario instala pnpm globalmente (`npm install -g pnpm`), pasar a `pnpm install / pnpm dev` directamente.
-
-### 15.2 · Decisiones arquitectónicas del Modal shell
-
-| Pregunta | Respuesta | Razón |
-|---|---|---|
-| ¿Reemplazar `dialog.tsx` o crear nuevo? | Nuevo `ui/modal.tsx`, dejar `dialog.tsx` intacto | `dialog.tsx` lo importan internamente sheet/drawer/alert-dialog. Tocarlo abre frente. El nuevo Modal es la pieza canónica del SC DS; convive con el shadcn Dialog para casos en que se necesite (alerts, drawers internos). |
-| ¿Radix Dialog o hand-rolled `<div fixed>`? | **Radix Dialog** | Focus trap, scroll lock, ESC, portal y stacking gratis. Hand-rolled requeriría reimplementar todo. Para "stacking de varias instancias sin problema" Radix es la única opción seria. |
-| ¿API compound, props, o children libres? | **Compound** (`Modal.Header`, `Modal.Body`, etc.) | Slots tipados, constraints visuales por sección, idiom shadcn. Permite que el body cambie sin tocar el shell. |
-| ¿Tokens nuevos o hex hardcoded? | **Tokens** (3 capas, prefijo `--sc-*`) en `sc-design-system.css` | Usuario pidió "como Design System Architect, registra variables si no están". Hex hardcoded sigue OK para componentes existentes — la migración es gradual. |
-| ¿Usar Inter (DS Figma) o Roboto (proyecto)? | **Roboto** | El usuario dijo "adapta a lo que tenemos". Inter introduciría una segunda font-family. La diferencia visual es mínima en este punto. |
-| ¿Usar `#1B273D` (DS) o `#233155` (proyecto) para CTA? | **`#1B273D`** (`--sc-navy-600`) en el nuevo Modal. Existentes intactos | El DS oficial es la fuente de verdad para nuevos componentes. Existentes (sidebar `#1C283D`, botones `#233155`) se armonizan en una migración separada. |
-
-### 15.3 · Sistema de tokens en 3 capas
-
-Patrón estándar de design systems (Material, Carbon, Polaris):
-
-```
-L1 primitives    →    L2 semantic    →    L3 component
---sc-surface-0   →    --sc-bg-surface →    (modal usa bg-sc-surface vía utility)
---sc-navy-600    →    --sc-bg-primary →    (CTA usa bg-sc-primary)
---sc-surface-900 →    --sc-text-heading →  (title usa text-sc-heading)
-                      ↓
-                 @theme inline → utilities Tailwind v4
-                 (bg-sc-surface, text-sc-heading, etc.)
-```
-
-**Reglas para extender tokens en sesiones futuras**:
-1. Añadir SIEMPRE en `sc-design-system.css`. NUNCA tocar `default_theme.css` (KEEP_IN_SYNC con shadcn).
-2. Añadir el primitivo en L1 primero. Después semantic en L2 referenciando L1. Si el componente lo necesita aislar, declarar L3 que referencie L2.
-3. Exponer al `@theme inline` con prefijo coherente: `--color-sc-*` para colores, `--text-sc-*` para sizes, `--radius-sc-*` para radii, `--shadow-sc-*` para sombras.
-4. **EVITAR colisiones de namespace**: Tailwind v4 mapea `--color-X` y `--text-X` a la MISMA clase `text-X`. Si declaras ambas, una se pierde silenciosamente. Hubo este bug en la sesión: `--color-sc-body` (color) y `--text-sc-body` (font-size) → Tailwind escogió color y dejó font-size sin clase. Solución: el font-size 14px se llama ahora `--text-sc-base` (utility `text-sc-base`).
-5. Tokens L3 que sean meros aliases de L2 (e.g., `--sc-modal-bg = var(--sc-bg-surface)`) son ruido — referenciar el L2 directamente desde el componente. L3 solo para valores específicos del componente (paddings, dimensiones, line-heights particulares).
-
-**Tokens L3 vivos**:
-- `--sc-modal-*` (consumed by `ui/modal.tsx`):
-  - Container: `min-width`, `max-width`, `min-height`, `max-height`, `default-width`
-  - Header: `padding`, `icon-size`, `icon-gap`, `title-gap`, `title-lh`, `subtitle-lh`, `close-size`, `close-icon`
-  - Body: `body-padding-x`, `body-padding-y`
-  - Footer: `foot-height`, `foot-padding`, `foot-gap`
-  - Botones: `button-height`, `button-padding-x`, `button-padding-y`, `button-radius`, `button-line-height`
-- `--sc-bulk-*` (consumed by `BulkTranscriptionModal.tsx` v25 body):
-  - `cell-height` (200), `cell-gap` (12)
-  - `hero-padding-x` (32), `hero-padding-y` (28)
-  - `decision-padding-x` (24), `decision-padding-y` (28)
-
-### 15.4 · Animaciones del SC system
-
-Cuatro keyframes registrados en `sc-design-system.css` con utilities `animate-sc-*`. Patrón canónico para usarlas en React: incrementar un `useState` "key" y aplicarlo como `key` prop al elemento + clase condicional. Esto remonta el nodo y reinicia el keyframe limpiamente.
-
-```tsx
-const [bumpKey, setBumpKey] = useState(0);
-// trigger:
-setBumpKey(k => k + 1);
-
-<span key={bumpKey} className={cn("...", bumpKey > 0 && "animate-sc-bump")}>
-  {value}
-</span>
-```
-
-| Animación | Duración | Easing | Uso típico |
-|---|---|---|---|
-| `animate-sc-bump`      | 260ms | `--sc-ease-out` | Número/valor que ha cambiado (scale 1.03) |
-| `animate-sc-pulse`     | 360ms | `--sc-ease-out` | Acento al cambio de estado (scale 1.08) |
-| `animate-sc-delta-fly` | 750ms | `--sc-ease-out` | Fantasma `+N`/`−N` flotando 34px |
-| `animate-sc-shake`     | 280ms | ease            | Nudge horizontal en interacción inválida |
-
-### 15.5 · BulkTranscriptionModal v11 → v25 · qué cambió
-
-**Antes (v11)**: hand-rolled `<div fixed inset-0>` con header inline, switch propio, breakdown de 3 destinos (`destination1`, `destination2`, `destination3`) en filas con anti-layout-shift, warning ámbar siempre presente.
-
-**Después (v25)**:
-- Construido sobre `<Modal>` shell del SC DS (Radix Dialog).
-- Body 2 columnas: hero number 72px (left) + análisis toggle (right).
-- 6 casos C1–C6 que emergen de combinaciones de `(nTrans, callEa, chatEa, ap)` — sin labels explícitas en código, sólo comportamientos.
-- Animaciones de feedback: bump al cambio del hero, delta-ghost al togglear, pulse del caption, shake en click de toggle disabled.
-- API hacia el caller idéntica (`isOpen`, `onClose`, `selectedConversations`, `onConfirm`).
-- `ConversationsView` ahora monta el modal SIEMPRE (no `{isOpen && ...}`) para que Radix anime el cierre.
-
-**Mapeo de contadores** (v11 → v25):
-
-| v11           | v25            | Significado                                |
-|---------------|----------------|---------------------------------------------|
-| `ct`          | `nTrans`       | calls listas para transcribir                |
-| `cea`         | `callEa.length`| calls transcritas, sin análisis             |
-| `chea`        | `chatEa.length`| chats sin análisis                           |
-| `caa + chaa`  | `ap` (no exportado, sólo informativo) | calls+chats ya analizados (ignorados) |
-
-**`eligibleIds` enviados a `onConfirm`** (idéntico a v11):
-- toggle OFF → `readyToTranscribe.map(c => c.id)`
-- toggle ON  → `[...readyToTranscribe, ...callEa, ...chatEa].map(c => c.id)`
-
-### 15.6 · Optimizaciones aplicadas en la auditoría final
-
-1. **Token rename `--text-sc-body` → `--text-sc-base`**: arregla colisión silenciosa con `--color-sc-body`. Todos los consumidores actualizados.
-2. **L3 tokens muertos eliminados** de `sc-design-system.css`: 10 aliases redundantes de L2 (`--sc-modal-bg`, `--sc-modal-radius`, `--sc-modal-shadow`, `--sc-modal-head-divider`, `--sc-modal-head-title-size`, `--sc-modal-head-subtitle-size`, `--sc-modal-foot-divider`, `--sc-modal-button-font-size`, `--sc-modal-button-font-weight`, `--sc-modal-border`).
-3. **Magic numbers extraídos**: `text-[21px]` → `text-sc-xl`. `min-h-[21px]` → `min-h-[var(--sc-line-height-body2)]` con `leading-` matching.
-4. **`<Loader2 size={14} />` con prop**: alineado con la convención del resto del proyecto (`TranscriptionRequestModal`, `DiarizationRequestModal`).
-5. **`useState(() => ...)` lazy initializer** en `BulkTranscriptionModal` para evitar recomputar el predicado de default en cada render.
-6. **`isAllProcessed` simplificado**: `!canAnalyze && nTrans === 0` → `!canAnalyze` (la segunda condición está implícita).
-7. **`Modal.Footer` con `min-h-` (no `h-`)**: footer no clipa cuando el contenido tiene varias líneas / botones múltiples.
-8. **`selectedConversations` memoizado en `ConversationsView`** vía `useMemo([selectedIds])` — antes se recreaba el array filtrado en cada render del padre, invalidando el `useMemo` interno del modal sin necesidad.
-9. **Comentarios sectorizados** en ambos archivos `.tsx` con separadores `/* ── ── */` para que el código lea como una espiral: counters → toggle state → derived → animations → confirm → render.
-
-### 15.7 · Deuda técnica conocida (priorizada)
-
-**🔴 P0 — bloqueantes**: ninguna.
-
-**🟠 P1 — visibles en producción / DX**:
-1. **Migrar modales legacy al nuevo shell**: `TranscriptionRequestModal`, `DiarizationRequestModal`, `RetranscriptionConfirmModal`, `PlayerModal`, `RuleSelectionModal`, `CreateEntityModal`, `DeleteCategoryDialog` siguen con el patrón hand-rolled `<div fixed>`. Patrón nuevo en sec 14. Migrar uno a uno cuando se toquen.
-2. **Armonizar paleta navy**: tres tonos casi-iguales (`#1B273D` DS / `#1C283D` sidebar / `#233155` legacy) — consolidar en `--sc-navy-600` y migrar `Sidebar.tsx` + componentes que usan los otros dos hex. Cambio puramente visual; ninguna lógica afectada.
-3. **Warning CSS persistente**: `[vite:css][postcss] @import must precede all other statements` por el `@import` de Roboto en `globals.css`. No bloqueante (Roboto carga). Para eliminarlo limpiamente, mover el `@import` al inicio de `index.css`.
-
-**🟡 P2 — calidad / consistencia**:
-4. **Reproductor de audio real** en `PlayerModal.tsx` (todavía mock).
-5. **Filtro de categorías IA** en toolbar (deshabilitado con `{false && ...}` en `ConversationsView`).
-6. **`onNavigateToEntities`** en `ClassificationRuleBuilder` da toast "TBI" en lugar de navegar.
-7. **Paginación real** en `ConversationTable`.
-8. **Exportación real** en `DataExportImport.tsx`.
-9. **Modo oscuro**: tokens definidos en `default_theme.css` con `.dark`; sin toggle ni lógica activa. Si se activa, los tokens `--sc-*` también necesitan variantes dark (no existen).
-
-**🟢 P3 — mejoras opcionales**:
-10. **Refactorizar `BulkTranscriptionModal` v11 → componentes pequeños**: `<HeroCell />`, `<DecisionCell />`. La versión v25 cabe en un solo archivo (~280 líneas) — extraer sólo si los cells se reutilizan.
-11. **Pre-`approve-builds` de pnpm**: scripts de `@tailwindcss/oxide` y `esbuild` ignorados. No molesta en dev/build local; revisar si CI/build de prod se queja.
-12. **Migrar el resto del proyecto a tokens `--sc-*`**: hex hardcoded (`bg-[#233155]`, `text-[#5F6776]`, etc.) en componentes existentes.
-
-### 15.8 · Gotchas para sesiones futuras
-
-1. **El dev server pnpm puede quedarse colgado en background**: si abres una nueva sesión y no ves el log, lanzar `npx -y pnpm@latest dev` de nuevo (en la nueva sesión). Vite recupera el estado del FS.
-2. **Importes versionados** (`from "sonner@2.0.3"`): obligatorio mantenerlos en componentes existentes. Si Tailwind v4 falla resolviendo, verificar que `package.json` tiene la entrada `"sonner@2.0.3": "npm:sonner@2.0.3"`.
-3. **Tailwind v4 `@theme inline` lee CSS vars**: las clases generadas dependen del namespace. `--color-X` → `bg-X / text-X / border-X`. `--text-X` → `text-X` (font-size). `--radius-X` → `rounded-X`. `--shadow-X` → `shadow-X`. Cuidado con colisiones (ver 15.3 punto 4).
-4. **Radix Dialog re-render en mount**: si pones `<Modal>` dentro de un componente que se desmonta cuando `isOpen=false`, pierdes la animación de cierre. Patrón correcto: el `<Modal>` siempre montado, `open={isOpen}` controla la visibilidad.
-5. **`<DialogPrimitive.Close asChild>`**: el child debe ser un único elemento `<button>`. Si pasas Fragment o múltiples children, Radix tira un warning. Por eso `Modal.Cancel` envuelve un único `<button>`.
-6. **Los keyframes `sc-*` necesitan que el elemento tenga `key` cambiante para reiniciar**: si sólo cambias la clase `animate-sc-bump` sin cambiar key, el navegador no re-ejecuta la animación. Patrón en sec 15.4.
-
-### 15.9 · Cómo verificar que el modal funciona
-
-1. `npx -y pnpm@latest dev` → http://localhost:5173
-2. En la tabla, seleccionar una o varias conversaciones (checkboxes).
-3. Click en el icono de transcripción (FileText) del bulk action bar.
-4. Comprobar visualmente:
-   - Header: icono align-left + "Procesar conversaciones" + "N conversaciones seleccionadas" + X cierre.
-   - Body 2 columnas con hairline en medio.
-   - Hero (left): label "TOTAL A PROCESAR" + número 72px + caption ("genera coste" o "todo procesado").
-   - Decisión (right): label "ANÁLISIS" + "Incluir análisis" + Switch + caption "{N} admiten análisis".
-   - Footer: "Cancelar" (transparente) + "Procesar" (navy).
-5. Animaciones a verificar:
-   - Click en toggle: bump del hero, delta-ghost flotando, pulse del caption.
-   - Click en toggle disabled (caso C1, todo procesado): shake horizontal.
-   - Cerrar con ESC: animación de salida (zoom-out + fade).
-6. Edge cases:
-   - Selección vacía: el botón del bulk action bar no aparece, así que el modal no se abre.
-   - Selección con todo ya procesado: hero `0`, "todo procesado", botón Procesar disabled.
-   - Selección con sólo chats sin análisis: toggle default-on, hero = N chats.
+- **15.1 · Setup local** — pnpm vía `npx -y pnpm@latest install` (no global, no lock commiteado). Quirk: `package.json` tiene claves estilo `"sonner@2.0.3": "npm:sonner@2.0.3"` que npm rechaza con `EINVALIDPACKAGENAME`.
+- **15.2 · Decisiones arquitectónicas Modal** — Nuevo `ui/modal.tsx` (no tocar `dialog.tsx` shadcn). Radix Dialog (focus trap + scroll lock + ESC + portal + stacking gratis). Compound API. Roboto (no Inter — el cliente lo manda). `--sc-navy-600` (#1B273D) para CTA del Modal.
+- **15.3 · Tokens en 3 capas** — L1 primitives → L2 semantic → L3 component → `@theme inline` → utilities Tailwind v4. Reglas para extender: añadir SIEMPRE en `sc-design-system.css`, NUNCA tocar `default_theme.css`. **Bug crítico namespace**: `text-X` colisiona entre `--color-X` y `--text-X` — solución: token de tamaño `--text-sc-base` (no `--text-sc-body`). L3 solo para valores específicos del componente; aliases L3→L2 son ruido.
+- **15.4 · Animaciones SC** — 4 keyframes con `animate-sc-*`: `bump` (260ms scale 1.03), `pulse` (360ms scale 1.08), `delta-fly` (750ms ghost flotando), `shake` (280ms nudge). Patrón "useState key cambiante" para reiniciar el keyframe.
+- **15.5 · BulkTranscriptionModal v11 → v25** — Hand-rolled `<div fixed>` → Modal shell. Body 2 columnas: hero number 72px (left) + análisis toggle (right). 6 casos C1-C6 emergen implícitamente de `(nTrans, callEa, chatEa, ap)`. Fórmulas críticas: `heroCount = on ? nTrans + nAnBase : nTrans`, `canAnalyze = (nTrans + nAnBase) > 0`. API hacia caller idéntica.
+- **15.6 · Optimizaciones final audit** — Token rename `text-sc-body` → `text-sc-base`. 10 L3 tokens muertos eliminados. `useState(() => ...)` lazy init. `useMemo([selectedIds])` para `selectedConversations`. `min-h-` en Footer (no `h-`).
+- **15.7 · Deuda técnica capturada** — Migrada en su totalidad a sec 17 (modales legacy P1, navy harmonization P1, Roboto @import P2, audio real P1, dark mode P3, etc.).
+- **15.8 · Gotchas perpetuos** — `import sonner@2.0.3` con versión, `<Modal>` siempre montado para que Radix anime cierre, keyframes necesitan `key` cambiante, `<DialogPrimitive.Close asChild>` requiere child único `<button>`. Ver sec 13 (Workarounds) y sec 14 (Patrones).
+- **15.9 · Smoke test del modal** — Receta verificación visual + edge cases (selección vacía, todo procesado, solo chats sin análisis). Detalle en archive.
 
 ---
 
@@ -1668,329 +1570,67 @@ Cuando `memory.md` supere ~2500 líneas, la siguiente sesión debe:
 
 Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componentes, tokens) se mantiene siempre — esas son las "constantes" del proyecto.
 
-### 15.10 · 2026-04-28 · Claude Code · auditoría visual final + deploy GitHub/Netlify
+### Routing matrix de conocimiento
 
-**Hecho**:
-- `BulkTranscriptionModal` v25 body re-alineado a Figma `289:649`: hero number 56px (era 72), color `text-sc-emphasis` `#3C434D` (era heading), line-height 48px. Labels "TOTAL A PROCESAR" / "ANÁLISIS" pasan a 14px Bold (eran 11px medium tracking). "Genera coste" en `text-sc-cost-warn` `#D97706` capitalizado (era on-secondary minúscula). Título "Incluir análisis" 16px semibold (era 21px medium); color `text-sc-disabled` `#797979` cuando OFF, `text-sc-heading` cuando ON. Caption ON usa `text-sc-accent-strong` `#48B8C9` (era accent-300). Eliminado divider central (Figma: "sin dividers internos"). Cell heights fijos a 200px, paddings 28v/32h hero y 28v/24h decision. archivos: `src/app/components/BulkTranscriptionModal.tsx`, `src/styles/sc-design-system.css`.
-- Nuevos tokens en `sc-design-system.css`: L1 primitives `--sc-surface-500/700`, `--sc-warning-600`, `--sc-accent-600`. L2 semantic `--sc-text-emphasis`, `--sc-text-disabled`, `--sc-accent-strong`, `--sc-cost-warn`. L3 component `--sc-bulk-cell-{height,gap}`, `--sc-bulk-{hero,decision}-padding-{x,y}`. `--sc-font-size-display` cambió 72→56px. Añadido `--sc-line-height-display` 48px y `--sc-line-height-md` 24px.
-- Bug crítico arreglado: colisión de namespace `text-sc-body` (Tailwind v4 mapeaba `--color-sc-body` y `--text-sc-body` a la misma clase, ganaba color, font-size se perdía silenciosamente). Renombrado el token de tamaño a `--text-sc-base`. Todos los consumidores actualizados. archivos: `src/styles/sc-design-system.css`, `src/app/components/ui/modal.tsx`, `src/app/components/BulkTranscriptionModal.tsx`.
-- Eliminados 10 tokens L3 muertos (aliases redundantes de L2): `--sc-modal-{bg,border,radius,shadow,head-divider,head-title-size,head-subtitle-size,foot-divider,button-font-size,button-font-weight}`. archivos: `src/styles/sc-design-system.css`.
-- Optimizaciones de código: lazy `useState` initializer, `isAllProcessed` simplificado (`!canAnalyze` solo), `selectedConversations` memoizado en `ConversationsView` con `useMemo([selectedIds])`, magic number `text-[21px]` → `text-sc-xl`, `min-h-[21px]` → `min-h-[var(--sc-line-height-body2)]`, `<Loader2 size={14} />` matching project convention. archivos: `src/app/components/BulkTranscriptionModal.tsx`, `src/app/components/ConversationsView.tsx`.
-- Footer del Modal con `min-h-` en lugar de `h-` para resilencia con contenido multilínea. archivos: `src/app/components/ui/modal.tsx`.
-- Deploy completo activado: repo privado `arebury/Memory` creado vía `gh` CLI, 9 topics, descripción específica. `netlify.toml` declarativo (Node 20, pnpm 10.33.2, `pnpm build`, redirect SPA). `.gitignore` standard. `package.json`: nombre `memory`, scripts `dev/build/preview`, `pnpm.onlyBuiltDependencies` con `@tailwindcss/oxide` y `esbuild`. Identidad git `arebury <arebury@users.noreply.github.com>` sin `Co-Authored-By` de Claude. archivos: `.gitignore`, `netlify.toml`, `package.json`, `README.md`.
-- Live URL: https://memoryplus3.netlify.app/ — añadida al `README.md` con badge dedicado, a la sidebar de GitHub vía `gh repo edit --homepage`, y a `memory.md` sec 18.
-- README rehecho con 7 badges shields.io (status + 6 stack), emoji por sección (🎯🛠️🚀📁🚢📌👤), título `💬 Memory`, sin lenguaje vago. archivos: `README.md`.
-- `memory.md` con emoji en las 19 secciones top-level para escaneo rápido.
-- Añadidas secciones nuevas a `memory.md`: sec 16 (estrategia prototipo vs producción Angular+PrimeNG), sec 17 (Pendiente, lista plana sin milestones), sec 18 (deploy / pipeline / troubleshooting / rollback), sec 19 (protocolo de session log con plantilla obligatoria + política de compactación a partir de 2500 líneas).
+> Qué tipo de conocimiento va dónde. Aplicada consistentemente, no hay duplicación ni pérdida.
 
-**Decidido**:
-- Mantener stack React (Opción C): el DS evoluciona hacia tokens estilo PrimeNG/Aura sólo cambiando VALORES en `sc-design-system.css`; los nombres `--sc-*` se quedan. La decisión "qué hacer con el prototipo" (rol 1 desechable / rol 2 PrimeReact / rol 3 pivote Angular) se difiere hasta que el DS del cliente esté maduro. Razón: instalar `primereact` o pivotar a Angular hoy con DS "en pañales" cierra puertas innecesariamente.
-- Body de v25 sigue Figma `289:649` como fuente de verdad, no `bulky.html` (era exploración previa con valores diferentes — 72px hero, accent-300, etc.).
-- Auto-deploy Netlify dispara en cada `git push origin main`. Pushear en bloque al final de cada sesión, no commit a commit, para no consumir la cuota de 300 min/mes en builds innecesarios.
-- Topics del repo NO incluyen `primeng` ni `angular` aunque sean el target de producción — describen lo que hay EN el código (React/Vite/etc.), el contexto del target va en descripción y README.
+| Tipo de conocimiento | Destino | Por qué |
+|---|---|---|
+| **Cambio puntual de archivo** (fix, refactor, feature) | git commit + entrada de sesión 15.X (Hecho) | El detalle vive en el diff; la sesión registra el porqué |
+| **Decisión técnica reusable** (patrón que aplicará a futuros componentes) | Sec 20 del canon (numerada 20.X) + auto-memoria `feedback_*.md` (operativo para el agente) | Canon es discoverable por humanos; auto-memoria es trigger rápido para el agente |
+| **Decisión de producto / UX cerrada** (regla del producto, no del código) | Sec 13 del canon, subsección "Decisiones de producto cerradas" | Es load-bearing del producto, no patrón técnico |
+| **Pendiente con prioridad** (P0/P1/P2/P3) | Sec 17 del canon (lista plana) + entrada de sesión 15.X (Pendiente) | Sec 17 es single-source-of-truth de roadmap |
+| **Idea futura sin prioridad** (no urgente, "cuando un cliente lo pida") | Auto-memoria `project_*_roadmap.md` | No mete ruido al roadmap activo del canon |
+| **Gotcha operativo** (sandbox, esbuild, env, comando que falla) | Auto-memoria `project_session_status.md` ("Gotchas") | Es meta-info de cómo trabajar el repo, no del producto |
+| **Regla de microcopy nueva** | Sec 20.5 / 20.9 del canon | Sec 20 ya tiene políticas de copy |
+| **Detalle técnico no obvio en código** | Comentario WHY en el archivo (NO comment de WHAT) | Cero overhead de doc para algo que vive con el código |
+| **Bug raro encontrado, root cause** | Comentario WHY en código + entrada de sesión 15.X "Notas para próxima sesión" | El comentario evita repetirlo; la nota sube la guardia del próximo agente |
+| **Preferencia personal del usuario** (cómo trabajar, no qué construir) | Auto-memoria `feedback_*.md` (NO canon) | Es del usuario, no del proyecto — aunque influye en cómo se escribe código |
+| **Decisión revertida o invalidada** | Marcar la entrada original con nota "DEPRECADA en 15.X" + sesión 15.X (Decidido: "revierto X porque…") | Preservar el contexto histórico, no esconder el cambio de opinión |
 
-**Pendiente** (todos reflejados en sec 17):
-- Migrar modales legacy al `<Modal>` shell SC. (P1)
-- Consolidar los tres tonos navy en `--sc-navy-600`. (P1)
-- Mover `@import` de Roboto al inicio de `src/styles/index.css` para silenciar warning PostCSS. (P2)
-- Decisión sobre rol del prototipo cuando DS cliente esté maduro. (sin prioridad — reactivo al cliente)
+### Disparadores de cierre de sesión
 
-**Notas para próxima sesión**:
-- Repo: https://github.com/arebury/Memory · Live: https://memoryplus3.netlify.app/
-- Vite dev server quedó corriendo en background al puerto 5173 (pid del proceso de la sesión anterior). Si no responde tras reabrir Claude Code, lanzarlo con `npx -y pnpm@latest dev`.
-- ANTES de instalar nada o cambiar stack: leer sec 16. NO añadir `primereact`, `@angular/*` ni renombrar tokens `--sc-*` a `--p-*` sin discusión explícita.
-- Para verificar que un cambio compila antes de pushear: `npx -y pnpm@latest build` (~2s, produce `dist/`). Si falla local, falla en Netlify.
-- `gh auth status` confirma autenticación como `arebury`. No hace falta re-loguear en sesiones futuras.
+Cuando el usuario diga alguna de estas frases (o equivalentes naturales en español), el agente debe **automáticamente aplicar el protocolo de esta sección sin volver a preguntar**:
 
-### 15.11 · 2026-04-28 · Claude Code · v26 · status pictograms + ConversationPlayerModal + mock-sample switcher + body compacto
+- "cerramos" / "cerramos sesión" / "cerramos por hoy"
+- "voy a cerrar" / "vamos cerrando"
+- "documenta y cerramos" / "cierre" / "cierra"
+- "guarda lo que toque y cerramos"
+- "ya está, cierra"
 
-**Hecho**:
-- `BulkTranscriptionModal` v25 → **v26**: body compactado de 720×200 a 720×100. Tokens en `sc-design-system.css`: `--sc-bulk-cell-height` 200→100, `--sc-bulk-hero-padding-x` 32→24, `--sc-bulk-hero-padding-y` 28→12, `--sc-bulk-decision-padding-y` 28→0. Nuevos tokens `--sc-bulk-decision-gap-inner` (24, label↔switch) y `--sc-bulk-decision-gap-outer` (12, switch↔caption). Cell decision reorganizado en grupos anidados (Group A flex-col gap 12 ⊃ Group B flex-col gap 24 + Caption). Caption del análisis ahora **siempre** teal `text-sc-accent-strong` cuando hay candidatos (antes alternaba muted/teal según toggle). archivos: `src/styles/sc-design-system.css`, `src/app/components/BulkTranscriptionModal.tsx`.
-- Nuevo componente `StatusIcons.tsx` con 6 pictogramas SVG inline (paths de Figma, no Lucide): `IconPhone`, `IconCallTranscription`, `IconCallTranscriptionAnalysis`, `IconChat`, `IconChatTranscription`, `IconChatAnalysis`. Componente principal `<StatusIcon conversation isProcessing isAnalyzing size />` resuelve canal+estado en un único pictograma. Pulso `motion.span opacity 1→0.35→1` durante 1.1s mientras procesa o analiza. Tooltip con label específico por estado. archivos: `src/app/components/StatusIcons.tsx`.
-- Columna "Estado" de `ConversationTable.tsx` reescrita: el trío histórico (punto rojo grabación + FileText transcripción + Sparkles análisis con stack de tooltips por badge) sustituido por un único `<StatusIcon />`. Imports limpiados: removidos `Phone`, `Trash2`, `FileText`, `Sparkles`, `motion` que ya no se usaban. archivos: `src/app/components/ConversationTable.tsx`.
-- Nuevo `ConversationPlayerModal.tsx` (720 líneas) inspirado en Figma node `325:10103` pero adaptado al SC design system (surface blanca, shell `<Modal>`, tokens `--sc-*`). Reemplaza al click de fila el legacy `PlayerModal.tsx` (que sigue en repo, listed en sec 17 como pending de migración). Anatomía: header `Conversación · {id}` + meta, body con audio player row (back-10/play/fwd-10/scrub/download — reproducción mock con setInterval) + tabs Transcripción/Análisis con empty-states que llaman a `onRequestTranscription/onRequestAnalysis`. Default tab = Análisis si `!hasTranscription && hasAnalysis`. archivos: `src/app/components/ConversationPlayerModal.tsx`.
-- Nuevo `MockSampleSwitcher.tsx` + `data/mockSamples.ts` (presets `default`/`all-pending`/`all-done`/`calls-only-untranscribed`/`chats-only`/`small`) y `data/mockTranscriptionGenerator.ts` (6 templates de diálogo con hash determinista por id, jitter ±3s en timestamps). El switcher vive junto al easter-egg de validación UX en `ConversationsView`. archivos: `src/app/components/MockSampleSwitcher.tsx`, `src/app/data/mockSamples.ts`, `src/app/data/mockTranscriptionGenerator.ts`.
-- `ConversationsView.tsx` reescrito para soportar el nuevo flujo: mock-data ahora vive en estado local (`conversations`, copia de trabajo del sample) en lugar de leer `mockConversations` directamente; `analyzingIds` añadido al state (paralelo a `processingIds`); `handleRequestTranscription` ahora muta la conversación al completar (siembra `transcription` con `generateTranscriptionFor` si no había script); nuevo `handleRequestAnalysis` (4000 ms, marca `hasAnalysis: true` y siembra `aiCategories` con `pickRandomCategories(id)` deterministic); pool de categorías IA documentado inline. `selectedConversations` memoized con dep `[selectedIds, conversations]`. archivos: `src/app/components/ConversationsView.tsx`.
-- `index.html` title fijado a `Memory + 3.0` (era `Memory 3.0 + Transcripción masiva (Copy)` heredado de Figma Make).
-- JSDoc de `BulkTranscriptionModal` actualizada de `v25` a `v26 (Figma 297:2559 compact body)` con descripción del layout anidado.
-- Roadmap (`memory.md` sec 17) repasado: ítems heredados con prioridades P0–P3 explícitas; añadidos items nuevos (purgar `MockSampleSwitcher` antes de demos a stakeholders externos, tipar `resolveStatus` con `React.ReactElement` cuando se introduzca tsconfig, añadir tsconfig+typecheck script).
+**Lo que el agente DEBE hacer al detectar el disparador**:
 
-**Decidido**:
-- Pictograma único en columna Estado (vs trío de badges v25). Razón: la columna mide 80px y tres badges + tres tooltips se sentían ruidosos; los SVG oficiales del DS ya combinan canal+estado en un solo símbolo, mantenerlos como paths inline garantiza fidelity 1:1 con Figma sin pasar por un asset pipeline.
-- Caption del análisis **siempre** teal cuando hay candidatos. Antes alternaba muted/teal según toggle, lo cual implicaba que C2/C5 (default-on) y C3 (default-off) se veían distintos para el mismo dato subyacente. Figma 297:2559 spec C3 confirma teal constante.
-- Body compactado a 100px en lugar de 200px. Razón: el padding-y de 28px sumaba aire vertical innecesario tras quitar el divider central. Decision cell ahora usa `padding-y 0` y deja que los gaps anidados (12+24) hagan el espaciado.
-- `ConversationPlayerModal` como **componente nuevo** en vez de refactor del legacy `PlayerModal`. Razón: el legacy es un Radix Dialog con surface oscura `#0F1117` que aún tiene callers vivos en `Repository`/`PlayerModal`; refactor en sitio rompía esos otros flujos. Trade-off aceptado: dos modales coexisten temporalmente; tarea de migración añadida a sec 17.
-- Mock-data ahora muta vía `setConversations` en `ConversationsView`. Razón: el flujo "transcribe individual → abro modal y veo transcripción" requiere que el cambio sobreviva al cierre/reapertura del modal. Mantener `mockConversations` inmutable como base + clones por sample preserva la posibilidad de resetear.
-- Generador determinista de transcripciones (hash del id, no random). Razón: si la transcripción cambiara entre renders el modal mostraría líneas distintas tras un re-render del padre. Determinismo evita esa rareza en demos.
+1. Identificar qué se hizo en la sesión (revisar `git diff`, `git log` desde el inicio de sesión, y la conversación).
+2. Aplicar la routing matrix arriba — cada pieza de conocimiento al sitio correcto.
+3. Escribir entrada `15.X` en este archivo siguiendo la plantilla obligatoria.
+4. Si hay pendientes nuevos, añadirlos a sec 17.
+5. Si hay patrones técnicos nuevos validados, añadirlos a sec 20 + crear o actualizar `feedback_*.md` en auto-memoria.
+6. Si hay decisiones de producto nuevas, añadirlas a sec 13 (subsección "Decisiones de producto cerradas").
+7. Actualizar `project_session_status.md` (auto-memoria) con HEAD nuevo y resumen 1-2 líneas de la sesión.
+8. Commit + push (preguntar antes solo si la sesión hizo cambios destructivos o el usuario no lo pidió explícitamente; si el usuario ya dijo "cerramos" sin matices, asumir que el cierre incluye push).
+9. Confirmar al usuario qué se ha guardado y dónde, en bullet list corto.
 
-**Descartado** (decisiones de diseño no tomadas):
-- Mostrar un icono "fallback" (`-`) cuando un chat está sin procesar. Sustituido por `IconChat` (bocadillo plano) — el canal siempre se ve, aunque no haya progreso.
-- Renombrar `PlayerModal.tsx` legacy a `PlayerModalLegacy.tsx`. Decidido NO: se borra cuando se migran sus callers; renombrarlo crearía un diff sin valor.
-- Añadir `react-router` para que el player sea una ruta en lugar de un modal. Sigue siendo modal — la navegación de la app no usa router (sec 2).
-- Bajar el JS chunk con manualChunks ahora. Sigue siendo P3; el build pasa con warning >500 kB pero no bloquea.
+**Lo que el agente NO debe hacer**:
 
-**Pendiente** (todos reflejados en sec 17):
-- Migrar `PlayerModal` legacy + el resto de modales antiguos al shell SC. (P1)
-- Audio real en `ConversationPlayerModal` (hoy mock con `setInterval`). (P1)
-- Backend real cuando empiece la integración. (P0 al empezar)
-- `MockSampleSwitcher` debe purgarse antes de demos externas no técnicas. (P3)
-- Tipar `resolveStatus` con `React.ReactElement` cuando se añada tsconfig.json. (P3)
-- Añadir `tsconfig.json` + script `npm run typecheck` — hoy esbuild no typechecka en CI. (P2)
+- Preguntar "¿quieres que documente?". Si oyes el disparador, documentas. Solo preguntas si NO hay nada documentable (sesión sin cambios, conversación puramente exploratoria sin decisiones cerradas).
+- Duplicar info entre canon y auto-memoria salvo que la routing matrix lo pida explícitamente.
+- Borrar entradas históricas de sec 15. Si una decisión vieja ahora es errónea, márcala como deprecada con pointer a la nueva, no la borres.
 
-**Notas para próxima sesión**:
-- Repo: https://github.com/arebury/Memory · Live: https://memoryplus3.netlify.app/
-- v26 es la versión activa del modal. Cualquier ajuste de body height/padding va por los tokens `--sc-bulk-*` en `sc-design-system.css`, no hardcoded en el componente.
-- Los 5 SVG de status están inline en `StatusIcons.tsx` con `fill="currentColor"` (excepto `IconPhone` que usa `stroke="currentColor"` porque Figma lo entregó como outline). Si design entrega más variantes (e.g. "chat con análisis + transcripción simultáneo"), añadir un nuevo `Icon*` y extender la matriz en `resolveStatus`.
-- `mockTranscriptionGenerator.ts` cubre 6 dominios. Si las demos repiten el mismo diálogo, ampliar `dialogues[]`.
-- Para verificar build: `npx -y pnpm@latest build` (~1m45s aquí; varía). Output esperado: `dist/index-*.css` ~137 kB y `dist/index-*.js` ~836 kB. Warning de chunk >500 kB es esperado (sec 17).
-- El modal legacy `PlayerModal.tsx` sigue importado desde `Repository.tsx` y otros — NO borrar todavía. Dependency check: `grep -rn "from .*PlayerModal" src` antes de eliminar.
+### 15.archivo-2026-04-28a · resumen comprimido · deploy + ConversationPlayerModal + UX audit (15.10 → 15.18)
 
-### 15.12 · 2026-04-28 · Claude Code · v26 · pase de fidelidad sobre el body (alineación + hero 88 + caption muted-OFF)
+> Día intensivo del 28 de abril, primera ola de 9 sesiones. **Detalle completo (~325 líneas)** en [`memory-archive/2026-04.md`](../../../memory-archive/2026-04.md#sesión-2026-04-28-primera-ola--deploy--conversationplayermodal--ux-audit-1510--1518). Comprimido en 15.30 (compactación sec 19).
 
-**Hecho**:
-- `--sc-font-size-display` 56→**88px**, `--sc-line-height-display` 48→**88px**. archivos: `src/styles/sc-design-system.css`.
-- Tokens del bulk body refactorizados: borrados `--sc-bulk-{hero,decision}-padding-{x,y}`, `--sc-bulk-cell-gap`, `--sc-bulk-decision-gap-{inner,outer}`. Nuevos tokens compartidos por ambas cells: `--sc-bulk-cell-height: 200px`, `--sc-bulk-cell-padding-x: 24`, `--sc-bulk-cell-padding-top: 28`, `--sc-bulk-cell-padding-bottom: 24`, `--sc-bulk-decision-caption-gap: 12` (gap title↔caption), `--sc-bulk-divider-color: var(--sc-border-soft)`. archivos: `src/styles/sc-design-system.css`.
-- `BulkTranscriptionModal` body reescrito: ambas cells con mismo padding-top → labels comparten baseline; debajo de cada label un wrapper `flex-1` centra el contenido. Hairline divider vertical entre cells (`border-r`). Hero ahora 88px. Caption alterna muted-OFF / teal-ON (revertida la regla "siempre teal" del borrador v26). "Genera coste" → "genera coste" lowercase. Hero usa `animate-sc-pulse` en lugar de `animate-sc-bump` para que su latido sea visible al tamaño 88px y se sincronice con el de la caption. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
-- JSDoc del componente y sec 5 de `memory.md` reescritas para reflejar el layout final (200px height, divider, padding-top compartido, animación unificada).
+- **15.10 · Deploy GitHub/Netlify** — Live `https://memoryplus3.netlify.app/`. Repo privado `arebury/Memory`. README rehecho con badges. Sec 16/17/18/19 nuevas en `memory.md`. BulkTranscriptionModal hero 72→56px (Figma 289:649). Nuevos tokens `--sc-text-emphasis`, `--sc-text-disabled`, `--sc-accent-strong`, `--sc-cost-warn`, `--sc-bulk-*`.
+- **15.11 · v26 · status pictograms + ConversationPlayerModal scaffolded** — Body de v25 compactado a 100px. `<StatusIcon />` único (6 SVG inline channel+estado, pulse 1.1s mientras procesa). Nuevo `ConversationPlayerModal` (no refactor del legacy `PlayerModal`). `MockSampleSwitcher` + `mockSamples.ts` + `mockTranscriptionGenerator.ts` (6 templates determinísticos). `setConversations` en estado local para que mutaciones sobrevivan al cierre del modal.
+- **15.12 · v26 fidelity pass** — Hero a **88px / 1:1 line-height** (no 56). Padding-top compartido como mecanismo de alineación de labels (no justify-center). `animate-sc-pulse` unificada (no `bump`). Hairline divider `--sc-border-soft`.
+- **15.13 · Invariante "chats siempre transcritos"** — `normalizeChats(list)` en `mockSamples.ts` centraliza la regla. Player panel reescrito con bubbles tipo chat (Agente derecha `bg-accent-soft` / Cliente izquierda `bg-border-soft`) para AMBOS canales. `IconChat` queda dead code (defensa documentada).
+- **15.14 · Análisis = Resumen + Sentimiento + Repository rehecho** — Análisis tab reducido a Resumen + Sentimiento (borradas Categorías + Entidades). Resumen + transcripción comparten hash → coherencia narrativa garantizada (6 templates). Sentimiento detecta léxico negativo en el texto. Player channel-aware (Phone/MessageSquare). Audio player oculto para chats (no disabled). Repository LP rehecho: ribbon "Cómo funciona" + Hero card de Reglas + Categorías/Entidades como PrimaryCard sin split purple/teal. **Segunda invariante**: `hasAnalysis === true ⇒ hasTranscription === true` (centralizada en `normalizeChats`).
+- **15.15 · BUG twMerge text-{size}+text-{color}** — Hero number renderizaba 16px en vez de 88. `cn()` agrupa `text-sc-display` + `text-sc-emphasis` y mantiene solo el último. Política nueva: `style={{ fontSize: 'var(--sc-font-size-X)' }}` cuando `cn()` combina ambas. 4 sitios afectados, todos arreglados. Migración tw-merge config como deuda P2 (no parche).
+- **15.16 · README expandido + taste-skill instalada** — README con UX writing lens (problema → palancas → vistas → invariantes). Taste-skill instalada con overrides explícitos a 4/4/4 para Memory (es dashboard, no marketing).
+- **15.17 · EmptyState API ampliada (impeccable+taste)** — `highlights` (pills value-prop), `meta` (con `intent: 'cost'`), `secondaryHint`, medallón circular 48px. Copy en gerundio para activos. Política copy: conversacional para títulos, descripción explica WHY antes que HOW.
+- **15.18 · Audit UX · 11 fixes en una pasada** — Easter-egg avatar fuera, `<HelpCircle>` en toolbar. Bulk subtitle con breakdown por canal. `FOCUS_RING` extraído a `ui/focus.ts`. Player tab row con `<Download>` único (paridad chat+llamada). Análisis dead-end: CTA "Transcribir y analizar" combinado. Iconografía AI: `Sparkles` solo para "Generado por IA" pill. **CTA primario unificado a navy filled** repo-wide. Counters mono junto a títulos. Repository ribbon condicional por `rules.length === 0`. Push-back: bubble alignment iMessage mantenido (validar con usuarios reales).
 
-**Decidido**:
-- Hero 88px / 1:1 line-height en lugar de 56px / 48. La columna izquierda DEBE dominar visualmente; con 56px la mirada caía primero al texto "Incluir análisis" 16semibold de la columna derecha y se rompía la jerarquía.
-- Padding-top compartido como **mecanismo de alineación de labels**, en lugar de justify-center con gaps anidados que empataran alturas. El padding-top es 1 línea de defensa; cualquier tipografía que cambie de tamaño no rompe la baseline.
-- Hero usa `animate-sc-pulse` (mismo de caption). El usuario pidió "misma animación" — unificar las dos animaciones evita inconsistencia perceptual y no añade complejidad (ambas keys ya existen en el componente).
-- Hairline divider `--sc-border-soft` (#F3F4F6, casi imperceptible) en lugar de `--sc-border-default` (#D3D5DA) para que separe sin gritar. El v25 era "sin divider"; el v26 final lo añade pero muy sutil.
-
-**Descartado**:
-- Mantener `cell-height: 100px` con número 88px. El 88px no respira con 100px de altura — quedaba comprimido contra label.
-- Usar CSS Grid para forzar dos columnas con header row + content row. El `flex` con shared padding-top resuelve el mismo problema sin añadir un primitive nuevo.
-- Animar el hero con `animate-sc-bump` reescalado a 1.08. Cambiar el valor del bump rompería sus otros usos en el sistema; la pulse ya es 1.08 y tiene la misma curva.
-
-**Pendiente**: ninguno nuevo. Sec 17 sin cambios.
-
-**Notas para próxima sesión**:
-- Si el cliente pide subir más el hero (96 / 100 / 112), tocar SOLO `--sc-font-size-display` y `--sc-line-height-display` (mantener 1:1). Si supera 112, subir `--sc-bulk-cell-height` también para que respire.
-- El hairline divider va en el lado derecho del hero (`border-r`). Si en el futuro hay que invertir el orden de las cells, mover el `border-r` → `border-l` al elemento que toque.
-- La regla "padding-top compartido = labels alineadas" depende de que ambas labels sean directamente el primer child de cada `<section>`. Si alguna sesión añade un wrapper antes de la label, romperá la alineación.
-
-### 15.13 · 2026-04-28 · Claude Code · invariante "chats siempre transcritos" + transcripción tipo chat
-
-**Hecho**:
-- Nuevo `normalizeChats(list)` en `src/app/data/mockSamples.ts`: para cada conversación con `channel === "chat"`, fuerza `hasTranscription: true` y siembra `transcription[]` (con `generateTranscriptionFor` si no había script). Aplicado en TODOS los presets — `default`, `all-pending`, `all-done`, `chats-only`, `small`. El preset `calls-only-untranscribed` no necesita normalizar (filtra fuera los chats).
-- `all-pending` reescrito: solo resetea llamadas a `hasTranscription: false`. Chats mantienen transcripción (es su estado natural por definición). Antes el preset borraba transcripciones de chats incluido.
-- `all-done`: ya forzaba `hasTranscription: true`; ahora pasa también por `normalizeChats` para garantizar `transcription[]` no vacío.
-- `ConversationPlayerModal` panel de transcripción reescrito con **layout tipo chat** para AMBOS canales: bubbles alineados a la derecha (agent / Speaker 1, color `bg-sc-accent-soft`) y a la izquierda (cliente / Speaker 2, color `bg-sc-border-soft`). Speaker label + timestamp encima del bubble. Esquinas asimétricas (`rounded-br-md` / `rounded-bl-md`) para look conversacional. Avatares retirados — la disposición en sí ya transmite la diarización.
-- Nueva helper `isAgentSpeaker(speaker, conversation)` que reemplaza el if heurístico anterior basado en substrings. Reglas: "Agente"/"Speaker 1" → derecha; "Cliente"/"Speaker 2" → izquierda; en llamadas, `speaker === conversation.origin` también va a la derecha.
-- Import de `User` retirado de `lucide-react` en `ConversationPlayerModal` — ya no se renderiza avatar.
-
-**Decidido**:
-- Invariante **"chats siempre tienen transcripción"** centralizada en el loader (normalizeChats) en lugar de tocar las 30+ entradas de `mockData.ts`. Razón: si en el futuro se añaden chats sin transcription al mock-data, la normalización los corrige automáticamente. Mantiene `mockData.ts` como fuente de "datos crudos" sin reglas.
-- Mismo layout de bubbles para llamadas y chats. La diarización (quién dijo qué, cuándo) se ve mejor en chat-style; replicarla en llamadas unifica la lectura para el supervisor sin perder información (timestamps siguen ahí).
-- Sin avatares en bubbles. La separación left/right ya identifica al hablante; añadir un círculo con icono de Headphones / User era ruido.
-
-**Descartado**:
-- Editar uno-a-uno cada chat de `mockData.ts` para meterles `hasTranscription: true`. Lento, frágil, no defiende contra futuras adiciones.
-- Mantener el render flat (avatar + texto en línea) y solo cambiar los flags. El usuario pidió explícitamente "diarizado como si fuera una conversación de chat, visualmente" — el layout flat no transmite eso.
-- Usar burbujas distintas para llamada vs chat. Mismo layout = misma lectura.
-
-**Pendiente**: ninguno nuevo.
-
-**Notas para próxima sesión**:
-- Cualquier nuevo chat añadido a `mockData.ts` o a un preset custom queda automáticamente normalizado al pasar por `mockSamples.build()`. Si se introduce una ruta de carga que NO pase por `mockSamples` (por ejemplo, llamando `mockConversations` directamente en otra vista), aplicar `normalizeChats` ahí también.
-- En `BulkTranscriptionModal`, `nTrans = calls.filter(c => c.hasRecording && !c.hasTranscription).length` — los chats están naturalmente fuera de la cuenta de "ready to transcribe". Si se cambiara la fórmula para incluir chats, romper la invariante.
-- El chat icon `IconChat` (bocadillo plano sin transcripción) en `StatusIcons.tsx` ahora es **dead code** porque ningún chat puede llegar a ese estado. Dejar el componente por defensa pero marcar para borrar si la invariante se solidifica en producción.
-
-### 15.14 · 2026-04-28 · Claude Code · análisis = resumen+sentimiento, invariantes globales, player polish, Repositorio rehecho
-
-**Hecho**:
-- Análisis tab del `ConversationPlayerModal` reducido a **Resumen + Sentimiento**: borradas las secciones "Categorías detectadas" y "Entidades clave". Resumen ahora deriva de la transcripción usando `summarizeTranscript(conversation)` que indexa por `hashString(c.id) % 6` — el mismo hash que usa `mockTranscriptionGenerator` para escoger plantilla de diálogo, así resumen y transcripción siempre cuentan la misma historia. Sentimiento ahora detecta léxico negativo en el propio texto de la transcripción (`/molest|frustr|inadmis|reclam|queja|incidenc|problem|injust|enfad|inacept/i`) en lugar de mirar `aiCategories`. archivos: `src/app/components/ConversationPlayerModal.tsx`.
-- `Section` del player extendido con prop opcional `aside` para una etiqueta "Generado por IA" junto al título de Resumen (Sparkles + caption muted). Sección Sentimiento usa `items-baseline` para alinear el dot con el texto.
-- **Invariante "no análisis sin transcripción"** centralizada en `normalizeChats(list)` de `mockSamples.ts`: si una row tiene `hasAnalysis: true` pero `hasTranscription: false`, baja `hasAnalysis: false` y limpia `aiCategories`. Se aplica antes de devolver cualquier sample. Refleja la realidad del producto — el análisis se deriva del texto. archivos: `src/app/data/mockSamples.ts`.
-- `handleRequestAnalysis` en `ConversationsView` ahora filtra targets sin transcripción antes de meterlos en `analyzingIds`. Si todos los targets eran inválidos, no se dispara el setTimeout. Defensa frente a UIs futuras que llamen al handler con IDs no elegibles. archivos: `src/app/components/ConversationsView.tsx`.
-- `ConversationPlayerModal` reformado con impeccable + ui-ux-pro-max:
-  - Header icon **channel-aware**: `<Phone>` para llamadas, `<MessageSquare>` para chats. Antes era siempre `<Headphones>` aunque la fila fuera un chat sin audio.
-  - Título contextual: "Llamada · #ID" o "Chat · #ID" en lugar del genérico "Conversación · #ID".
-  - **Audio player oculto para chats** (no hay audio que reproducir). Antes el player se renderizaba con todos los botones disabled.
-  - Constante `FOCUS_RING` aplicada a TODOS los botones del player (back-10, play, fwd-10, scrub, download), tabs y al Section header — anillo `ring-2 ring-sc-accent ring-offset-2 ring-offset-sc-surface` solo en `:focus-visible`.
-  - `cursor-pointer` explícito en cada botón habilitado; `disabled:cursor-not-allowed` se mantiene.
-  - Scrub bar mejorado: hit-target de 20px (antes 8px), `role="slider"` con `aria-valuemin/max/now`, **thumb circular** que aparece en hover/focus o mientras `isPlaying`. Transición de 150ms en el progreso. Easing por defecto.
-  - Botón play tiene `active:scale-[0.97]` para feedback táctil de press.
-  - Search input de la transcripción: `type="search"`, `aria-label`, transición de border-color en hover, ring suave (20% alpha) en focus, `placeholder:text-sc-muted`.
-  - "líneas" → "intervenciones" en el contador encima de la transcripción.
-- **Repositorio LP rehecho** desde cero. Antes era un `Repository.tsx` de 245 líneas con hexes hardcodeados (`#F4F6FC`, `#1C283D`, etc.), 3 iconos coloreados apilados en la card de reglas (rojo+azul+púrpura), grids idénticos repetidos y "estructura del contact center" disfrazada de CTA con `cursor-default`. Ahora:
-  - Tokens `--sc-*` en todos lados, ningún hex literal.
-  - **"Cómo funciona" ribbon** al inicio: 3 pasos numerados (`01 Configuras reglas` / `02 La IA hace el trabajo` / `03 Tú revisas`) con flechas conectoras solo en sm+. Orienta a un supervisor nuevo sin fricción.
-  - **Hero card de Reglas** (no más cluster de 3 iconos): título grande, body ampliado, chips inline `Grabación / Transcripción / Clasificación IA` (texto neutral, icono teal-strong), CTA "Cómo funcionan las reglas" en la esquina derecha del bloque de chips.
-  - **Categorías y Entidades** como dos PrimaryCard en grid 2-col idéntico — un solo color de acento (teal), no purple/teal split.
-  - **Estructura sincronizada** demoted a una **fila inline de pills** (Servicios · Grupos · Agentes) con caption explicando que se gestiona desde el IVR. No mimetiza CTA.
-  - **Próximamente** demoted a `<ul>` con divider hairlines, no card grid.
-  - UX writing expandido: descripciones concretas con ejemplos (`"queja de facturación"`, `"importes, productos, identificadores"`); cada Group tiene un eyebrow + descripción que explica POR QUÉ existe la sección, no solo qué contiene.
-  - `focus-visible` rings consistentes con el player.
-  - `aria-label` en hero card; `role="button"` con `tabIndex={0}` y handler de teclado para Enter/Space. archivos: `src/app/components/Repository.tsx`.
-- `.impeccable.md` creado en raíz del repo con la Design Context completa (Users, Brand Personality, Aesthetic Direction, 5 principios y anti-references). Sintetiza lo que ya estaba disperso en `memory.md` sec 1, 4, 5 y 16 para que `/impeccable craft|extract` futuros no necesiten teach. archivos: `.impeccable.md`.
-
-**Decidido**:
-- **Resumen y transcripción comparten hash**. Mismo `hashString(c.id) % 6` selecciona plantilla de diálogo y plantilla de resumen. Garantiza coherencia narrativa (no puede haber un resumen sobre facturación si la transcripción es de soporte técnico). Trade-off: solo hay 6 historias distintas en la app, pero a cambio nunca hay disonancia entre las dos pestañas.
-- **Sentimiento detecta léxico en el texto** en vez de mirar `aiCategories`. Razón: el sentimiento es independiente de las categorías — una llamada de "Soporte Técnico" puede ser positiva o negativa. Detectarlo en el texto es más fiel y sobrevive si en el futuro `aiCategories` cambia de forma.
-- **Análisis estricto a Resumen + Sentimiento**, sin Categorías ni Entidades. Los entities en el panel daban la falsa impresión de que la IA extraía valores estructurados de cada conversación; en producción real eso requiere configuración explícita (Entidades del repositorio) y no siempre devuelve algo. Mejor no enseñarlo cuando es mock.
-- **Channel-aware header del player**. Mostrar un icono de auriculares en un chat es contradictorio. Phone para llamada, MessageSquare para chat — el icono refuerza el contexto, no lo confunde.
-- **Audio player oculto para chats**, no disabled. Renderizarlo en gris ofrecía algo no funcional con apariencia de funcional. Esconderlo es más honesto.
-- **Repositorio sin cluster de 3 iconos coloreados**. El cluster (rojo grabación / azul transcripción / púrpura IA) era el patrón AI-slop "rainbow KPI tile" que la skill `impeccable` señala. Sustituido por chips inline con el mismo contenido pero peso visual neutral.
-- **"Cómo funciona" ribbon en lugar de muchos textos explicativos por sección**. Tres pasos numerados son más rápidos de leer que 4 párrafos repartidos. Al supervisor le sirve para orientarse 1 vez; luego el ribbon se ignora.
-- **Estructura sincronizada como pill row**, no card grid. Los datos del IVR no son CTAs — convertirlos en cards con border + hover engaña al usuario. Pill row deja claro que son lectura.
-
-**Descartado**:
-- Mostrar contadores reales ("12 reglas activas", "8 categorías") en las cards. Acoplaba Repository al RulesContext / CategoriesContext y rompía si se reseteaba el localStorage. Texto descriptivo es suficiente.
-- Mantener el split purple/teal (Categorías púrpura, Entidades teal). Coherente con la columna Estado de la tabla, sí — pero en el repositorio no hay analogía visual: ambos son configuración, no estado de procesamiento. Un solo acento.
-- Borrar el SUMMARY_TEMPLATES e intentar generar un resumen palabra a palabra del transcript. Demasiado mock para el coste; los 6 templates son más fiables y mantienen el determinismo.
-- Reescribir `mockData.ts` para forzar `hasTranscription: true` en cada chat. Más frágil que normalizar en el loader (`mockSamples.ts`). El loader es el único punto de carga, así la invariante se cumple sin tocar 30+ entradas.
-
-**Pendiente**: ninguno nuevo. Sec 17 sin cambios.
-
-**Notas para próxima sesión**:
-- Las invariantes ahora son **dos**, ambas centralizadas en `normalizeChats` de `mockSamples.ts`:
-  1. Chat → `hasTranscription: true` + `transcription[]` poblado.
-  2. `hasAnalysis: true` ⇒ `hasTranscription: true` (en otro caso se baja `hasAnalysis`).
-  Cualquier código nuevo que mute `Conversation` debe pasar por estas reglas o introducirlas en su propio path.
-- El resumen del Análisis está en un array `SUMMARY_TEMPLATES` dentro de `ConversationPlayerModal.tsx`. Si se añaden plantillas nuevas a `mockTranscriptionGenerator.ts`, añadir el resumen correspondiente en el mismo orden — el match es por índice de hash.
-- `.impeccable.md` y `memory.md` divergirán con el tiempo si no se sincronizan. Política: cualquier cambio en sec 4 (Design System) o sec 16 (estrategia) de `memory.md` debe copiarse al `.impeccable.md` si afecta a Aesthetic Direction o Design Principles.
-- El nuevo Repository LP usa `bg-sc-canvas` (no `bg-[#F4F6FC]`). Si en el futuro se ajusta el canvas en sec 4 del memory.md, todos los hijos del repo se reajustan automáticamente — ya no hay magic numbers que cazar uno a uno.
-
-### 15.15 · 2026-04-28 · Claude Code · BUG · twMerge colisiona text-{size} + text-{color}
-
-**Hecho**:
-- Bug crítico encontrado y arreglado: el hero number del `BulkTranscriptionModal` se renderizaba a 16px (heredado del body) en lugar de 88/112px porque `twMerge` (vía `cn()`) **agrupa `text-sc-display` (font-size custom token) y `text-sc-emphasis` (color custom token) bajo el mismo bucket `text-*`** y mantiene solo el último — la clase de tamaño se pierde silenciosamente. Confirmado leyendo el HTML que el usuario pegó: `class="relative inline-block font-semibold leading-[var(...)] tabular-nums text-sc-emphasis"` — sin `text-sc-display`. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
-- Fix aplicado: aplicar `font-size` (y `line-height` cuando aplica) vía prop `style` inline en lugar de className. `style` no pasa por `cn()/twMerge`, por lo que la regla CSS sobrevive intacta. Color sigue en className para que cambios condicionales (toggleOn ? 'text-sc-heading' : 'text-sc-disabled') sigan haciendo merge correctamente.
-- Audit del proyecto reveló otros 3 sitios con la misma colisión:
-  - `ConversationPlayerModal.tsx:494` search input — `text-sc-sm` + `text-sc-body`. Tamaño se perdía → input rendereaba a 16px.
-  - `ConversationPlayerModal.tsx:720` botón de EmptyState — `text-sc-sm` + `text-sc-accent-strong`. Idem.
-  - `Repository.tsx:298` link "Cómo funcionan las reglas" — `text-sc-xs` + `text-sc-muted`. Idem.
-  Los tres arreglados con la misma técnica (style inline para font-size, color en className).
-
-**Decidido**:
-- **Política nueva**: cuando `cn()` combina `text-{size}` + `text-{color}` SC tokens, mover el font-size a `style={{ fontSize: 'var(--sc-font-size-X)' }}`. La alternativa (configurar twMerge para que distinga) requiere un wrapper sobre `cn()` y un mapping completo de los tokens — mayor superficie de mantenimiento. La regla simple es más durable.
-- En className **plano** (sin `cn()`) el bug NO ocurre porque twMerge no se ejecuta. Por eso muchos `<span className="text-sc-base text-sc-body">` del proyecto SÍ funcionan — están fuera de cn. La regla aplica solo a clases que pasan por `cn()`.
-- No reescribir `utils.ts` para reemplazar `cn` por una versión con twMerge configurada. Romper una utilidad usada en 238 sitios para arreglar 4 colisiones es desproporcionado.
-
-**Descartado**:
-- Renombrar tokens para evitar la ambigüedad (ej. `--text-sc-display` → `--font-size-sc-display`). Tailwind v4 fija el prefijo `--text-` para que el utility sea `text-{name}`; cualquier otro prefijo no genera clase.
-- Borrar `cn()` de los 4 sitios afectados y usar template literals. Pierde la capacidad de pasar arrays/condiciones a la className y es menos ergonómico que añadir un `style` inline.
-
-**Pendiente**: ninguno nuevo. El audit cubrió todo el repo (`grep cn(` → 238 ocurrencias, manualmente filtradas las que combinan size+color de SC).
-
-**Notas para próxima sesión**:
-- Antes de añadir un `cn(... "text-sc-{size}", "text-sc-{color}" ...)` nuevo, recuerda que **twMerge solo deja una de las dos**. Si necesitas ambas, mueve el size a `style`.
-- Si en algún momento se decide tener un único `cn()` configurado para que distinga estos buckets, hay que extender twMerge con `extendTailwindMerge({ classGroups: { 'font-size': [{ text: ['sc-xs', 'sc-sm', 'sc-base', 'sc-md', 'sc-lg', 'sc-xl', 'sc-display'] }] } })`. Documentar la migración como un cambio coordinado, no parche puntual.
-- Cualquier nuevo display number (ej. dashboards futuros con KPIs grandes) debe usar `style={{ fontSize: 'var(--sc-font-size-display)' }}` desde el día 1, no `text-sc-display` en cn.
-
-### 15.16 · 2026-04-28 · Claude Code · README expandido + taste-skill instalada + review de modales
-
-**Hecho**:
-- README.md reescrito con lente de UX writing: arranca con la pregunta "¿Qué problema resuelve?" y enseña las 3 palancas (reglas → IA → revisión) antes que el stack. Tabla "¿Qué encontrarás dentro?" con las 4 vistas y para qué sirven. Sección "Decisiones de producto que el código refleja" expone las 4 invariantes (chats siempre transcritos, no análisis sin transcripción, resumen ligado al transcript, regla sin alcance no guarda) — un visitante del repo entiende el comportamiento sin abrir el código. Stack y estructura quedan abajo (lo técnico no es el gancho). archivos: `README.md`.
-- `taste-skill` (Leonxlnx/taste-skill) instalada en `~/.claude/skills/taste-skill/SKILL.md` vía `curl` desde el repo público de GitHub. Aparece automáticamente en la lista de skills disponibles del runtime.
-- Review de `BulkTranscriptionModal` + `ConversationPlayerModal` aplicando las reglas de la nueva taste-skill. Cambios concretos aplicados:
-  - **Bulk subtitle** ahora muestra breakdown por canal cuando hay mezcla: "5 conversaciones seleccionadas · 3 llamadas, 2 chats". Antes solo el total. Razón (taste-skill rule density-4): el supervisor en bulk necesita saber el mix antes de procesar — los chats no se transcriben.
-  - **Bulk botón Procesar** gana `active:scale-[0.98]` con `transition-transform`. Disabled keeps `disabled:active:scale-100` para que un click bloqueado no haga "press". Razón (taste-skill rule 5 Tactile Feedback): un CTA premium debe responder físicamente al click.
-  - **Player search input** pasa de `w-56` fijo a `w-full max-w-[260px]` dentro de un wrapper. Adapta a contenedores estrechos sin overflow. Razón (taste-skill rule responsiveness).
-  - **Player tab body** pasa de `h-[320px]` fijo a `min-h-[360px]`. Razón: a 320 fijo el contenido se sentía comprimido en empty states con CTA; min-h permite crecer si la transcripción es larga, mantiene piso cómodo.
-
-**Decidido**:
-- **Reglas de taste-skill que NO se aplican en este proyecto** y por qué (escritas explícitamente para que la próxima sesión no intente "corregirlas"):
-  - Font Geist/Outfit/Cabinet/Satoshi → conflicto con Roboto locked por el cliente. Skip.
-  - Iconos `@phosphor-icons/react` o `@radix-ui/react-icons` → conflicto con `lucide-react` (238+ usos). Skip.
-  - Bento paradigm con `rounded-[2.5rem]` y bg `#f9fafb` → conflicto con tokens SC (canvas `#F4F6FC`, radius scale propio). Skip.
-  - Magnetic micro-physics, parallax tilt, holographic foil → conflicto con principio "calmar densidad" del DS. Skip.
-  - 1 accent color max → ✓ ya cumplido (teal). Aplica como confirmación.
-  - tracking-tighter en display → no aplicado al hero 112px porque Roboto natural ya es condensada y `tracking-tighter` la rompe visualmente. Decisión de mantener tracking default.
-- **No tocar el spinner Loader2 del botón Procesar**. taste-skill rule 5 dice "skeletal loaders, avoid generic circular spinners" — aplica a CONTENT placeholders, no a buttons. Spinners en botones de submit son patrón correcto. Defendido por el contexto.
-- **No añadir icono Check/Lock en el toggle disabled del Bulk modal**. La caption "todo procesado" ya comunica el estado. Añadir icono = ruido visual sin información nueva.
-
-**Descartado**:
-- **Migrar de lucide-react a phosphor-icons**. Cuesta tocar 238 callsites para una preferencia estética; los iconos lucide son lo bastante refinados.
-- **Aplicar Geist/Satoshi al hero number solo (overriding Roboto)**. Mezclar fonts en una pieza tan central rompe la coherencia tipográfica del DS; la fuente del cliente manda.
-- **Bento 2.0 layout** para el Bulk modal. El modal es un decision tool, no un dashboard — el 2x1 layout actual (hero + decisión) es óptimo, no necesita asimetría artística.
-
-**Pendiente**: ninguno nuevo.
-
-**Notas para próxima sesión**:
-- **taste-skill** disponible vía Skill tool (`taste-skill review <component>`). Sus defaults (DESIGN_VARIANCE 8, MOTION 6, DENSITY 4) hay que **overrides explícitos a 4/4/4** cuando se aplique al producto Memory — Memory es dashboard interno, no marketing site. Si en una futura sesión la skill empuja hacia masonry / parallax / 3-col-bento, ese empuje hay que rechazarlo: el contexto es contact-center, no SaaS landing.
-- README ahora es la puerta de entrada al repo. Cualquier cambio sustancial al producto (nueva vista, invariante, decisión P0) debe reflejarse en las 4 secciones top: "qué problema resuelve", "qué encontrarás dentro", "decisiones de producto" y "estado actual". Si una de esas secciones queda obsoleta, el visitante no externo se pierde.
-- La política "font-size en `style` cuando se combina con color en cn()" introducida en sec 15.15 sigue activa. taste-skill no la modifica.
-
-### 15.17 · 2026-04-28 · Claude Code · empty states del player rehechos (impeccable + ui-ux-pro-max + taste)
-
-**Hecho**:
-- `EmptyState` del `ConversationPlayerModal` reescrito con API ampliada: ahora acepta `highlights` (lista de pills con valor que se desbloquea), `meta` (línea pequeña bajo el botón con `intent: 'info'|'cost'` para el coste en `text-sc-cost-warn`), y `secondaryHint` (texto secundario tipo "mientras tanto puedes escuchar el audio"). El icono va en una **medallón circular** de 48px con `bg-sc-surface-muted` + `ring-1 ring-sc-border-soft` — anclaje visual sin recurrir a la baldosa filled de marketing. archivos: `src/app/components/ConversationPlayerModal.tsx`.
-- Empty state "Sin transcripción disponible" rediseñado en clave de UX writing:
-  - Título: "Esta llamada todavía no se ha transcrito" (conversacional, no estado seco).
-  - Descripción: explica QUÉ desbloquea — búsqueda en audio + resumen + sentimiento — antes de pedir la acción.
-  - **Highlights pills**: `Búsqueda en el audio · Resumen IA · Sentimiento` para que el supervisor vea de un vistazo el value-prop.
-  - **Meta de coste**: "Genera coste · tarda unos segundos" en amber — consistencia con la copy del Bulk modal.
-  - **Hint secundario**: "Mientras tanto, puedes reproducir el audio" — conecta con el reproductor de arriba, evita la sensación de pantalla parada.
-  - Botón con `active:scale-[0.98]` (taste-skill rule 5 Tactile Feedback).
-- Empty state análisis cuando NO se puede pedir (sin transcripción): título "Primero transcribe la llamada" (instructivo, no negativo), description explica la dependencia.
-- Empty state análisis cuando SÍ se puede pedir: título "Lista para analizar con IA", highlights `Resumen · Sentimiento`, meta "Genera coste · tarda unos segundos".
-- Empty state procesando: título "Transcribiendo…" / "Analizando…" en gerundio + descripción que invita a seguir escuchando o esperar.
-- Iconos del medallón pasaron de 28px a 22px porque ahora viven dentro de un círculo de 48px — la proporción icono/medallón pide menos peso del icono.
-
-**Decidido**:
-- **EmptyState con medallón circular** en lugar de icono suelto. Razón (impeccable rule 5 + taste-skill rule 4): un icono solo flotando en el centro de un panel se siente débil; el medallón le da masa visual sin meter una card grande.
-- **Highlights como pills** en lugar de bullet list. Razón: pills se leen de un vistazo en menos de 2 segundos; bullet list pide leer cada línea. Para empty states efectivos (~3-5 segundos de atención antes de que el user decida si actuar), las pills ganan.
-- **Meta `intent: 'cost'`** como mecanismo nuevo. Centraliza el cue de coste en una sola convención reutilizable; cualquier futuro empty state con CTA billable lo recibe sin reinventar copy.
-- **Copy en gerundio para los estados activos** ("Transcribiendo…", "Analizando…"). En vez de "Transcripción en proceso" + descripción larga, el gerundio comunica acción inmediata. La descripción se queda para el "qué hacer mientras".
-- **`secondaryHint` como texto plano**, no botón. El reproductor ya está visible arriba; el hint solo necesita señalarlo. Convertirlo en botón duplica la acción que ya está en el header del modal.
-
-**Descartado**:
-- **Banner con icono grande + título XL al estilo "Welcome empty state"** que la skill taste-skill sugeriría a DESIGN_VARIANCE 8. Razón: el modal vive dentro de un dashboard denso; un banner grande rompe la jerarquía local. La skill defaults (8/6/4) hay que adaptarlos a 4/4/4 para Memory.
-- **Skeleton loader** en el isProcessing. Loader2 spinning ya comunica "in progress" y los skeletons piden conocer la forma del contenido (líneas de transcript), que no tenemos a mano. Spinner es honesto.
-- **Onboarding tour** o tooltips contextuales en el empty state. Demasiado para un dashboard interno usado por supervisores que ya conocen el sistema.
-- **Acción "Solicitar transcripción + análisis en una pasada"** desde el empty del análisis. El bulk modal ya cubre ese flujo combinado; aquí mantenemos las dos solicitudes atómicas para que el progreso sea claro.
-
-**Pendiente**: ninguno nuevo.
-
-**Notas para próxima sesión**:
-- La API nueva del `EmptyState` (`highlights`, `meta`, `secondaryHint`) es candidata a extraerse a `src/app/components/ui/EmptyState.tsx` y reutilizarse en otras vistas (Repository sin reglas, Conversaciones con filtros vacíos). Mover cuando aparezca el segundo callsite, no antes — premature abstraction.
-- Política copy del proyecto (consolidar en notas estables): **gerundio para estados activos**, **conversacional para títulos**, **descripción explica el "por qué" antes que el "cómo"**, **highlights como pills triple-eje** (qué pasa / qué desbloquea / qué cuesta).
-- `meta.intent: 'cost'` usa `text-sc-cost-warn` (#D97706 amber). Si en el futuro el DS introduce más intents (warn, info, danger), añadirlos al type union antes de tener que parchearlos.
-
-### 15.18 · 2026-04-28 · Claude Code · audit UX aplicado · 11 fixes en una pasada
-
-**Hecho** (skipping table-internal behavior per instruction):
-- **Easter-egg avatar 🤔** retirado del header de Conversaciones. Sustituido por un botón `<HelpCircle>` en la toolbar de filtros (donde un supervisor busca ayuda de verdad), con tooltip "Documentación" y target_blank a la URL Figma site. Borrado el bloque de glow-gradient + emojis 🤔/😱 + tooltip flotante. archivos: `src/app/components/ConversationsView.tsx`.
-- **Toolbar bulk-trigger icon** `<FileText>` → `<AlignLeft>` para que el icono del trigger coincida con el icon del header del `BulkTranscriptionModal`. Recognition trigger → destination. archivos: `src/app/components/ConversationsView.tsx`.
-- **MockSampleSwitcher** marcado como demo-only: borde dashed amber `#D97706/40`, fondo `#FFFBEB` (amber-50), badge `<span>DEMO</span>` en `bg-#D97706` blanco, label "Datos:" en lugar de "Datos demo:" (el badge ya lo dice). Visualmente imposible de confundir con funcionalidad de producción. archivos: `src/app/components/MockSampleSwitcher.tsx`.
-- **BulkTranscriptionModal subtitle** ahora respeta la elegibilidad: el subtitle muestra el breakdown solo cuando hay mezcla de canales. Y bajo el hero number aparece `heroDeltaHint` ("de 5 seleccionadas") cuando `heroCount !== nSel` para explicar el delta — antes el supervisor veía "5 seleccionadas" arriba y "3" en el hero sin saber por qué. archivos: `src/app/components/BulkTranscriptionModal.tsx`.
-- **BulkTranscriptionModal** "Cancelar" → "Cerrar" en el footer pre-submit (no hay nada que cancelar antes de pulsar Procesar). El SC modal shell ya bloquea ESC + outside-click durante isLoading. archivos: idem.
-- **BulkTranscriptionModal · de-dup "todo procesado"**: la cell hero ya no muestra "todo procesado" cuando `isAllProcessed` (queda solo el `0` y el contexto). La frase aparece solo en la decision cell. Sin redundancia a 30 cm de distancia. archivos: idem.
-- **`FOCUS_RING` extraído** a `src/app/components/ui/focus.ts` y reimportado en player y repository. Una sola definición del anillo `ring-2 ring-sc-accent ring-offset-2 ring-offset-sc-surface` para todos los interactivos. archivos: `src/app/components/ui/focus.ts` (nuevo), `src/app/components/ConversationPlayerModal.tsx`, `src/app/components/Repository.tsx`.
-- **Player tab row** ahora incluye un `<Download>` discreto (size 8, ml-auto) que vale para llamadas y chats — antes solo las llamadas tenían download (en la audio bar). Paridad de canal. Tooltip dice "Descargar audio" o "Descargar conversación" según el canal. archivos: `src/app/components/ConversationPlayerModal.tsx`.
-- **Análisis empty state · dead-end resuelto**: cuando el usuario llega a la tab Análisis sin transcripción, el CTA ahora dice "Transcribir y analizar" y dispara ambos en cadena via nuevo `handleTranscribeAndAnalyze`: llama a `onRequestTranscription` inmediato + `setTimeout(onRequestAnalysis, 6500)` para coincidir con el timer de 6 s del padre. El supervisor ya no tiene que rebotar a la tab Transcripción. archivos: idem.
-- **Iconografía AI**: `Sparkles` reservado exclusivamente a la pill "Generado por IA" en el aside del Resumen. La sección Resumen pasa a usar `<AlignLeft>` (líneas de texto = body of text). Sentimiento mantiene `<TrendingUp>`. Un icono = un significado. archivos: idem.
-- **CTA primario unificado en EmptyState**: el botón pasó de `border-sc-accent + bg-sc-accent-soft + text-sc-accent-strong` (teal soft) a **navy filled** (`bg-sc-primary + text-sc-on-primary + shadow-sc-sm + hover:bg-sc-primary-hover`). Mismo patrón que `Modal.Action` en el Bulk modal. Un solo "primary action" recognition pattern repo-wide. El teal soft queda libre para CTAs secundarios futuros. archivos: idem.
-- **Repository ribbon "Cómo funciona"** ahora se renderiza solo si `useRules().rules.length === 0`. Una vez el supervisor tiene 1+ regla, asumimos onboarding completado y el ribbon desaparece — evita el ruido en visitas recurrentes. archivos: `src/app/components/Repository.tsx`.
-- **Repository counters**: Hero card de Reglas muestra `{count} configuradas` junto al título en mono pequeño. PrimaryCard (Categorías + Entidades) muestra `{count} definidas` junto al título. Datos vienen de `useRules`, `useCategories`, `useEntities`. Engancha conceptualmente "qué hay configurado" con "dónde se gestiona". archivos: idem.
-
-**Decidido**:
-- **CTA primario único = navy filled**, no teal soft. Razón: el teal del proyecto es un acento (10% del visual budget per principio 60-30-10); usarlo en un CTA primario lo agota. El navy filled tiene contraste alto + jerarquía clara + paridad con `Modal.Action`. El teal queda para badges, processed-state cues y links secundarios.
-- **El combined CTA "Transcribir y analizar" usa setTimeout 6500 ms** porque el handler de transcripción del padre fija `hasTranscription: true` exactamente a +6 s. El 500 ms extra evita race conditions donde el `handleRequestAnalysis` corre antes de que la mutación llegue. Si en el futuro el timer del padre cambia (al integrar backend real), revisar este número.
-- **MockSwitcher amber + DEMO badge** en lugar de hide-in-prod (`import.meta.env.DEV`). El usuario quiere mostrar a stakeholders el switcher en demos en vivo en la URL pública — esconderlo lo elimina del flujo de demo. El cue visual amber comunica "esto no va a producción real" sin ocultar.
-- **Ribbon condicional, no dismissible**: condicional por `rules.length === 0` es más fiable que un dismiss persistente — un supervisor nuevo en una empresa que ya tiene reglas configuradas (heredadas) no ve el ribbon, lo cual es correcto: las reglas existen, no necesita la orientación.
-- **`onRequestBoth` como prop nueva** en `AnalysisTab` en vez de detectar `canRequest=false` y switchar al handler combinado dentro del propio handler. Razón: API explícita > magia condicional. La prop dice exactamente lo que hace.
-- **Counters como mono pequeño junto al título**, no como badge teal grande. Razón: jerarquía. El título lleva la atención, el counter es metadato secundario que el supervisor consulta solo si le interesa.
-
-**Descartado** (de los 16 hallazgos del audit, 5 deliberadamente NO aplicados):
-- **Bubble alignment Slack-style** (todo a la izquierda con avatar). Push-back propio: el patrón iMessage right=Agent / left=Cliente, aunque conceptualmente menos correcto para un supervisor-observador, es más rápido de escanear (30 transcripciones/día). El throughput gana. Mantener.
-- **Tabla columna "Estado" tooltip-leyenda**. Excluido por la instrucción "menos comportamiento de tabla".
-- **Search inputs vs filter inputs unificación**. Excluido idem.
-- **Tabla "T. Conv." → "Duración" label change**. Excluido idem (es comportamiento de tabla aunque sea solo copy).
-- **Loading states pattern unification (skeleton listas)**. Pospuesto hasta que aparezca un fetch async real — hoy todo es síncrono y un skeleton en mock-data sería ruido sin razón. Documentado en sec 17 implícitamente.
-
-**Pendiente**: ninguno nuevo.
-
-**Notas para próxima sesión**:
-- **Patrón CTA primario** queda como referencia: `inline-flex bg-sc-primary text-sc-on-primary px-4 py-2 rounded-sc-md shadow-sc-sm hover:bg-sc-primary-hover active:scale-[0.98] FOCUS_RING`. Cualquier nuevo CTA primario debe seguir este shape — copiar de `EmptyState` o `Modal.Action`.
-- **`FOCUS_RING` se importa desde `./ui/focus`**. NO duplicar la cadena `focus-visible:outline-none focus-visible:ring-2…` en sitios nuevos.
-- **Iconografía AI canon**: `Sparkles` = "AI-generated" cue (label/pill), nunca como icono de sección. Los iconos de sección son narrativos (`AlignLeft` para texto, `TrendingUp` para valoración, etc.).
-- **MockSampleSwitcher** queda con look amber/dashed permanente. Si en el futuro se quiere ocultar en producción de verdad, envolver en `{import.meta.env.DEV && (...)}`. Hoy se mantiene visible para demos.
-- **`handleTranscribeAndAnalyze` chain con setTimeout 6500ms** asume el timer actual del padre (`6000 ms` para transcripción + `~500ms buffer`). Cuando se integre backend real, sustituir por una promise real (await transcription, then trigger analysis). Marca este comentario.
+**Patrones canonizados que salieron de esta ola** (ahora en sec 20): 20.1 CTA primario · 20.2 FOCUS_RING · 20.3 Iconografía · 20.4 EmptyState API · 20.5 Gerundio · 20.6 Cost cue · 20.7 MockSwitcher demo · 20.8 Invariantes datos · 20.9 Política copy.
 
 ---
 
@@ -2148,181 +1788,66 @@ Regla repo-wide. Auditado en 15.21:
 
 Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**. Si necesitas crecer/encoger un elemento, escala con `scaleX/Y` y compensa el contenido con `transform-origin`. Si necesitas posicionar, `translate`. NUNCA `width`, `height`, `top`, `left`, `padding`, `margin` con transition.
 
+### 20.13 · Empty states · una columna centrada, no split
+
+**Regla**: los empty states del player (y por defecto cualquier otro empty state del repo) son **una columna centrada vertical**: icono opcional → título (`text-sc-md font-semibold`) → descripción (`text-sc-sm text-sc-body`, `max-w-[44ch]`) → CTA primario → cost cue inline (si aplica).
+
+**Why**: en 15.27 se probó un split-layout (skeleton preview izquierda + copy + CTA derecha). El supervisor leyó el skeleton como decoración — ya sabe qué pinta tiene una transcripción, el preview no aporta info, solo añade peso visual. Validado en 15.28 (`feedback_empty_states_and_modals.md`).
+
+**No usar**: previews/skeletons en empty states salvo que el contenido futuro sea genuinamente desconocido para el usuario. Si el usuario ya sabe qué tipo de contenido va a aparecer (transcripción, análisis, lista de N items), el preview es ornamento.
+
+**Implementaciones canónicas**: `DecisionState`, `ProcessingState`, `TerminalNote` en `ConversationPlayerModal.tsx`.
+
+### 20.14 · Modal de confirmación solo para operaciones destructivas
+
+**Regla**: las acciones que **solo generan coste** (transcribir por primera vez, analizar por primera vez, exportar) se dispatcian **directo desde el CTA**, con el cost cue inline (`Genera coste · ~30 s`) cubriendo el rol de advertencia. Las acciones **destructivas** (sobrescriben datos existentes, borran, cancelan operaciones en curso) SÍ van con modal de confirmación explícito.
+
+**Why**: en 15.28 se borró `TranscriptionRequestModal`. El flujo era click "Transcribir" en empty state → modal "¿seguro?" → click "Transcribir" otra vez. Dos clicks para una acción que ya tenía advertencia inline. El cost cue + el toast de éxito son consentimiento + feedback suficientes. La compensación: el botón vive dentro del player ya abierto, no es un click suelto desde la tabla.
+
+**Ejemplo válido de modal destructivo**: `RetranscriptionConfirmModal` se mantiene porque re-transcribir sobrescribe transcripción + análisis derivado.
+
+**Excepción potencial**: cuando exista facturación real (€), evaluar si el coste real mueve el listón. Hoy con coste API mock, no.
+
+### 20.15 · Geometría > texto + decoración para info cuantitativa
+
+**Regla**: si necesitas comunicar una cantidad relativa (duración, peso, share, conteo), pregunta primero "¿puedo hacer que la **forma del elemento ESEA la cantidad**?" Si sí, hazlo y elimina la representación textual o gráfica adicional.
+
+**Why**: en 15.27 el `RecordingTimeline` eran 3 cards de **anchura idéntica** (148px) con una mini-barra relativa interna + texto de duración. La forma de las cards no decía nada (todas iguales). En 15.29 sustituido por una sola barra horizontal cuyos segmentos tienen anchura proporcional a la duración real — la forma del strip ES el dato. Validado en 15.29 (`feedback_geometry_over_decoration.md`).
+
+**Anti-patrón a evitar en este repo**: cards/badges con sparkline o mini-bar dentro como representación de magnitud. O la card carga la magnitud (anchura/altura proporcional al dato), o la magnitud no necesita la card.
+
+**Cards/badges con texto van bien para cualidades sin geometría natural**: estado, nombre, categoría, severidad. NO los uses como contenedor neutro alrededor de algo cuya magnitud podría ser el contenedor mismo.
+
+**Implementación canónica**: `RecordingTimeline` en `RecordingPicker.tsx`.
+
+### 20.16 · Auditar señales duplicadas antes de añadir cualquier elemento decorativo
+
+**Regla**: antes de añadir un badge, icono, header de soporte o cualquier elemento de chrome, lista qué información carga ya el elemento principal (color, posición, anchura, label). Si la nueva señal repite una existente, no la añadas.
+
+**Why**: en 15.29 el `RecordingTimeline` viejo tenía cuatro señales por card para tres datos:
+1. Badge "TRAMO N" + título "IVR menú principal" → 2 labels para el mismo elemento.
+2. Header "Reproduciendo X de Y" + estado visual del activo → 2 indicadores de posición.
+3. Play icon en el activo + cambio de color/borde → 2 indicadores de "este suena".
+4. Barra relativa dentro de cada card + texto "01:05" → 2 representaciones de duración (esta SÍ es legítima — relativa vs absoluta carga facetas distintas).
+
+Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento.
+
+**Test mental antes de añadir**: "si tachara este elemento, ¿perdería información o solo redundancia?" Si es lo segundo, fuera.
+
+**Excepción válida**: dos representaciones del MISMO dato son OK si comunican facetas distintas (relativo vs absoluto, geometría vs texto exacto, valor vs unidad). Las señales decorativas que repiten lo MISMO no.
+
 ---
 
-### 15.19 · 2026-04-28 · Claude Code · doc pass · roadmap items + canon section 20 + Guidelines.md reescrita
+### 15.archivo-2026-04-28b · resumen comprimido · post-canon doc + 3 audits (15.19 → 15.22)
 
-**Hecho**:
-- Sec 17 (Roadmap) gana sub-bloque **"Decisiones del audit 15.18 que necesitan segunda opinión"** con 5 items:
-  1. Timer 6500 ms del `handleTranscribeAndAnalyze` (acopla al setTimeout del padre).
-  2. CTA primario unificado a navy — pendiente decidir si "opt-in cost" merece variante diferenciada.
-  3. Ribbon "Cómo funciona" condicional — comportamiento de re-aparición si user borra reglas.
-  4. Bubble alignment iMessage — validar con usuarios reales antes de cambiar a Slack-style.
-  5. tailwind-merge collapsing `text-{size}+text-{color}` — alternativa durable es extender twMerge config en lugar de parchear con `style={{fontSize}}`.
-- Nueva **sec 20 · Canon · patrones consolidados (post-audit 15.18)** en `memory.md`. Documenta como referencia estable:
-  - 20.1 CTA primario shape canónico.
-  - 20.2 Focus ring source of truth (`ui/focus.ts`).
-  - 20.3 Iconografía canónica (tabla icono → significado).
-  - 20.4 EmptyState API completa.
-  - 20.5 Copy en gerundio para estados activos.
-  - 20.6 Cost cue ("genera coste").
-  - 20.7 MockSampleSwitcher / código prototype-only treatment.
-  - 20.8 Invariantes de datos (recordatorio cross-cutting).
-  - 20.9 Política copy general.
-- `guidelines/Guidelines.md` reescrito desde su template HTML-comentado vacío. Estructura:
-  - Antes de empezar una sesión.
-  - Código (stack, Tailwind+twMerge, focus rings, comments).
-  - Diseño visual (CTA, iconografía, empty states, copy, anti-patterns).
-  - Datos mock e invariantes.
-  - Skills disponibles (impeccable, ui-ux-pro-max, taste-skill) con overrides para Memory.
-  - Deploy.
-  - Cuándo preguntar antes de actuar.
-  El archivo apunta a `memory.md` sec 20 como fuente de detalle; Guidelines.md es la "puerta" para nuevas sesiones, no la enciclopedia.
+> Continuación del 28 de abril, segunda ola de 4 sesiones (post-creación de canon sec 20). **Detalle completo (~174 líneas)** en [`memory-archive/2026-04.md`](../../../memory-archive/2026-04.md#sesión-2026-04-28-segunda-ola--post-canon-doc--3-audits-1519--1522). Comprimido en 15.30 (compactación sec 19).
 
-**Decidido**:
-- **Sec 20 separada de sec 4 (design system)**. Razón: sec 4 documenta TOKENS (colores, espaciados, fuentes); sec 20 documenta PATRONES de uso (cuándo usar qué token, en qué shape). Mezclarlas reduce ambas. Sec 4 cambia poco, sec 20 evoluciona con el producto.
-- **Guidelines.md como puerta corta, no enciclopedia**. Apunta a `memory.md` para detalles. Razón: si cada sesión tiene que leer 2000 líneas de `memory.md` antes de actuar, queman tokens y se desorientan. Guidelines.md cabe en una pantalla y dice "lee esto, luego ve a memory.md sec X".
-- **Decisiones pendientes en sub-bloque dentro de sec 17**, no en una sec nueva. Razón: el roadmap es "items abiertos sin milestones"; las decisiones a revalidar son items abiertos. Convivir bajo el mismo paraguas mantiene una sola lista que recorrer.
+- **15.19 · Doc pass + canon sec 20 + Guidelines.md** — Sec 17 gana sub-bloque "Decisiones del audit 15.18 que necesitan segunda opinión" (5 items). Sec 20 creada con 9 sub-apartados (20.1-20.9). `Guidelines.md` reescrito como "puerta corta" que apunta a `memory.md` para detalles. Decisión: NO crear `CONTRIBUTING.md` separado (Guidelines.md cumple ese rol hoy).
+- **15.20 · Audit follow-up · chain event-driven** — Bug del icono de Estado atascado tras transcribir: dos closure issues encadenados (`handleRequestAnalysis` filtraba elegibilidad con closure stale; el chain del player capturaba `onRequestAnalysis` viejo en su `setTimeout(6500)`). **Fix patrón canónico**: queue `chainAnalysisIds` + `useEffect([conversations, chainAnalysisIds])` que drena cuando `hasTranscription` flipa. Reemplaza timer con event-driven. Eligibilidad guard movido DENTRO de `setConversations(prev => …)`. **Decisiones cerradas**: timer 6500ms reemplazado, navy CTA mantenido, ribbon condicional mantenido.
+- **15.21 · Audit "Vibe Coding" · 7 fixes + 1 push-back** — Emojis fuera de la interface (5 archivos: CategoriesEmpty/List, Create/EditCategoryPanel, DeleteCategoryDialog → mapeo lucide en sec 20.10). Scrub bar del player: `transition-[width]` → `transform: scaleX()` con `transform-origin: left`. Próximamente cards retiradas del Repository (eran teasers sin afford). Status icon palette reducida a teal+gray (shape encoded analyzed-vs-transcribed, NO color). MockSwitcher amber suavizado (no saturado). Dead code: `ui/sidebar.tsx` borrado (tenía `transition-[width,height,left,padding]`). README "Calcula coste" → "Avisa de coste" (honestidad). **Push-back sistémico**: flyout→modal solo en 2 panels rompería consistencia con el resto del repo, decisión sistémica diferida. Sec 20.10/20.11/20.12 añadidas.
+- **15.22 · Layout-shift cero + duplicado de download** — `<Download>` del audio bar borrado (queda solo en tab row, paridad chat+llamada). **Política reservación de espacio**: contenido toggle mid-interaction → `min-h` + `opacity-0`, NO `cond && (...)`. `tabular-nums` por defecto en counters/timestamps/IDs que cambian. CTAs con label dinámico: `min-w-[Npx]` con N = ancho del label más largo (ej. `min-w-[200px]` para "Transcribir y analizar"). Bulk modal cost-tag y heroDeltaHint reservados con espacio fijo. Excepción documentada: thumb del scrub usa `left: %` SIN transition (snap instant, no reflow continuo).
 
-**Descartado**:
-- **Mover el contenido de `memory.md` sec 4 a `Guidelines.md`**. Sec 4 vive bien donde está y es referencia de tokens; Guidelines hace de índice y políticas de uso, no de catálogo.
-- **Crear un `CONTRIBUTING.md` separado**. Hoy `Guidelines.md` cumple ese rol y no hay equipo externo contribuyendo. Si en el futuro se abre el repo a otros developers, separar tiene sentido — hoy no.
-- **Generar un changelog automático** al cerrar sesión. La sec 15 ya hace este trabajo de forma narrativa (con WHY, no solo WHAT) — un changelog flat estilo Keep a Changelog perdería el contexto de las decisiones.
-
-**Pendiente**: ninguno nuevo. Las 5 decisiones del audit ya están en roadmap como sub-bloque.
-
-**Notas para próxima sesión**:
-- **Lee `Guidelines.md` primero** — fue diseñado como onboarding. Cuando algo te lleva a `memory.md` sec X, ve ahí. Si no aparece en Guidelines, no hace falta para ese trabajo.
-- **Sec 20 debe actualizarse** cuando se confirme/cambie un patrón canónico (ej. si la decisión #2 del roadmap se resuelve y volvemos a teal-soft para opt-in CTAs, actualizar 20.1 + el shape).
-- **El sub-bloque "Decisiones... segunda opinión" en sec 17** es donde van las "decisiones tomadas que necesitan validación con uso real". Cuando una se confirme o se reverse, sale del sub-bloque y va al log de la sesión que la cerró.
-- **No mover los tokens `--sc-*` al `:root` de `globals.css`**. Tienen que quedarse en `sc-design-system.css` para que el `@theme inline` los exponga como utilities Tailwind v4. Si alguien los mueve, las clases `text-sc-display`, `bg-sc-primary` etc. dejan de generarse.
-
-### 15.20 · 2026-04-28 · Claude Code · audit follow-up · chain event-driven, decisiones cerradas
-
-**Hecho**:
-- **Bug del icono de Estado tras transcribir resuelto**: el chain transcribe→analyze tenía dos bugs encadenados que dejaban el icono atascado:
-  1. `handleRequestAnalysis` filtraba elegibilidad usando el closure de `conversations` (variable cerrada al render del click), no el estado actual. Tras transcribir (mutación a +6 s), la closure seguía viendo `hasTranscription: false` → `eligible.length === 0` → return temprano → no se setteaba `analyzingIds` → no se mutaba `hasAnalysis` → el icono nunca pasaba a la variante "+ análisis".
-  2. El chain del player usaba `setTimeout(6500)` capturando `onRequestAnalysis` en su closure — la función envolvente (`(id) => handleRequestAnalysis(id)`) se recreaba cada render del padre, pero la captura del setTimeout era la VIEJA, con su propio closure stale.
-- **Fix** (`ConversationsView.tsx`):
-  - Movido el guard de elegibilidad de `handleRequestAnalysis` desde el filter de entrada a DENTRO del `setConversations(prev => …)` callback. Ahí `c.hasTranscription` se lee de la última versión del estado, no del closure.
-  - Nuevo `chainAnalysisIds: string[]` + `useEffect([conversations, chainAnalysisIds])`: cuando una conversación con id en la queue alcanza `hasTranscription: true`, el effect la saca de la queue y dispara `handleRequestAnalysis(ready)`. Event-driven, sin timers paralelos.
-  - Nuevo `handleRequestTranscriptionAndAnalysis(ids)` que mete los ids en `chainAnalysisIds` + dispara `handleRequestTranscription(ids)`. Reemplaza la cadena local del player.
-  - `handleBulkConfirm` reescrito para clasificar `eligibleIds` en `needsTranscription` vs `alreadyTranscribed`. Cuando `includeAnalysis: true`, los ya-transcritos van directo a `handleRequestAnalysis` y los pendientes pasan por el chain. Antes el flag `includeAnalysis` no chained nada y los `callEa`/`chatEa` recibían un `handleRequestTranscription` que era no-op para ellos.
-- **Player** (`ConversationPlayerModal.tsx`):
-  - Nueva prop `onRequestTranscriptionAndAnalysis`. La acción "Transcribir y analizar" del empty state de Análisis ahora delega al padre (no `setTimeout(6500)` local). El requesting flag local se libera a +600 ms — el icono de la tabla muestra el resto del lifecycle (transcribiendo amarillo → transcrito teal → analizando púrpura → analizado púrpura).
-- Prop threaded a través de `ConversationTable` también.
-
-**Decisiones cerradas** (reflejadas en sec 17):
-- **#1 Timer 6500 ms** → cerrada. Reemplazado por queue + useEffect. Ya no hay acople al timer del padre; cuando llegue backend, basta sustituir la mutación timer-based por una promesa.
-- **#2 CTA primario navy filled** → cerrada, mantenida. Un solo recognition pattern. Cost cue vive en `meta`, no en color del botón. Teal-soft libre para CTAs secundarios.
-- **#3 Ribbon condicional por `rules.length === 0`** → cerrada, mantenida. Re-aparición tras reset es intencional. Switch a `localStorage` dismiss persistente solo si testing real lo demanda.
-
-**Decidido**:
-- **Event-driven chain > timer chain**. La queue + useEffect es robusta a cambios futuros del timer del padre, robusta a re-renders, robusta a múltiples ids en flight (cada uno se drena cuando su transcripción individual completa). El timer local del player era brittle por diseño.
-- **Eligibilidad guard DENTRO de `setConversations(prev => …)`**, no fuera. Patrón a seguir para cualquier handler futuro que dependa de un campo derivado del propio estado: leer ese campo dentro del callback, no del closure.
-- **Bulk modal `includeAnalysis: true` ahora hace algo de verdad**. Antes el toggle ponía `eligibleIds` con call_ea + chat_ea + readyToTranscribe juntos y los pasaba todos por `handleRequestTranscription` — los ya-transcritos recibían un re-transcribe que era no-op pero no llegaba al análisis. Ahora cada bucket va al handler correcto.
-
-**Descartado**:
-- **Mantener el setTimeout(6500) del player con un `useRef` para `onRequestAnalysis`**. Soluciona el closure issue pero no la fragilidad del acople al timer del padre. Si el padre cambia su `setTimeout(6000)` a 8000 (porque el backend tarda más), el chain se rompe silenciosamente.
-- **Filtrar `chainAnalysisIds` por `processingIds` en lugar de `hasTranscription`**. `processingIds` se vacía a +6 s pero el `setConversations` también ocurre a +6 s — race. `hasTranscription === true` es la condición canónica del invariant — usarla cierra el círculo.
-- **Reactivar la pulse de "Analizando…" desde el momento del click** (UX más responsive). Implica meter el id en `analyzingIds` antes de tener transcripción → el icono mostraría análisis cuando realmente está transcribiendo. Confuso. Mejor el lifecycle puro: cada estado se ve mientras es real.
-
-**Pendiente**:
-- Quedan 2 abiertas en sec 17: bubble alignment iMessage (P3), tailwind-merge config extender (P2). Ambas requieren más trabajo o testing antes de actuar.
-
-**Notas para próxima sesión**:
-- **Patrón canónico para chains de mutaciones async**: queue de ids + useEffect que observa el campo objetivo del invariant (`hasX`) y drena cuando llega. Si aparece un tercer chain (analyze → re-classify? export? notify?), seguir este patrón.
-- **`handleRequestAnalysis` ya no rechaza ids no-transcritos en la entrada**. Marca `analyzingIds` para todos los ids pasados, pero la mutación real solo aplica a los que cumplan el invariant en el momento del setTimeout. Visualmente esto significa que si alguien dispara analyze sobre un id sin transcripción, el icono pulsará "analyzing" 4 s y luego volverá al estado anterior sin progresar. Para el chain (donde el id SÍ tendrá transcripción a tiempo) funciona perfecto. Si en el futuro hay otros callers, tener esto en cuenta.
-- **El player ya no controla la timing del chain**. Su único job es dispatch y feedback local del botón (~600 ms). El estado del icono lo controla la tabla via processingIds/analyzingIds + conversations. Single source of truth = el padre.
-
-### 15.21 · 2026-04-28 · Claude Code · audit "Vibe Coding" aplicado · 7 fixes + 1 push-back
-
-**Hecho**:
-- **Emojis fuera de la interface (5 archivos)**:
-  - `CategoriesEmpty.tsx`: 😤/🚨/🏢/🔧/🏷️/📋/📘 → `<AlertCircle>`/`<AlertTriangle>`/`<Building2>`/`<Wrench>`/`<Tag>`/`<ClipboardList>`/`<BookOpen>` lucide. Templates ahora usan medallón teal soft con icono en vez de emoji 2xl suelto.
-  - `CategoriesList.tsx`: "⚠️ Sin usar" → `<AlertTriangle size={12}>` + texto "Sin usar".
-  - `CreateCategoryPanel.tsx`: mismos emojis del template + "📋 Plantilla aplicada" → equivalentes lucide; banner usa `<ClipboardList size={13}>` inline.
-  - `EditCategoryPanel.tsx`: warning "⚠️ Cambiar el nombre…" → `<AlertTriangle size={13}>`.
-  - `DeleteCategoryDialog.tsx`: ⚠️ del confirm dialog → medallón `bg-amber-100 text-amber-700` con `<AlertTriangle size={16}>`.
-  - Verificación: `grep -rE "📋|⚠️|🚨|✅|❌|🤔|😱|💬|🎯|🔧|🏢|😤|🏷️|📘" src/app/components/*.tsx` retorna vacío.
-- **Scrub bar del player** (`ConversationPlayerModal.tsx:286`): la fill animaba `transition-[width]` → reflow continuo durante playback (1Hz). Reescrito a `transform: scaleX()` con `transform-origin: left` y `transition-transform`. El thumb ya tenía `transition-opacity` solamente (sin animación de `left`), así que se queda con `left: %` (snap instant, no layout shift). archivos: `src/app/components/ConversationPlayerModal.tsx`.
-- **Próximamente cards retiradas** del Repository LP (`Scripts de IVR`, `Plantillas de respuesta`). Eran teasers sin afford actionable — violación directa de "No Purposeless UI Elements". Borrado el `<Group>` entero, el componente helper `ComingSoonItem`, y los imports de `Workflow` + `MessageSquareText`. Cuando alguna de esas funcionalidades aterrice, se añade como Group activo, no como teaser. archivos: `src/app/components/Repository.tsx`.
-- **Status icon palette reducida** de 4 colores activos a 2:
-  - Antes: gris (`#6F7784`) + teal (`#60D3E4`) + púrpura (`#9B59B6`) + amarillo (`yellow-500`).
-  - Ahora: `text-sc-muted` (gris para estado default) + `text-sc-accent-strong` (teal para todo lo "activo": transcribiendo, transcrito, analizando, analizado).
-  - La distinción analyzed-vs-transcribed la lleva el ICONO (sparkle inside vs lines), no el color. La distinción active-vs-rest la lleva el PULSE animation. Consolida la regla "subdued, functional palette". archivos: `src/app/components/StatusIcons.tsx`.
-- **MockSampleSwitcher amber suavizado**: badge `bg-#D97706 text-white` (saturado, "clashing") → `bg-#FEF3C7 text-#92400E` (amber-100 / amber-800), borde dashed `border-#D97706/30` en lugar de `/40`. Mismo significado semántico (DEMO), menos agresivo visualmente. archivos: `src/app/components/MockSampleSwitcher.tsx`.
-- **Dead code eliminado**: `src/app/components/ui/sidebar.tsx` (shadcn sidebar component). Verificado con `grep -rE "from .*ui/sidebar"` — cero importadores. Tenía 5 transitions en width/height/left/padding que violaban "no layout-property animations". Borrado.
-- **README.md fix**: "Calcula coste por adelantado" → "Avisa de que la operación genera coste". El producto NO calcula coste real — solo muestra el cue "genera coste" + cantidad de items a procesar. La copy original prometía algo que no hace.
-- **`memory.md` sec 20** ganó 3 nuevos sub-apartados:
-  - 20.10 · Iconografía sin emojis (tabla emoji → reemplazo lucide).
-  - 20.11 · Async placeholders (deuda documentada para cuando llegue backend).
-  - 20.12 · Animaciones: solo transform + opacity (regla repo-wide + estado del audit).
-- **`memory.md` sec 17** abre nuevo item: "Side-panel pattern repo-wide" — decisión cross-cutting pendiente sobre convertir flyouts pequeños a modales (push-back contra fix puntual). (P3.)
-
-**Decidido**:
-- **Push-back en CreateCategoryPanel/EditCategoryPanel flyout→modal**. La regla "<4 fields → modal" lee mal la complejidad: ambos paneles tienen template-picker + linked-rules + kebab actions, no son forms puros. Convertir solo dos crearía inconsistencia con `EditEntitySidepanel`, `RuleQuickViewPanel`, los rule builders. La decisión correcta es sistémica (todo el patrón sidepanel del repo) y se difiere a evaluación futura.
-- **Status icon: shape encoded analyzed-vs-transcribed, NO color**. El icono de "transcripción" (lineas) y "análisis" (sparkle) ya carga la diferencia visualmente. Usar dos colores teal/púrpura era redundancia + violación de "max 1 accent color".
-- **MockSwitcher amber suavizado**, NO ocultado en producción. La URL pública sirve para demos en vivo a stakeholders; ocultarlo elimina el switcher cuando más se usa. El cue tinted (no saturado) cumple su función sin chillar.
-- **README "Avisa de coste" en lugar de "Calcula"**. La copy debe reflejar lo que el producto hace de verdad. "Calcula" prometía un breakdown (€/min, total€) que no existe. El producto solo cuenta items y muestra "genera coste" como warning.
-
-**Descartado**:
-- **Conversión flyout→modal puntual** (solo 2 panels). Push-back documentado.
-- **Hide MockSwitcher con `import.meta.env.DEV`**. El switcher SE QUIERE en producción para demos.
-- **Mantener púrpura como acento secundario para "analizado"**. Consume visual budget. Mejor: shape carries the meaning, color carga el "active vs rest".
-- **Reescribir el Sidebar custom** (sec 6 del audit): user excluyó. Sidebar custom mantiene hex hardcodeados + 7 placeholders. Anotado pero no tocado.
-- **Migrar StatusIcons a lucide** (sec 6 audit): user excluyó. Las 5 SVG custom siguen siendo dual-source con lucide. Aceptado como excepción documentada (DS oficial).
-
-**Pendiente** (ya en sec 17):
-- Side-panel pattern repo-wide (P3).
-- tailwind-merge config extender (P2).
-- Bubble alignment iMessage (P3).
-- Skeleton loaders cuando llegue backend real (P0 al integrar).
-
-**Notas para próxima sesión**:
-- **Cero emojis en `src/app/**/*.tsx`**. Si vuelves a ver uno, es bug. Lookup table en sec 20.10.
-- **Status icon palette = teal + gray** definitivo. No reintroducir otros colores sin discusión explícita en log de sesión.
-- **Animaciones**: regla en sec 20.12. Antes de añadir un `transition-[X]` nuevo, comprobar que X es `transform` u `opacity`. Si no, replantear.
-- **Repository LP** ya no tiene la sección Próximamente. Si alguien añade una nueva funcionalidad y quiere "anunciarla", debe ser un Group real con afford actionable, no un teaser.
-- **`ui/sidebar.tsx` borrado**. Si en el futuro alguien necesita un layout sidebar más complejo, instalar shadcn fresh con `npx shadcn-ui add sidebar` o reescribir custom (no usar el archivo borrado como referencia — su shadcn era v0 con animaciones `width/height` rotas).
-- **README** ahora dice "Avisa de coste". Cualquier futura sección sobre billing debe ser igual de honesta — el producto no calcula €, solo cuenta items.
-
-### 15.22 · 2026-04-28 · Claude Code · audit layout-shift cero + duplicado de download
-
-**Hecho**:
-- **Removed duplicate `<Download>` button** del audio bar del player. Antes había dos affords iguales: uno en la audio bar (visible solo para llamadas) y otro en la tab row (visible siempre). Ahora solo queda el de la tab row, que cubre ambos canales y mantiene paridad. archivos: `src/app/components/ConversationPlayerModal.tsx`.
-- **Layout-shift audit aplicado** punto por punto:
-  - **EmptyState CTA** del player: `min-w-[200px]` reservado, suficiente para el label más largo ("Transcribir y analizar"). Antes el botón se encogía cuando el label cambiaba a "Procesando…" (~14 chars vs ~22 chars).
-  - **Bulk modal hero cell**: cost-tag "genera coste" pasa a renderizarse SIEMPRE pero con `opacity-0` cuando `isAllProcessed`. Antes se removía con `{!isAllProcessed && (...)}` y la línea desaparecía → si el supervisor transcribía hasta vaciar el conjunto mid-modal, el layout shifteaba.
-  - **Bulk modal heroDeltaHint**: pasaba a renderizarse condicionalmente bajo el hero number. Ahora siempre renderiza un span con `min-h-[var(--sc-line-height-body2)]` y contenido `heroDeltaHint ?? " "` (un espacio no-breaking). Toggle del switch ya no shiftea.
-  - **Player transcription header counter** (`{N} intervenciones`): número envuelto en `<span className="tabular-nums">` para que de 9 → 10 → 99 → 100 no shiftee la palabra al lado.
-  - **ConversationsView "Resultados: N"**: span del número y span de `lastSearchTime` ganan `tabular-nums`. Cuando el filtro reduce 999 → 12, los dígitos no respiran ni colapsan.
-  - **Selection badge** del bulk-trigger (`{N}` o `99+`): añadido `tabular-nums` aunque ya tenía `min-w-[16px]`. Defensa adicional.
-  - **Repository counters** ya tenían `tabular-nums` desde sec 15.18 ✓.
-  - **Audio playback timestamps** ya tenían `tabular-nums` ✓.
-  - **Tab body** ya tenía `min-h-[360px]` ✓.
-  - **Modal.Action button** ya tenía `min-w-[120px]` ✓.
-
-**Decidido**:
-- **Reservar contenedores con `min-h` + `opacity-0`** en lugar de `{cond && (...)}` cuando un elemento puede aparecer/desaparecer durante interacción. Aplicado al cost-tag y heroDeltaHint del bulk modal. Patrón: si hay alguna probabilidad de que el contenido se toggle mid-modal, render-always-hide-condicional. Si solo cambia entre opens (página-load), `cond && (...)` es OK.
-- **`min-w` igual al label más largo** para CTAs con texto variable. Mejor `min-w-[200px]` (todos los textos caben) que reflow.
-- **`tabular-nums` por defecto** en cualquier counter / tiempo / id que cambie de valor durante uso. Cero excepciones.
-- **Download único en la tab row** (paridad chat+llamada) en lugar de dos buttons. La audio bar conserva back-10/play/fwd-10/scrub/duración — operadores específicos del audio. La descarga es transversal: vive en la tab row.
-
-**Descartado**:
-- **Download solo en audio bar** (con paridad rota para chats). Ya descartado en 15.18.
-- **Reservar `min-h` global en empty states** del player. Cada empty state ya respira con su medallón + título + descripción + highlights + acción + meta + hint. Reservar un alto fijo encima sería over-engineering.
-- **Convertir `width: ${pct}%` del thumb del scrub a `transform: translateX`**. El thumb no anima la propiedad `left` (no tiene `transition-[left]`); snap instant en cada tick de playback. No genera reflow continuo. La regla "no animations on left/top/width/height" aplica a transitions, no a property updates sin transition.
-
-**Pendiente**: ninguno nuevo.
-
-**Notas para próxima sesión**:
-- **Política reservación de espacio** (sec 20 candidate, no documentada aún explícitamente):
-  1. Si el contenido aparece/desaparece mid-interaction → reservar `min-h` + opacity-toggle.
-  2. Si el contenido cambia entre instancias (open/close del modal con conversaciones distintas) → no reservar, cada open es independiente.
-  3. Para counters/IDs/tiempos en interacción → `tabular-nums`.
-  4. Para CTAs con label dinámico → `min-w-[Npx]` con N = ancho del label más largo.
-- Si un futuro componente añade un CTA con label que cambia, hacer el cálculo del ancho del label más largo y aplicar `min-w` desde el día 1.
+**Patrones canonizados que salieron de esta ola** (ahora en sec 20): 20.10 Sin emojis (mapeo emoji→lucide) · 20.11 Async placeholders (deuda futura) · 20.12 Solo `transform`+`opacity` para animaciones.
 
 ### 15.23 · 2026-05-04 · Claude Code · audit transcripción + componente toast SC + diarización deprecada
 
@@ -2430,7 +1955,7 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 ### 15.26 · 2026-05-04 · Claude Code · audit cleanup · dead code purge + Sidebar a11y + AUDIT_REPORT.md
 
 **Hecho**:
-- **Auditoría completa Code+UX+UI** sobre todo `src/` con tags estandarizados (CODE: DEAD_CODE / UNUSED_IMPORT / UNUSED_VAR / UNUSED_COMPONENT / UNUSED_TOKEN / DUPLICATE / MAGIC_VALUE / COMPLEXITY / TODO_ORPHAN / COMMENTED_CODE; UX: MISSING_STATE / BROKEN_FLOW / INCONSISTENT_BEHAVIOR / MISSING_FEEDBACK / OVERFLOW_RISK / MODAL_TRAP / FORM_GAP / RULE_VIOLATION; UI: TOKEN_BYPASS / SPACING_INCONSISTENCY / RADIUS_MISMATCH / SHADOW_MISMATCH / DARK_MODE_GAP / CONTRAST_FAIL / MISSING_A11Y / TOUCH_TARGET / FONT_VIOLATION / ANIMATION_RISK). Reporte completo en `AUDIT_REPORT.md` (raíz). archivos: `AUDIT_REPORT.md`.
+- **Auditoría completa Code+UX+UI** sobre todo `src/` con tags estandarizados (CODE: DEAD_CODE / UNUSED_IMPORT / UNUSED_VAR / UNUSED_COMPONENT / UNUSED_TOKEN / DUPLICATE / MAGIC_VALUE / COMPLEXITY / TODO_ORPHAN / COMMENTED_CODE; UX: MISSING_STATE / BROKEN_FLOW / INCONSISTENT_BEHAVIOR / MISSING_FEEDBACK / OVERFLOW_RISK / MODAL_TRAP / FORM_GAP / RULE_VIOLATION; UI: TOKEN_BYPASS / SPACING_INCONSISTENCY / RADIUS_MISMATCH / SHADOW_MISMATCH / DARK_MODE_GAP / CONTRAST_FAIL / MISSING_A11Y / TOUCH_TARGET / FONT_VIOLATION / ANIMATION_RISK). Reporte completo en `audit/2026-05-04.md`. archivos: `audit/2026-05-04.md`.
 - **Phase 1 · safe removals**:
   - `Sidebar.tsx`: removed unused imports `Home`, `FileText`, `ArrowUpRight` de lucide-react. archivos: `src/app/components/Sidebar.tsx`.
   - `EntityManagement.tsx`: borrado el comment `{/* TODO: Check if used in rules and display warning */}` (TODO orphan sin owner) y el comment hermano `{/* Mock warning about usage */}`. archivos: `src/app/components/EntityManagement.tsx`.
@@ -2444,7 +1969,7 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - **Phase 3 · token consistency**: **skipped intencionalmente**. Los hex literales en `Sidebar.tsx`, `ConversationsView.tsx`, `ConversationTable.tsx`, `ConversationFilters.tsx` (~80 ocurrencias entre los 4) están explícitamente en el roadmap como dos sweeps dedicados (sec 17 P1 "Consolidar los tres tonos navy" + P2 "Hex literales pendientes en ConversationTable y ConversationsView"). Tocarlos en este audit hubiera duplicado trabajo y arriesgado regresiones visuales sin coordinación con el siguiente impeccable pass.
 - **Phase 4 · a11y mechanical wins**:
   - `Sidebar.tsx`: cada uno de los 10 botones del menú (icon-only) ahora lleva `aria-label`. Los activos (`MessageSquare`/`FolderOpen`) usan el nombre de la vista ("Conversaciones", "Repositorio") + `aria-current="page"`. Los disabled usan "Próximamente: dashboard | búsqueda | analítica | llamadas | usuarios | herramientas | configuración | historial". Antes los screen readers anunciaban "button" sin contexto. archivos: `src/app/components/Sidebar.tsx`.
-- **shadcn ui primitives mantenidos con `@audit-flag` conceptual**: ~22 archivos en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). NO se borran porque son boilerplate del kit shadcn — futuras features pueden necesitarlos y el coste de re-instalar > el coste de retenerlos. Documentado en `AUDIT_REPORT.md`.
+- **shadcn ui primitives mantenidos con `@audit-flag` conceptual**: ~22 archivos en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). NO se borran porque son boilerplate del kit shadcn — futuras features pueden necesitarlos y el coste de re-instalar > el coste de retenerlos. Documentado en `audit/2026-05-04.md`.
 
 **Decidido**:
 - **No tocar `mockData.ts` ni `mockSamples.ts` por la presencia de `hasDiarization`**. memory.md sec 15.23 dice "diarización eliminada del producto entero", pero el campo persiste en el modelo `Conversation`. La instrucción del audit prohíbe explícitamente cambiar mock-data structure. Marcado como `[RULE_VIOLATION]` en el reporte; cuando llegue backend real, eliminar el campo del modelo y de los presets en una pasada coordinada.
@@ -2464,11 +1989,11 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled). (P3)
 
 **Notas para próxima sesión**:
-- **Reporte completo**: ver `AUDIT_REPORT.md` en raíz del repo. Resumen final: 84 findings, 16 fixes aplicados, 0 `@audit-flag` añadidos como comments en código (los shadcn primitives se documentan en el reporte en lugar de ensuciar 22 archivos con headers).
+- **Reporte completo**: ver `audit/2026-05-04.md` (movido a `audit/` en 15.30). Resumen final: 84 findings, 16 fixes aplicados, 0 `@audit-flag` añadidos como comments en código (los shadcn primitives se documentan en el reporte en lugar de ensuciar 22 archivos con headers).
 - **Borrados esta sesión** (lista completa para searches futuras): ApplyRulesButton.tsx, RuleSelectionModal.tsx, ConversationTypeFilters.tsx, EntityResults.tsx, Container*.tsx (×2), Frame892*.tsx (×2), Group1*.tsx (×2), svg-{rules-icon,4o4ubnq2lw,9g7mphu0h7,kfes9f4ja4,ogve5xtgww,w9xvvuth13,ys09cyf8ya}.ts (×7), pasted_text/bulk-transcription-modal{,-1}.tsx (×2). Total: 19 archivos.
 - **No se ejecutó `tsc --noEmit`**: no existe `tsconfig.json` (ya en sec 17 como item P2 "Añadir tsconfig.json"). Las verificaciones se hicieron por inspección manual + `grep -rE` para confirmar zero references antes de cada delete. La build de Vite/esbuild seguirá compilando porque sólo se borraron archivos sin importers.
 - **No se corrió `pnpm build/dev`**: per instrucción explícita "Don't run npm run dev or any build (sandbox issues)". La verificación real se hace en el deploy de Netlify al pushear.
-- **Guidelines.md de la skill**: el audit aplicado es un Code+UX+UI sweep en una pasada — documenta el patrón en `AUDIT_REPORT.md`. Próximas auditorías similares pueden reutilizar el formato + tabla de tags.
+- **Guidelines.md de la skill**: el audit aplicado es un Code+UX+UI sweep en una pasada — documenta el patrón en `audit/2026-05-04.md`. Próximas auditorías similares pueden reutilizar el formato + tabla de tags.
 
 ### 15.27 · 2026-05-04 · Claude Code · /impeccable craft · empty states + multi-recording timeline
 
@@ -2499,3 +2024,76 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 - **Probar visualmente**: estado mixto → click conv sin transcripción → ver "Sin transcripción" con skeleton de bubbles izquierda + card decision derecha. Click "Transcribir" → ver ProcessingState con shimmer. Resultado: chat bubbles reales.
 - **Probar multi-rec**: sample "Conversaciones multi-grabación" → click conv con badge → ver el timeline con N tramos visibles, tramo 1 seleccionado (border azul + chip play). Click otro tramo → audio bar refleja nueva duración.
 - **TypeScript**: este proyecto NO tiene `typescript` instalado como dep ni `tsconfig.json`. Las "verificaciones tsc" anteriores fueron no-ops silenciosos. Sigue como item P2 en sec 17. Hasta entonces, la build de Vite es la única verificación real (Netlify auto-deploy).
+
+> ⚠️ **15.27 REVERTIDO en 15.28 + 15.29**: el split-layout de DecisionState/ProcessingState y las cards de RecordingTimeline (descritos como "Hecho" arriba) se cambiaron en sesiones siguientes. El skeleton preview leía como decoración → empty states a una columna centrada (sec 20.13). Las cards iguales escondían el dato → strip único proporcional (sec 20.15). Ver entradas 15.28 y 15.29 abajo.
+
+### 15.28 · 2026-05-04 · Claude Code · /impeccable retoque empty states + scToast spacing
+
+**Hecho**:
+- **Split-layout de `DecisionState` y `ProcessingState` REVERTIDO**. Reescritos como columna única centrada (icono + título + descripción + CTA + cost cue), siguiendo el patrón de `TerminalNote`. Skeletons borrados (`TranscriptSkeleton`, `AnalysisSkeleton`, `CombinedSkeleton`). archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **`TranscriptionRequestModal.tsx` BORRADO** (122 líneas). El flujo unitario de transcripción dispatcha directo desde `handleTranscriptionRequest` en `ConversationPlayerModal`. La advertencia de coste sigue inline en el CTA (`Genera coste · ~30 s`). `RetranscriptionConfirmModal` SE MANTIENE — re-transcribir es destructivo (sobrescribe transcript + análisis derivado), ahí el gate explícito está justificado. archivos: borrado `src/app/components/TranscriptionRequestModal.tsx`, modificado `src/app/components/ConversationPlayerModal.tsx`.
+- **`scToast` ajustado**: ancho default 360→400 (max 480), padding y gaps migrados a tokens DS (`var(--sc-space-200/300/400)`), gap title↔message de 4px a 8px. archivos: `src/app/components/ui/sc-toast.tsx`.
+
+**Decidido**:
+- **Skeleton preview en empty state era ornamento**, no info. El supervisor ya sabe qué pinta tiene una transcripción. Sustituido por columna única + icono pequeño. → canonizado como sec 20.13.
+- **Modal de confirmación SOLO para destructivo**. Operaciones que solo "generan coste" (transcribir/analizar por primera vez, exportar) dispatcian directo desde el CTA con cost cue inline. `RetranscriptionConfirmModal` sobrevive porque sobrescribe datos. → canonizado como sec 20.14.
+- **scToast spacing en tokens DS** + ancho moderadamente más amplio (400 def, 480 max) para que mensajes largos wrapeen menos veces sin volverse "larguísimos". El gap title↔message a 8px da el "espacio más grande" antes del wrap.
+
+**Pendiente**: ninguno nuevo en sec 17.
+
+**Notas para próxima sesión**:
+- Las dos reglas (empty state única columna + modal solo destructivo) están en sec 20.13 + 20.14. Auto-memoria `feedback_empty_states_and_modals.md` tiene el detalle conversacional.
+- Commit: `61fe995`.
+
+### 15.29 · 2026-05-04 · Claude Code · RecordingTimeline · strip único proporcional
+
+**Hecho**:
+- **Cards rail de `RecordingTimeline` REVERTIDO** (3 cards de 148px iguales con badge "TRAMO N" + título + barra relativa interna + duración). Sustituido por **una sola barra horizontal** cuyos segmentos tienen anchura proporcional a la duración real del tramo (`flex-grow: fraction`, `flex-basis: 0`, `min-width: 56px`). La forma del strip carga el dato; ya no hay barra interna ni texto comparable. archivos: `src/app/components/RecordingPicker.tsx`.
+- **Eliminados**: header "X grabaciones · transferencias entre grupos vía IVR", contador "Reproduciendo X de Y", play icon en el activo, badge "TRAMO N". Cuatro señales para tres datos → una señal por dato.
+- **Segmentos < 12% de anchura** caen a número + tooltip + aria-label completo (evita texto cortado feo).
+- **Navegación teclado**: flechas ←/→/↑/↓ navegan + seleccionan dentro del radiogroup (tabIndex=0 sólo en el activo, patrón estándar W3C ARIA).
+
+**Decidido**:
+- **Geometría > texto + decoración para info cuantitativa**. Si una magnitud puede ser la forma del elemento (anchura), hazla la forma — no metas mini-bars dentro de cards iguales. → canonizado como sec 20.15.
+- **Auditar señales duplicadas antes de añadir cualquier elemento decorativo**. Test mental: "si tachara este elemento, ¿perdería información o solo redundancia?". Las cuatro señales del rail viejo eran tres redundancias + un dato útil. → canonizado como sec 20.16.
+- **`<RecordingPicker>` se queda como nombre de archivo** pese a que el export es `RecordingTimeline`. Renombrar el archivo requeriría actualizar imports sin valor — `git log` traza la historia. (Reafirmación de 15.27.)
+
+**Pendiente**: ninguno nuevo en sec 17.
+
+**Notas para próxima sesión**:
+- Strip handling para >12 segmentos: hoy `overflow-hidden` clipa segmentos que pasen del ancho disponible. Realista: 3-4 max. Si aparecen samples con 8+ tramos, considerar `overflow-x-auto modal-scrollbar` o redibujo del componente.
+- Auto-memoria `feedback_geometry_over_decoration.md` tiene los dos principios con detalle conversacional + anti-patrones.
+- Commit: `65ec8bb`.
+
+### 15.30 · 2026-05-04 · Claude Code · doc consolidation · routing matrix + compactación + audit move
+
+**Hecho**:
+- **Sec 20 actualizada**: añadidos 20.13 (empty states una columna), 20.14 (modal solo destructivo), 20.15 (geometría > texto+decoración), 20.16 (auditar señales duplicadas) — los 4 patrones de 15.28 y 15.29 que vivían solo en auto-memoria. archivos: `src/imports/pasted_text/memory.md`.
+- **Sec 13 nueva subsección "Decisiones de producto cerradas"**: 12 decisiones + 1 limitación asumida sincronizadas desde `project_transcripcion_masiva.md` (auto-memoria) al canon. La auto-memoria sigue intacta como referencia conversacional. Sec 13 item 7 ("Diarización separada de transcripción") actualizado para reflejar deprecación en 15.23 + borrado del modal en 15.28. archivos: `src/imports/pasted_text/memory.md`.
+- **Sec 19 expandida** con dos nuevas subsecciones:
+  - **Routing matrix de conocimiento** (tabla 11 filas: cambio puntual / decisión técnica / decisión de producto / pendiente con prioridad / idea futura / gotcha operativo / regla de microcopy / detalle técnico / bug raro / preferencia personal / decisión revertida → destino + por qué).
+  - **Disparadores de cierre de sesión** (frases trigger: "cerramos", "voy a cerrar", "cierra"... + 9 acciones automáticas + 3 prohibiciones).
+  archivos: `src/imports/pasted_text/memory.md`.
+- **Compactación de memory.md**: 15.1-15.22 (todo abril) archivado verbatim (691 líneas) en `memory-archive/2026-04.md` y comprimido en canon como 3 entradas resumen densas (15.archivo-2026-04-25, 15.archivo-2026-04-28a, 15.archivo-2026-04-28b). El canon pasa de 2660 → ~2030 líneas. Sec 19 ya tenía la regla "compactar al pasar 2500 líneas" — ejecutada por primera vez. archivos: `memory-archive/2026-04.md` (nuevo), `src/imports/pasted_text/memory.md`.
+- **`AUDIT_REPORT.md` movido** a `audit/2026-05-04.md` con header explícito "snapshot histórico — para items vigentes ver sec 17". Las 5 referencias en canon actualizadas. archivos: `audit/2026-05-04.md` (renombrado vía `git mv`), `src/imports/pasted_text/memory.md`.
+- **Auto-memoria reorganizada**:
+  - `project_session_status.md` limpiado: pasa de 161 → 83 líneas. Eliminadas duplicaciones (HEAD commit, stack, roadmap highlights, protocolo de log). Mantenido bloque "sesiones recientes" condensado (es value-add real, no duplicación verbatim del canon) + componentes clave + gotchas.
+  - `feedback_session_close_protocol.md` (nuevo): trigger phrases + resumen de routing matrix para que el agente dispare el protocolo sin abrir canon primero. Apunta al canon sec 19 para detalle.
+  - `MEMORY.md` index actualizado.
+- **Entradas 15.28 + 15.29 + 15.30 (esta misma) añadidas al canon**, formato sec 19. Estaban pendientes en auto-memoria.
+
+**Decidido**:
+- **Sec 20 (patrones técnicos) y sec 13 (decisiones de producto) son distintas**. Mezclarlas reduce ambas. Patrones técnicos = "cómo escribir el código"; decisiones de producto = "qué hace el producto y por qué".
+- **Routing matrix vive en sec 19 del canon, no en auto-memoria sola**. Es discoverable por humanos que abren el repo Y por agentes que abren memory.md. Auto-memoria `feedback_session_close_protocol.md` es el trigger rápido (no duplica el detalle, apunta).
+- **`project_session_status.md` mantiene el bloque "sesiones recientes" condensado**. NO es duplicación pura — es un resumen de 1-3 líneas por sesión, mientras que canon sec 15 tiene el detalle completo (Hecho/Decidido/Pendiente/Notas, 20+ líneas por entrada). Dos vistas con propósitos distintos.
+- **Compactación con archivo verbatim + resumen denso en canon**, no resumen sin backup. Cero pérdida de info — el detalle completo siempre recuperable desde `memory-archive/`.
+- **Auditorías históricas en `audit/YYYY-MM-DD.md`**, no en raíz como "AUDIT_REPORT.md". El nombre con fecha + carpeta dedicada deja claro que cada uno es snapshot, no estado actual.
+
+**Pendiente**: ninguno nuevo en sec 17 (esta sesión es doc/meta, no abre tickets de producto).
+
+**Notas para próxima sesión**:
+- **Trigger "cerramos" ahora es automático**. Ver `feedback_session_close_protocol.md` (auto-memoria) o sec 19 del canon para el detalle de qué hacer. NO preguntar "¿documento?" — solo confirma al final qué se ha guardado.
+- **Sec 20 ahora incluye 16 patrones (20.1 a 20.16)**. Cualquier patrón nuevo validado en sesión va aquí, NO solo a auto-memoria.
+- **`memory-archive/`** existirá ahora siempre. Cuando 2026-05 termine, archivar 15.23-15.30 (mes corriente actual) a `memory-archive/2026-05.md` y comprimir.
+- **Próximo session number: 15.31** (deducible del último encabezado del canon).
+- Commit de esta sesión: TBD (tras commit unificado).
