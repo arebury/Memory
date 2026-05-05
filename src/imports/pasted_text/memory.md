@@ -2211,7 +2211,7 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 **Notas para próxima sesión**:
 - Patrón reusable para cualquier modal con header rico (audio, navegación, filtros) + cuerpo largo: sticky head dentro de `Modal.Body` (no fuera), `flex-1` en el cuerpo. Considerar canonizar como sec 20.18 si surge un segundo caso (ej: filtros sticky en una vista lista).
 - Validar que la línea entre las tabs y el contenido (el `border-b` del tabs row) no se duplique visualmente con el borde superior del primer mensaje cuando hay scroll. En el primer test visual del usuario debería estar limpio porque el border-b vive sobre `bg-sc-surface` y el contenido scrollable no tiene shadow, pero ojo si en el futuro se añade un `box-shadow` al sticky.
-- Commit de esta sesión: pendiente al cierre.
+- Commit de esta sesión: `d0fed0d`.
 
 ### 15.34 · 2026-05-05 · Claude Code · /impeccable filters · sección "estado · solo fallidas" + DS pass al TypeFilterPanel
 
@@ -2233,4 +2233,4 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - `TypeFilterPanel` ahora exporta también el tipo `TypeFilterPanelFilters`. Si en el futuro se necesita ese tipo desde fuera (test, otra vista de filtros), ya está disponible.
 - Validar visualmente: (1) sin filtros activos, el botón `Tipo` se ve limpio sin punto; (2) marcando solo `interna`, aparece el punto + accent border; (3) chequear `solo fallidas` en el panel pinta el chip rojo en la toolbar + filtra la tabla; (4) limpiar desde el chip desmarca la checkbox del panel.
 - El sample `Errores de transcripción` sigue lanzando el toast `Ver fallidas` automáticamente al cargar — el handler escribe ahora a `unifiedTypeFilters.status.onlyFailed` via el wrapper, no a un useState aparte.
-- Commit de esta sesión: pendiente al cierre.
+- Commit de esta sesión: `3711278`.
