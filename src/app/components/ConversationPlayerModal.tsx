@@ -242,6 +242,12 @@ export function ConversationPlayerModal({
         />
 
         <Modal.Body className="!p-0">
+          {/* Sticky head: audio surface + tabs stay pinned while transcription /
+              analysis content scrolls underneath. Modal.Body is the scroll
+              container (`overflow-y-auto`); `top-0` snaps to its top edge.
+              `bg-sc-surface` keeps the tabs row opaque over scrolled content
+              (the audio surface carries its own bg-sc-surface-muted). */}
+          <div className="sticky top-0 z-10 bg-sc-surface">
           {/* Audio surface · two variants:
               · multi-leg calls render `MultiRecordingPlayer` (transport +
                 segmented bar + leg labels in one unified component);
@@ -428,9 +434,17 @@ export function ConversationPlayerModal({
               </button>
             </span>
           </div>
+          </div>{/* /sticky head */}
 
-          {/* ── Tab body — min-h for breathing room (taste-skill VISUAL_DENSITY 4) ── */}
-          <div className="flex min-h-[360px] flex-col">
+          {/* ── Tab body — flex-1 lets it fill the space LEFT by the sticky
+                head, so empty states center in what's actually visible.
+                The previous `min-h-[360px]` floor pushed CTAs below the fold
+                whenever the modal hit its 574px max-height (header + multi-rec
+                player + tabs + 360 + footer = ~700px → forced scroll). With
+                flex-1, scroll only happens when the tab body's CONTENT
+                exceeds the available area (long transcription), and the
+                sticky head stays visible during that scroll. ── */}
+          <div className="flex flex-1 flex-col">
             {activeTab === "transcription" ? (
               <TranscriptionTab
                 conversation={conversation}

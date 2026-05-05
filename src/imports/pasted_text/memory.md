@@ -2194,4 +2194,21 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 **Notas para próxima sesión**:
 - `MultiRecordingPlayer` es auto-contenido (parsea durations, formatea time). El playback state (currentTime, isPlaying) sigue siendo del modal padre. Si en futuro se añade autoplay cross-leg, tocaría meter la lógica de "siguiente leg al terminar" arriba en el modal, no en el componente.
 - 20.15 ahora apunta a `MultiRecordingPlayer.tsx` como implementación canónica de geometría proporcional (antes apuntaba a `RecordingPicker.tsx` que ya no existe).
-- Commits de esta sesión: `25d3e79` (reposicionamiento), pendiente al cierre (unified player + canon sec 20).
+- Commits de esta sesión: `25d3e79` (reposicionamiento), `6bbc6b8` (unified player + canon sec 15.32 + 20.15 + 20.17).
+
+### 15.33 · 2026-05-05 · Claude Code · sticky audio + flex-1 tab body · empty states ya no se cortan
+
+**Hecho**:
+- **`Modal.Body` del `ConversationPlayerModal` reestructurada en dos zonas**: una sticky (audio surface + tabs row, `sticky top-0 z-10 bg-sc-surface`) y un cuerpo de tabs scrollable. El modal sigue siendo el `Modal.Body` con `overflow-y-auto`; cuando el contenido de la tab activa excede el espacio disponible, scrollea sin perder transport ni leg-picker. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **`min-h-[360px]` del wrapper de tab body REMPLAZADO por `flex-1`**. El antiguo floor era el causante real del scroll: con multi-rec player (~160 px) + header (80) + tabs (40) + min 360 + footer (60) = ~700 px > `--sc-modal-max-height` (574 px), Modal.Body se hacía scroll y los empty states quedaban con el CTA por debajo del fold (caso visible reportado: "Sin transcripción" sin botón "Transcribir" visible). Con `flex-1`, el body de tabs consume el espacio que sobra de Modal.Body — el empty state se centra en lo VISIBLE, no en una caja fija de 360. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+
+**Decidido**:
+- **Sticky scope = audio + tabs**, no solo el audio. Razón: las tabs son control de navegación; si el audio queda pinned y las tabs scrollean fuera, el usuario pierde la afford de cambiar de Transcripción a Análisis sin volver arriba. Mantener ambos como una unidad pinned.
+- **`flex-1` en vez de cualquier `min-h` en el body de tabs**. Razón: cualquier floor mayor a "lo que cabe en Modal.Body menos el sticky" garantiza scroll al pegar contra el max-height. La altura mínima del modal ya está protegida por `--sc-modal-min-height: 224px` en `Modal.Content`; no hace falta repetir un floor en el body de tabs.
+
+**Pendiente**: ninguno nuevo en sec 17.
+
+**Notas para próxima sesión**:
+- Patrón reusable para cualquier modal con header rico (audio, navegación, filtros) + cuerpo largo: sticky head dentro de `Modal.Body` (no fuera), `flex-1` en el cuerpo. Considerar canonizar como sec 20.18 si surge un segundo caso (ej: filtros sticky en una vista lista).
+- Validar que la línea entre las tabs y el contenido (el `border-b` del tabs row) no se duplique visualmente con el borde superior del primer mensaje cuando hay scroll. En el primer test visual del usuario debería estar limpio porque el border-b vive sobre `bg-sc-surface` y el contenido scrollable no tiene shadow, pero ojo si en el futuro se añade un `box-shadow` al sticky.
+- Commit de esta sesión: pendiente al cierre.
