@@ -1,38 +1,76 @@
+import { motion } from "motion/react";
+
 import { Checkbox } from "./ui/checkbox";
-import { motion, AnimatePresence } from "motion/react";
+import { cn } from "./ui/utils";
+import { FOCUS_RING } from "./ui/focus";
+
+export interface TypeFilterPanelFilters {
+  types: {
+    interna: boolean;
+    externa: boolean;
+  };
+  channels: {
+    llamada: boolean;
+    chat: boolean;
+  };
+  directions: {
+    entrante: boolean;
+    saliente: boolean;
+  };
+  rules: {
+    recording: boolean;
+    transcription: boolean;
+    classification: boolean;
+  };
+  status: {
+    onlyFailed: boolean;
+  };
+}
 
 interface TypeFilterPanelProps {
   isOpen: boolean;
   onClose: () => void;
-  filters: {
-    types: {
-      interna: boolean;
-      externa: boolean;
-    };
-    channels: {
-      llamada: boolean;
-      chat: boolean;
-    };
-    directions: {
-      entrante: boolean;
-      saliente: boolean;
-    };
-    rules: {
-      recording: boolean;
-      transcription: boolean;
-      classification: boolean;
-    };
-  };
-  onFiltersChange: (filters: TypeFilterPanelProps["filters"]) => void;
+  filters: TypeFilterPanelFilters;
+  onFiltersChange: (filters: TypeFilterPanelFilters) => void;
 }
 
-export function TypeFilterPanel({ isOpen, onClose, filters, onFiltersChange }: TypeFilterPanelProps) {
-  const handleDeselectAll = () => {
+/**
+ * TypeFilterPanel · dropdown of grouped checkboxes for the conversations
+ * table.
+ *
+ * Five sections, two visual blocks separated by a hairline divider:
+ *   1. Tipo de conversación     ──┐
+ *   2. Canal                       │  · "What kind of conversation"
+ *   3. Dirección                 ──┘
+ *
+ *   ─── divider ───
+ *
+ *   4. Procesamiento aplicado   ──┐  · "What happened to it"
+ *   5. Estado                   ──┘
+ *
+ * `status.onlyFailed` (15.34) is the new addition: until then, the failed
+ * filter could only be activated via the toast action that fires when a
+ * batch ends with errors. Once dismissed, the user had no way back. The
+ * status section closes that loop.
+ *
+ * DS pass also done in 15.34 — the panel was the last big offender of
+ * pre-token hex codes + emoji icons + Title-Case labels. Now: lowercase
+ * body labels, UPPERCASE structural headers, lucide-friendly (no
+ * decorative dots), `--sc-*` tokens throughout.
+ */
+export function TypeFilterPanel({
+  isOpen,
+  onClose,
+  filters,
+  onFiltersChange,
+}: TypeFilterPanelProps) {
+  const handleClearAll = () => {
     onFiltersChange({
       types: { interna: true, externa: true },
       channels: { llamada: true, chat: true },
       directions: { entrante: true, saliente: true },
       rules: { recording: false, transcription: false, classification: false },
+      status: { onlyFailed: false },
     });
   };
 
@@ -40,200 +78,191 @@ export function TypeFilterPanel({ isOpen, onClose, filters, onFiltersChange }: T
 
   return (
     <>
-      {/* Overlay invisible para cerrar al hacer clic fuera */}
+      {/* Click-outside catcher · transparent fullscreen layer below the
+          panel itself. z-index sits between the panel (z-40) and the rest
+          of the UI so the rest still receives wheel/scroll events. */}
       <div
         className="fixed inset-0 z-30"
         onClick={onClose}
+        aria-hidden
       />
 
-      {/* Dropdown Panel */}
       <motion.div
-        initial={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, y: -8 }}
         animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
-        transition={{ duration: 0.15 }}
-        className="absolute left-0 top-full mt-1 w-72 bg-white rounded-lg shadow-xl border border-[#CFD3DE] z-40"
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+        role="dialog"
+        aria-label="Filtros de tipo y estado"
+        className={cn(
+          "absolute left-0 top-full z-40 mt-1 w-72 rounded-sc-lg",
+          "border border-sc-border bg-sc-surface shadow-sc-popover",
+        )}
       >
-        {/* Header con Deseleccionar */}
-        <div className="px-4 py-3 border-b border-[#E5E7EB] flex items-center justify-between">
-          <h3 className="text-sm text-[#2C2E3E]">Filtros de Tipo</h3>
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-sc-border-soft px-[var(--sc-space-400)] py-[var(--sc-space-300)]">
+          <h3 className="text-sc-sm font-medium text-sc-heading">Filtros</h3>
           <button
-            onClick={handleDeselectAll}
-            className="text-xs text-[#60D3E4] hover:text-[#387983] transition-colors"
+            type="button"
+            onClick={handleClearAll}
+            className={cn(
+              "rounded-sc-sm text-sc-xs font-medium text-sc-accent-strong transition-colors",
+              "hover:text-sc-heading",
+              FOCUS_RING,
+            )}
           >
-            Deseleccionar todo
+            Limpiar
           </button>
         </div>
 
-        {/* Filters Content */}
-        <div className="px-4 py-3 max-h-96 overflow-y-auto">
-          {/* Tipo Section */}
-          <div className="mb-4">
-            <h4 className="text-xs uppercase tracking-wide text-[#A3A8B0] mb-2">Tipo de conversación</h4>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.types.interna}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      types: { ...filters.types, interna: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors">
-                  Interna
-                </span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.types.externa}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      types: { ...filters.types, externa: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors">
-                  Externa
-                </span>
-              </label>
-            </div>
-          </div>
+        {/* Body */}
+        <div className="max-h-96 overflow-y-auto px-[var(--sc-space-400)] py-[var(--sc-space-300)]">
+          <FilterGroup label="Tipo de conversación">
+            <FilterCheckbox
+              checked={filters.types.interna}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, types: { ...filters.types, interna: c } })
+              }
+              label="interna"
+            />
+            <FilterCheckbox
+              checked={filters.types.externa}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, types: { ...filters.types, externa: c } })
+              }
+              label="externa"
+            />
+          </FilterGroup>
 
-          {/* Canal Section */}
-          <div className="mb-4">
-            <h4 className="text-xs uppercase tracking-wide text-[#A3A8B0] mb-2">Canal</h4>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.channels.llamada}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      channels: { ...filters.channels, llamada: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors">
-                  Llamada
-                </span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.channels.chat}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      channels: { ...filters.channels, chat: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors">
-                  Chat
-                </span>
-              </label>
-            </div>
-          </div>
+          <FilterGroup label="Canal">
+            <FilterCheckbox
+              checked={filters.channels.llamada}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, channels: { ...filters.channels, llamada: c } })
+              }
+              label="llamada"
+            />
+            <FilterCheckbox
+              checked={filters.channels.chat}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, channels: { ...filters.channels, chat: c } })
+              }
+              label="chat"
+            />
+          </FilterGroup>
 
-          {/* Dirección Section */}
-          <div className="mb-4">
-            <h4 className="text-xs uppercase tracking-wide text-[#A3A8B0] mb-2">Dirección</h4>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.directions.entrante}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      directions: { ...filters.directions, entrante: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors">
-                  Entrante
-                </span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.directions.saliente}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      directions: { ...filters.directions, saliente: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors">
-                  Saliente
-                </span>
-              </label>
-            </div>
-          </div>
+          <FilterGroup label="Dirección">
+            <FilterCheckbox
+              checked={filters.directions.entrante}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, directions: { ...filters.directions, entrante: c } })
+              }
+              label="entrante"
+            />
+            <FilterCheckbox
+              checked={filters.directions.saliente}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, directions: { ...filters.directions, saliente: c } })
+              }
+              label="saliente"
+            />
+          </FilterGroup>
 
-          {/* Separator */}
-          <div className="border-t border-[#E5E7EB] my-4"></div>
+          <div
+            aria-hidden
+            className="my-[var(--sc-space-300)] border-t border-sc-border-soft"
+          />
 
-          {/* Reglas Aplicadas Section */}
-          <div>
-            <h4 className="text-xs uppercase tracking-wide text-[#A3A8B0] mb-2">Procesamiento Aplicado</h4>
-            <div className="space-y-2">
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.rules.recording}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      rules: { ...filters.rules, recording: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors flex items-center gap-2">
-                  Con grabación <div className="w-2 h-2 rounded-full bg-[#E74C3C]" />
-                </span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.rules.transcription}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      rules: { ...filters.rules, transcription: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors flex items-center gap-2">
-                  Con transcripción <span className="text-xs text-[#60D3E4]">📝</span>
-                </span>
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer group">
-                <Checkbox
-                  checked={filters.rules.classification}
-                  onCheckedChange={(checked) =>
-                    onFiltersChange({
-                      ...filters,
-                      rules: { ...filters.rules, classification: checked as boolean },
-                    })
-                  }
-                  className="border-[#A3A8B0]"
-                />
-                <span className="text-sm text-[#5F6776] group-hover:text-[#2C2E3E] transition-colors flex items-center gap-2">
-                  Con clasificación <span className="text-xs text-[#9B59B6]">✨</span>
-                </span>
-              </label>
-            </div>
-          </div>
+          <FilterGroup label="Procesamiento aplicado">
+            <FilterCheckbox
+              checked={filters.rules.recording}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, rules: { ...filters.rules, recording: c } })
+              }
+              label="con grabación"
+            />
+            <FilterCheckbox
+              checked={filters.rules.transcription}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, rules: { ...filters.rules, transcription: c } })
+              }
+              label="con transcripción"
+            />
+            <FilterCheckbox
+              checked={filters.rules.classification}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, rules: { ...filters.rules, classification: c } })
+              }
+              label="con clasificación"
+            />
+          </FilterGroup>
+
+          <FilterGroup label="Estado" last>
+            <FilterCheckbox
+              checked={filters.status.onlyFailed}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, status: { ...filters.status, onlyFailed: c } })
+              }
+              label="solo fallidas"
+            />
+          </FilterGroup>
         </div>
       </motion.div>
     </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   Subcomponents · keep the panel flat and the shape consistent so
+   adding a sixth section in the future is one entry, not a copy of
+   the markup tree.
+   ───────────────────────────────────────────────────────────────── */
+
+function FilterGroup({
+  label,
+  children,
+  last,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** When true, drop the bottom margin — the group is the last in
+   *  the panel and a trailing gap would look loose. */
+  last?: boolean;
+}) {
+  return (
+    <div className={last ? "" : "mb-[var(--sc-space-400)]"}>
+      <h4 className="mb-[var(--sc-space-200)] text-sc-xs font-medium uppercase tracking-wide text-sc-muted">
+        {label}
+      </h4>
+      <div className="flex flex-col gap-[var(--sc-space-200)]">{children}</div>
+    </div>
+  );
+}
+
+function FilterCheckbox({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label
+      className={cn(
+        "group flex cursor-pointer items-center gap-[var(--sc-space-200)]",
+        "rounded-sc-sm transition-colors",
+      )}
+    >
+      <Checkbox
+        checked={checked}
+        onCheckedChange={(c) => onChange(c as boolean)}
+        className="border-sc-border-default"
+      />
+      <span className="text-sc-sm text-sc-body transition-colors group-hover:text-sc-heading">
+        {label}
+      </span>
+    </label>
   );
 }

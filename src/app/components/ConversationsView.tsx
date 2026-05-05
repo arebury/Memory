@@ -71,7 +71,6 @@ export function ConversationsView({
   const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [newlyTranscribedIds, setNewlyTranscribedIds] = useState<string[]>([]);
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
-  const [showOnlyFailed, setShowOnlyFailed] = useState(false);
   const [docModalSlug, setDocModalSlug] = useState<DocSlug | null>(null);
   const [docPopoverOpen, setDocPopoverOpen] = useState(false);
 
@@ -158,7 +157,19 @@ export function ConversationsView({
     channels: { llamada: true, chat: true },
     directions: { entrante: true, saliente: true },
     rules: { recording: false, transcription: false, classification: false },
+    status: { onlyFailed: false },
   });
+
+  // `showOnlyFailed` is derived from `unifiedTypeFilters.status.onlyFailed`.
+  // Single source of truth so the chip in the toolbar and the panel
+  // checkbox can never drift apart. The derived const keeps the existing
+  // filter pipeline downstream untouched.
+  const showOnlyFailed = unifiedTypeFilters.status.onlyFailed;
+  const setShowOnlyFailed = (value: boolean) =>
+    setUnifiedTypeFilters((prev) => ({
+      ...prev,
+      status: { ...prev.status, onlyFailed: value },
+    }));
 
   const availableCategories = useMemo(() => {
     const categoriesSet = new Set<string>();
@@ -484,7 +495,8 @@ export function ConversationsView({
                     !unifiedTypeFilters.directions.saliente ||
                     unifiedTypeFilters.rules.recording ||
                     unifiedTypeFilters.rules.transcription ||
-                    unifiedTypeFilters.rules.classification
+                    unifiedTypeFilters.rules.classification ||
+                    unifiedTypeFilters.status.onlyFailed
                   }
                   onClick={() => setIsTypeFilterPanelOpen(!isTypeFilterPanelOpen)}
                 />

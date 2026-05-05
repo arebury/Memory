@@ -2212,3 +2212,25 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Patrón reusable para cualquier modal con header rico (audio, navegación, filtros) + cuerpo largo: sticky head dentro de `Modal.Body` (no fuera), `flex-1` en el cuerpo. Considerar canonizar como sec 20.18 si surge un segundo caso (ej: filtros sticky en una vista lista).
 - Validar que la línea entre las tabs y el contenido (el `border-b` del tabs row) no se duplique visualmente con el borde superior del primer mensaje cuando hay scroll. En el primer test visual del usuario debería estar limpio porque el border-b vive sobre `bg-sc-surface` y el contenido scrollable no tiene shadow, pero ojo si en el futuro se añade un `box-shadow` al sticky.
 - Commit de esta sesión: pendiente al cierre.
+
+### 15.34 · 2026-05-05 · Claude Code · /impeccable filters · sección "estado · solo fallidas" + DS pass al TypeFilterPanel
+
+**Hecho**:
+- **Sección nueva "Estado" en `TypeFilterPanel`** con el toggle `solo fallidas`. Cierra el loop reportado: hasta hoy, las fallidas solo se filtraban activando el chip rojo desde el toast `Ver fallidas`; una vez limpio, no había forma de reactivar el filtro desde la UI. Ahora la opción vive en el panel donde el usuario la busca por defecto. archivos: `src/app/components/TypeFilterPanel.tsx`.
+- **DS pass completo a `TypeFilterPanel`** (deuda pre-token que sobrevivió 15.21 y 15.30): hex codes (`#E5E7EB`, `#60D3E4`, `#9B59B6`, `#E74C3C`...) → `--sc-*` tokens; emojis (📝, ✨) y punto rojo decorativo eliminados; labels lowercase (`interna`, `llamada`, `con grabación`) con headers UPPERCASE de sección; `Filtros de Tipo` → `Filtros` (el botón ya dice "Tipo"); `Deseleccionar todo` → `Limpiar`; `shadow-xl` → `shadow-sc-popover`; `rounded-lg` → `rounded-sc-lg`; `border-[#CFD3DE]` → `border-sc-border`. Subcomponentes `<FilterGroup>` y `<FilterCheckbox>` para que añadir una sexta sección sea una entrada y no un copy-paste de 30 líneas. `FOCUS_RING` aplicado al botón "Limpiar". archivos: `src/app/components/TypeFilterPanel.tsx`.
+- **DS pass a `TypeFilterButton`** (mismo problema acumulado): hex → tokens, `FOCUS_RING` compartido, badge de notificación (5×5 px circle con punto blanco) → punto simple `bg-sc-accent-strong` 6 px en la esquina (geometría minimal, sin redundancia visual). `aria-pressed` añadido para anunciar estado del panel. archivos: `src/app/components/TypeFilterButton.tsx`.
+- **State refactor en `ConversationsView`**: `showOnlyFailed` deja de ser `useState` standalone y pasa a derivarse de `unifiedTypeFilters.status.onlyFailed`. El setter se reescribe como wrapper que llama a `setUnifiedTypeFilters`. Single source of truth: el chip rojo en la toolbar y la checkbox del panel leen y escriben el mismo flag, sin sync bidireccional. `hasActiveFilters` del botón también incluye `status.onlyFailed`. archivos: `src/app/components/ConversationsView.tsx`.
+
+**Decidido**:
+- **"Estado" como sección propia, no dentro de "Procesamiento aplicado"**. "Procesamiento aplicado" filtra por reglas que matchearon (recording rule, transcription rule). "Estado" filtra por resultado (fallidas, en proceso, completadas...). Categorías mentales distintas; mezclarlas confunde. La sección Estado deja sitio para futuras opciones cuando se cierren más decisiones de producto en este eje.
+- **Sin punto/icono decorativo junto a las labels de checkbox**. El panel viejo tenía 📝/✨/punto rojo como hints categoriales que duplicaban lo que el header de sección ya decía. Sec 20.16 (auditar señales duplicadas) descarta ornamento. Las labels van solas.
+- **Chip rojo `Solo fallidas` en la toolbar se mantiene**. No es duplicación con la checkbox del panel: el chip es breadcrumb del filtro activo + acción rápida para limpiarlo (un click), la checkbox es la superficie de DESCUBRIMIENTO. Cumplen roles distintos. Excepción válida de 20.16 (dos representaciones del MISMO dato comunican facetas distintas: estado vs control).
+- **`setShowOnlyFailed` como wrapper inline, no hook custom**. La funcionalidad es trivial (setter derivado de un objeto) y vive en un solo componente — un `useDerivedFilter` o similar sería over-engineering. Wrapper inline es más legible.
+
+**Pendiente**: ninguno nuevo en sec 17.
+
+**Notas para próxima sesión**:
+- `TypeFilterPanel` ahora exporta también el tipo `TypeFilterPanelFilters`. Si en el futuro se necesita ese tipo desde fuera (test, otra vista de filtros), ya está disponible.
+- Validar visualmente: (1) sin filtros activos, el botón `Tipo` se ve limpio sin punto; (2) marcando solo `interna`, aparece el punto + accent border; (3) chequear `solo fallidas` en el panel pinta el chip rojo en la toolbar + filtra la tabla; (4) limpiar desde el chip desmarca la checkbox del panel.
+- El sample `Errores de transcripción` sigue lanzando el toast `Ver fallidas` automáticamente al cargar — el handler escribe ahora a `unifiedTypeFilters.status.onlyFailed` via el wrapper, no a un useState aparte.
+- Commit de esta sesión: pendiente al cierre.

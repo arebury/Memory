@@ -1,5 +1,7 @@
 import { Filter } from "lucide-react";
-import { Button } from "./ui/button";
+
+import { cn } from "./ui/utils";
+import { FOCUS_RING } from "./ui/focus";
 
 interface TypeFilterButtonProps {
   isActive: boolean;
@@ -7,27 +9,56 @@ interface TypeFilterButtonProps {
   onClick: () => void;
 }
 
-export function TypeFilterButton({ isActive, hasActiveFilters, onClick }: TypeFilterButtonProps) {
+/**
+ * Trigger for the TypeFilterPanel dropdown. Three states:
+ *   default       · neutral border + heading text + Filter icon
+ *   isActive      · panel open · subtly tinted bg, no accent ring (the
+ *                   panel itself is the focus signal)
+ *   hasActiveFilters · accent-tinted border + soft accent bg + accent
+ *                   text · plus a small dot in the corner so the filter
+ *                   pressure is visible even when the panel is closed
+ *
+ * Updated 15.34: pre-DS hex codes replaced with `--sc-*` tokens, focus
+ * ring shared with the rest of the app, lucide icon kept (no decorative
+ * notification badge — a 6 px dot is enough).
+ */
+export function TypeFilterButton({
+  isActive,
+  hasActiveFilters,
+  onClick,
+}: TypeFilterButtonProps) {
   return (
-    <div className="relative">
-      <Button
-        onClick={onClick}
-        variant="outline"
-        className={`h-9 px-4 gap-2 text-sm font-medium border-[#D2D6E0] hover:bg-[#F4F6FC] relative ${
-          isActive ? 'bg-[#F4F6FC]' : ''
-        } ${
-          hasActiveFilters ? 'border-[#60D3E4] bg-[#EEFBFD]' : ''
-        }`}
-      >
-        <Filter size={15} className={hasActiveFilters ? "text-[#60D3E4]" : "text-[#233155]"} />
-        <span className={hasActiveFilters ? "text-[#387983]" : "text-[#233155]"}>Tipo</span>
-        
-        {hasActiveFilters && (
-          <div className="absolute -top-1 -right-1 w-5 h-5 bg-[#60D3E4] rounded-full flex items-center justify-center">
-            <span className="text-[10px] text-white">•</span>
-          </div>
-        )}
-      </Button>
-    </div>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={isActive}
+      aria-label={
+        hasActiveFilters
+          ? "Filtros de tipo y estado · activos"
+          : "Filtros de tipo y estado"
+      }
+      className={cn(
+        "relative inline-flex h-9 cursor-pointer items-center gap-[var(--sc-space-200)] rounded-sc-md border px-[var(--sc-space-400)]",
+        "text-sc-sm font-medium transition-colors",
+        FOCUS_RING,
+        hasActiveFilters
+          ? "border-sc-accent bg-sc-accent-soft text-sc-accent-strong hover:bg-sc-accent-soft/80"
+          : isActive
+            ? "border-sc-border-default bg-sc-bg-canvas text-sc-heading"
+            : "border-sc-border-default bg-sc-surface text-sc-heading hover:bg-sc-bg-canvas",
+      )}
+    >
+      <Filter
+        size={15}
+        className={hasActiveFilters ? "text-sc-accent-strong" : "text-sc-heading"}
+      />
+      Tipo
+      {hasActiveFilters && (
+        <span
+          aria-hidden
+          className="absolute -right-0.5 -top-0.5 size-1.5 rounded-full bg-sc-accent-strong"
+        />
+      )}
+    </button>
   );
 }
