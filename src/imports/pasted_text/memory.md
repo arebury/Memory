@@ -1848,7 +1848,7 @@ Para futuras animaciones: **transform** (translate, scale, rotate) + **opacity**
 
 **Cards/badges con texto van bien para cualidades sin geometría natural**: estado, nombre, categoría, severidad. NO los uses como contenedor neutro alrededor de algo cuya magnitud podría ser el contenedor mismo.
 
-**Implementación canónica**: `RecordingTimeline` en `RecordingPicker.tsx`.
+**Implementación canónica**: barra segmentada de `MultiRecordingPlayer.tsx` (15.32 — anchuras proporcionales por duración del leg). Antes vivía en `RecordingPicker.tsx`, fundido al unificar el player. Refinamiento 15.32: la geometría carga la magnitud, pero los labels se sacan FUERA del elemento geométrico cuando truncarían — cada información en su sitio.
 
 ### 20.16 · Auditar señales duplicadas antes de añadir cualquier elemento decorativo
 
@@ -1865,6 +1865,18 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 **Test mental antes de añadir**: "si tachara este elemento, ¿perdería información o solo redundancia?" Si es lo segundo, fuera.
 
 **Excepción válida**: dos representaciones del MISMO dato son OK si comunican facetas distintas (relativo vs absoluto, geometría vs texto exacto, valor vs unidad). Las señales decorativas que repiten lo MISMO no.
+
+### 20.17 · Unificar componentes que comparten el mismo concepto
+
+**Regla**: si dos componentes apilados representan el MISMO concepto de datos (tiempo, jerarquía, posición, share), pregunta si fundirlos en uno solo no resuelve mejor el problema.
+
+**Why**: en 15.32 el `ConversationPlayerModal` para llamadas multi-grabación apilaba `RecordingTimeline` (strip proporcional de N legs) sobre el audio bar (transport + scrub del leg activo). Ambos representaban tiempo: el strip lo segmentaba por leg, el scrub bar lo mostraba dentro del leg activo. Apilados creaban tres problemas: duplicación visual del concepto "tiempo", altura innecesaria que forzaba scroll del modal, y desconexión semántica (el playhead del scrub no se relacionaba con el strip de arriba). Fundidos en `MultiRecordingPlayer`: una barra única partida proporcionalmente con fill solo en el segmento activo + transport + labels — todo en una superficie, ~30 px más bajo, sin scroll.
+
+**Test mental antes de añadir un componente nuevo al lado de uno existente**: "¿están hablando del mismo dato? ¿el usuario los lee como una cosa o como dos?" Si la respuesta es "uno", probablemente son uno.
+
+**Excepción válida**: cuando los dos componentes representan facetas claramente distintas (rango global vs zoom local; dato absoluto vs comparación) y verlos a la vez es el caso de uso. La duda es: ¿el usuario los necesita lado a lado, o puede alternar entre ellos? Si puede alternar, separar; si los necesita juntos, fundir.
+
+**Implementación canónica**: `MultiRecordingPlayer` en `src/app/components/MultiRecordingPlayer.tsx` (15.32). Single-leg conserva el audio bar standalone — el componente unificado se carga solo cuando merece la pena (`recordings.length > 1`).
 
 ---
 
@@ -2157,3 +2169,29 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Si la decisión es mantener la integración: los `.md` de `docs/` se sincronizan automáticamente al estar importados con `?raw` en `DocumentationModal.tsx` — no hay duplicación.
 - Las dos decisiones de bulk multi-rec (sec 13 items 13 y 14) están cerradas en producto pero no implementadas en código. Antes de tocar `BulkTranscriptionModal.tsx`, leer ambos items + el roadmap de sec 17 para tener el plan completo.
 - Commits de la sesión: `4f39645` (decisiones bulk multi-rec sec 13 + 17), `0d1d9ab` (reescritura docs `.md`), `c1a6442` (cierre — esta entrada).
+
+### 15.32 · 2026-05-05 · Claude Code · reposicionamiento "parte de Smart Contact" + MultiRecordingPlayer unificado
+
+**Hecho**:
+- **Reposicionamiento del producto** (commit `25d3e79`): quitado "dashboard" como descripción de Memory en 4 archivos cara externa + GitHub repo "About". Frase canon: *"Memory es la parte de Smart Contact que permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano."* archivos: `README.md` (tagline blockquote), `docs/01-logica-de-conteo.md` (sec "Sobre este documento"), `docs/02-referencia-ui.md` (sec "Sobre este documento"), `src/imports/pasted_text/memory.md` (sec 1 Descripción), GitHub About vía `gh repo edit`.
+- **Nuevo `MultiRecordingPlayer.tsx`**: reproductor unificado para llamadas con 2+ grabaciones. Sustituye al pair (`RecordingTimeline` strip + audio bar standalone) que vivían apilados. Tres filas en una sola superficie:
+  1. Transport (back10 · play · fwd10) + tiempo cumulativo del leg activo.
+  2. Barra única partida proporcionalmente por duración. Solo el segmento activo carga progress fill + playhead. Click dentro del activo = seek; segmentos inactivos NO son clicables (el switching vive en la fila 3 — semántica single-purpose).
+  3. Labels alineados con cada segmento (radiogroup, flechas ←→↑↓ navegan + seleccionan, tabIndex en el activo). Activo coloreado `text-sc-info-strong`.
+  Geometría 15.29 preservada (anchuras proporcionales). Truncado "IV…"/"C…" eliminado al sacar los labels FUERA de la barra: cada label tiene ahora el ancho completo de su segmento + 2 líneas si las necesita. archivos: `src/app/components/MultiRecordingPlayer.tsx` (nuevo).
+- **`ConversationPlayerModal.tsx` engancha el componente nuevo**: cuando `recordings.length > 1` y no es chat, renderiza `MultiRecordingPlayer` en vez de `RecordingTimeline` + audio bar standalone. Single-leg sigue usando el audio bar inline (sin overhead). archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **`RecordingPicker.tsx` eliminado**. Único consumidor era el modal; el comportamiento se ha absorbido y mejorado en `MultiRecordingPlayer`. archivos: `src/app/components/RecordingPicker.tsx` (eliminado).
+- **Sec 20 actualizada**: 20.15 apunta ahora a `MultiRecordingPlayer.tsx` como implementación canónica de geometría proporcional (antes a `RecordingPicker.tsx`); 20.17 nuevo — *"unificar componentes que comparten el mismo concepto"*. archivos: `src/imports/pasted_text/memory.md`.
+
+**Decidido**:
+- **"Memory" deja de ser "dashboard" en cara externa** (README, docs externos, GitHub About) y pasa a ser *"la parte de Smart Contact que permite revisar..."*. Razón: Smart Contact es el producto del cliente; Memory es uno de sus módulos (revisión + análisis IA), no un dashboard genérico ni un producto independiente. La frase canon vive ahora en sec 1.
+- **Unificar componentes que comparten el mismo concepto** cuando los datos lo permiten: el strip de geometría y el audio bar ambos representaban TIEMPO. Apilados creaban duplicación visual + altura innecesaria + obligaban a scroll. Fundirlos en `MultiRecordingPlayer` solucionó las tres cosas. → canonizado como sec 20.17.
+- **Geometría carga la magnitud, pero el texto vive donde tenga aire**: refinamiento de 20.15. La barra sigue partida proporcionalmente (15.29), pero los labels se sacan de los segmentos para evitar truncado. Una cosa no excluye la otra. → ampliado en 20.15.
+- **Single-leg NO usa `MultiRecordingPlayer`**: el audio bar inline simple basta cuando hay una grabación. Cargar el componente unificado siempre sería overhead sin beneficio (no hay legs que mostrar).
+
+**Pendiente**: ninguno nuevo en sec 17.
+
+**Notas para próxima sesión**:
+- `MultiRecordingPlayer` es auto-contenido (parsea durations, formatea time). El playback state (currentTime, isPlaying) sigue siendo del modal padre. Si en futuro se añade autoplay cross-leg, tocaría meter la lógica de "siguiente leg al terminar" arriba en el modal, no en el componente.
+- 20.15 ahora apunta a `MultiRecordingPlayer.tsx` como implementación canónica de geometría proporcional (antes apuntaba a `RecordingPicker.tsx` que ya no existe).
+- Commits de esta sesión: `25d3e79` (reposicionamiento), pendiente al cierre (unified player + canon sec 20).

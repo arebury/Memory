@@ -20,7 +20,7 @@ import { Modal } from "./ui/modal";
 import { cn } from "./ui/utils";
 import { FOCUS_RING } from "./ui/focus";
 import { RetranscriptionConfirmModal } from "./RetranscriptionConfirmModal";
-import { RecordingTimeline } from "./RecordingPicker";
+import { MultiRecordingPlayer } from "./MultiRecordingPlayer";
 import { Conversation } from "../data/mockData";
 
 interface ConversationPlayerModalProps {
@@ -242,26 +242,35 @@ export function ConversationPlayerModal({
         />
 
         <Modal.Body className="!p-0">
-          {/* Multi-recording timeline — inline horizontal cards row.
-              Replaces the dropdown picker so the supervisor reads
-              the rhythm of the conversation (N tramos, relative
-              durations, current playback) at a glance. */}
-          {conversation.recordings && conversation.recordings.length > 1 && (
-            <RecordingTimeline
+          {/* Audio surface · two variants:
+              · multi-leg calls render `MultiRecordingPlayer` (transport +
+                segmented bar + leg labels in one unified component);
+              · single-leg calls keep the standalone audio bar below.
+              Chats have no audio — the whole audio block is skipped. */}
+          {!isChat &&
+          conversation.recordings &&
+          conversation.recordings.length > 1 ? (
+            <MultiRecordingPlayer
               recordings={conversation.recordings}
               selectedId={selectedRecordingId ?? conversation.recordings[0].id}
-              onSelect={(id) => {
+              onSelectRecording={(id) => {
                 setSelectedRecordingId(id);
                 setIsPlaying(false);
                 setCurrentTime(0);
               }}
+              isPlaying={isPlaying}
+              onTogglePlay={() => setIsPlaying((p) => !p)}
+              currentTime={currentTime}
+              totalDuration={totalDuration}
+              onSeek={handleSeek}
+              playerEnabled={playerEnabled}
             />
-          )}
+          ) : null}
 
-          {/* ── Audio player ─ only for calls; chats have no audio.
+          {/* ── Audio player ─ only for single-leg calls; chats have no audio.
                 For calls without recording, the same row renders with
                 disabled controls so the structure stays consistent. ── */}
-          {!isChat && (
+          {!isChat && !(conversation.recordings && conversation.recordings.length > 1) && (
             <div className="flex items-center gap-[var(--sc-space-300)] border-b border-sc-border-soft bg-sc-surface-muted px-[var(--sc-space-600)] py-[var(--sc-space-400)]">
               <button
                 type="button"
