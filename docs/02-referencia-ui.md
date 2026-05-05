@@ -6,7 +6,7 @@
 
 ## Sobre este documento
 
-Memory es un dashboard para supervisores de contact center. Esta referencia describe **cómo se ve cada componente clave del producto, cómo se comporta, qué texto emite y cómo se valida visualmente**. La parte de lógica de negocio —qué datos consume, qué deriva, qué dispatcha— vive en el documento hermano *Memory · Lógica de conteo y reglas de negocio*.
+Memory es la parte de Smart Contact que permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano. Esta referencia describe **cómo se ve cada componente clave del producto, cómo se comporta, qué texto emite y cómo se valida visualmente**. La parte de lógica de negocio —qué datos consume, qué deriva, qué dispatcha— vive en el documento hermano *Memory · Lógica de conteo y reglas de negocio*.
 
 Cuatro componentes principales se documentan, en este orden:
 

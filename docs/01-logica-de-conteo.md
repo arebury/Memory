@@ -6,7 +6,7 @@
 
 ## Sobre este documento
 
-Memory es un dashboard para supervisores de contact center. Permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano.
+Memory es la parte de Smart Contact que permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano.
 
 Este documento explica **qué datos necesita cada componente clave del producto, qué deriva a partir de esos datos, y qué reglas de negocio aplica antes de dispatchar acciones**. La parte visual y de interacción —cómo se ve, cómo se comporta, qué dice— vive en el documento hermano *Memory · Referencia de UI*.
 

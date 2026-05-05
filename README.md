@@ -1,6 +1,6 @@
 # 💬 Memory
 
-> Decide qué conversaciones grabas, qué transcribes y qué analizas con IA — y revisa el resultado en un solo dashboard. Pensado para supervisores de contact center.
+> Memory es la parte de Smart Contact que permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano.
 
 🌐 **Pruébalo en vivo**: [memoryplus3.netlify.app](https://memoryplus3.netlify.app/)
 

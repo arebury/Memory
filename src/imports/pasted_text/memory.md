@@ -7,7 +7,7 @@
 ## 📋 1. Project Overview
 
 **Nombre**: Memory 3.0  
-**Descripción**: Dashboard de monitorización de conversaciones para contact centers. Permite a supervisores y administradores ver, filtrar y gestionar conversaciones (llamadas y chats), configurar reglas automáticas de grabación/transcripción/clasificación IA, y gestionar el repositorio de categorías IA y entidades de extracción de datos.
+**Descripción**: Memory es la parte de Smart Contact que permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano. Sobre esa base, supervisores y administradores configuran reglas automáticas de grabación/transcripción/clasificación IA y gestionan el repositorio de categorías IA y entidades de extracción de datos.
 
 **Para quién**: Supervisores de contact center y administradores de plataforma que necesitan:
 - Auditar y revisar conversaciones en tiempo real
