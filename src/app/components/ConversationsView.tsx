@@ -201,6 +201,26 @@ export function ConversationsView({
     setLastSearchTime(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')} - ${now.getDate().toString().padStart(2, '0')}/${(now.getMonth() + 1).toString().padStart(2, '0')}/${now.getFullYear()}`);
   }, [filters, typeFilters, columnFilters, selectedCategories, ruleFilters]);
 
+  /* Date strings live in DD/MM/YYYY both in `filters.dateRange` (set by
+     DateRangePicker) and in `conv.date` (mock entries). Compare as
+     epoch ms after parsing so we don't depend on string ordering. The
+     dateRange string can be either a single date "DD/MM/YYYY" or a
+     range "DD/MM/YYYY - DD/MM/YYYY". */
+  const parseDDMMYYYY = (s: string): number | null => {
+    const [d, m, y] = s.trim().split("/").map(Number);
+    if (!d || !m || !y) return null;
+    return new Date(y, m - 1, d).getTime();
+  };
+  const dateBounds = useMemo(() => {
+    const raw = filters.dateRange?.trim();
+    if (!raw) return null;
+    const parts = raw.split(" - ");
+    const from = parseDDMMYYYY(parts[0] ?? "");
+    if (from === null) return null;
+    const to = parts[1] ? parseDDMMYYYY(parts[1]) : from;
+    return { from, to: to ?? from };
+  }, [filters.dateRange]);
+
   const filteredConversations = useMemo(() => {
     return conversations.filter(conv => {
       // "Ver fallidas" filter — applied first so an error-ridden batch
@@ -209,6 +229,11 @@ export function ConversationsView({
       if (filters.services.length > 0) {
         const serviceMatch = filters.services.some(v => conv.service.toLowerCase().includes(v.toLowerCase()));
         if (!serviceMatch) return false;
+      }
+      if (dateBounds) {
+        const convTs = parseDDMMYYYY(conv.date);
+        if (convTs === null) return false;
+        if (convTs < dateBounds.from || convTs > dateBounds.to) return false;
       }
       if (filters.origin && !conv.origin.toLowerCase().includes(filters.origin.toLowerCase())) return false;
       if (filters.destination && !conv.destination.toLowerCase().includes(filters.destination.toLowerCase())) return false;
@@ -255,7 +280,7 @@ export function ConversationsView({
       if (columnFilters.id && !conv.id.toLowerCase().includes(columnFilters.id.toLowerCase())) return false;
       return true;
     });
-  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed]);
+  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed, dateBounds]);
 
   const handleDownload = () => {
     scToast.info({
