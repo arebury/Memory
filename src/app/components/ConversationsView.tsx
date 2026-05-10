@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle, BookOpen, ExternalLink, Calculator } from "lucide-react";
+import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Tooltip,
@@ -7,7 +7,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
-import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Toaster } from "./ui/sonner";
 import { scToast } from "./ui/sc-toast";
 import { ConversationFilters } from "./ConversationFilters";
@@ -18,7 +17,6 @@ import { CategoryFilterButton } from "./CategoryFilterButton";
 import { CategoryFilterPanel } from "./CategoryFilterPanel";
 import { BulkTranscriptionModal } from "./BulkTranscriptionModal";
 import { MockSampleSwitcher } from "./MockSampleSwitcher";
-import { DocumentationModal, type DocSlug } from "./DocumentationModal";
 import { Conversation } from "../data/mockData";
 import { defaultSampleId, getSample } from "../data/mockSamples";
 import { generateTranscriptionFor } from "../data/mockTranscriptionGenerator";
@@ -71,8 +69,6 @@ export function ConversationsView({
   const [analyzingIds, setAnalyzingIds] = useState<string[]>([]);
   const [newlyTranscribedIds, setNewlyTranscribedIds] = useState<string[]>([]);
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
-  const [docModalSlug, setDocModalSlug] = useState<DocSlug | null>(null);
-  const [docPopoverOpen, setDocPopoverOpen] = useState(false);
 
   /* Mock-data sample switching ──────────────────────────────────────
      `currentSampleId` is the active preset; `conversations` is the
@@ -587,78 +583,33 @@ export function ConversationsView({
               </Tooltip>
             </TooltipProvider>
 
-            {/* Documentación — popover con dos categorías de doc técnica
-                + el link a la Figma site de validación UX (que era el
-                único destino del icono cuando solo era un botón). */}
-            <span className="ml-1 h-6 w-px bg-[#E5E7EB]" />
-            <Popover open={docPopoverOpen} onOpenChange={setDocPopoverOpen}>
-              <PopoverTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-9 w-9 text-[#8D939D] transition-all hover:bg-[#F4F6FC] hover:text-[#233155] data-[state=open]:bg-[#F4F6FC] data-[state=open]:text-[#233155]"
-                  aria-label="Abrir documentación"
-                >
-                  <HelpCircle size={18} strokeWidth={1.75} />
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent
-                align="end"
-                sideOffset={8}
-                className="w-[280px] p-[var(--sc-space-200)]"
-              >
-                <p className="px-[var(--sc-space-300)] pb-[var(--sc-space-200)] pt-[var(--sc-space-150)] text-sc-xs font-semibold uppercase tracking-wide text-sc-muted">
-                  Documentación
-                </p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDocPopoverOpen(false);
-                    setDocModalSlug("01-logica-de-conteo");
-                  }}
-                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
-                >
-                  <Calculator size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-accent-strong" />
-                  <span className="flex flex-col gap-[2px]">
-                    <span className="text-sc-sm font-medium text-sc-heading">Lógica de conteo</span>
-                    <span className="text-sc-xs leading-snug text-sc-muted">Inputs, derivaciones y casuísticas por componente.</span>
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDocPopoverOpen(false);
-                    setDocModalSlug("02-referencia-ui");
-                  }}
-                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
-                >
-                  <BookOpen size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-accent-strong" />
-                  <span className="flex flex-col gap-[2px]">
-                    <span className="text-sc-sm font-medium text-sc-heading">Referencia de UI</span>
-                    <span className="text-sc-xs leading-snug text-sc-muted">Anatomía, copy, animaciones, a11y y QA.</span>
-                  </span>
-                </button>
-                <div className="my-[var(--sc-space-200)] h-px bg-sc-border-soft" aria-hidden />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setDocPopoverOpen(false);
-                    window.open(
-                      "https://group-image-51851861.figma.site",
-                      "_blank",
-                      "noopener,noreferrer",
-                    );
-                  }}
-                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
-                >
-                  <ExternalLink size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-muted" />
-                  <span className="flex flex-col gap-[2px]">
-                    <span className="text-sc-sm font-medium text-sc-heading">Validar UX en Figma</span>
-                    <span className="text-sc-xs leading-snug text-sc-muted">Site con flujos para review (abre en nueva pestaña).</span>
-                  </span>
-                </button>
-              </PopoverContent>
-            </Popover>
+            {/* Help · abre el Figma site con flujos para validación UX. La
+                distribución de docs técnicos pasa por .docx generado con
+                Claude Desktop, no por el prototipo (decisión 15.31). */}
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-9 w-9 text-[#8D939D] transition-all hover:bg-[#F4F6FC] hover:text-[#233155]"
+                    aria-label="Validar UX en Figma · abre en nueva pestaña"
+                    onClick={() =>
+                      window.open(
+                        "https://group-image-51851861.figma.site",
+                        "_blank",
+                        "noopener,noreferrer",
+                      )
+                    }
+                  >
+                    <HelpCircle size={18} strokeWidth={1.75} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Validar UX en Figma</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
           </div>
 
@@ -710,12 +661,6 @@ export function ConversationsView({
         onConfirm={handleBulkConfirm}
       />
 
-      {/* Documentation modal · always mounted so Radix can animate close */}
-      <DocumentationModal
-        isOpen={docModalSlug !== null}
-        onClose={() => setDocModalSlug(null)}
-        slug={docModalSlug}
-      />
 
     </div>
   );
