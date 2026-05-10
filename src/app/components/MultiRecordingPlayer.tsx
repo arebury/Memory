@@ -1,4 +1,5 @@
-import { Play, Pause, RotateCcw, RotateCw } from "lucide-react";
+import * as React from "react";
+import { Play, Pause, RotateCcw, RotateCw, Check } from "lucide-react";
 
 import { cn } from "./ui/utils";
 import { FOCUS_RING } from "./ui/focus";
@@ -250,11 +251,25 @@ export function MultiRecordingPlayer({
               </span>
               <span
                 className={cn(
-                  "font-mono text-sc-xs tabular-nums transition-colors",
+                  "flex items-center gap-1 font-mono text-sc-xs tabular-nums transition-colors",
                   isActive ? "text-sc-info-strong/80" : "text-sc-muted",
                 )}
               >
                 {rec.duration}
+                {/* Per-tramo transcription cue · sobrio (sec 17 P3
+                    cerrado en 15.40). Check icon solo visible cuando
+                    el tramo está transcrito; ausente cuando pendiente.
+                    Usar la asimetría "presente vs ausente" en lugar
+                    de "verde vs gris" evita añadir un eje cromático
+                    nuevo (canon principio 20.16). */}
+                {rec.hasTranscription === true && (
+                  <Check
+                    size={10}
+                    strokeWidth={2.5}
+                    aria-label="Tramo transcrito"
+                    className={isActive ? "text-sc-info-strong/80" : "text-sc-accent-strong"}
+                  />
+                )}
               </span>
             </button>
           );

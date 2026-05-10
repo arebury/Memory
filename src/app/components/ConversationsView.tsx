@@ -129,21 +129,6 @@ export function ConversationsView({
     id: "",
   });
 
-  const [typeFilters, setTypeFilters] = useState({
-    interna: true,
-    externa: true,
-    llamada: true,
-    chat: true,
-    entrante: true,
-    saliente: true,
-  });
-
-  const [ruleFilters, setRuleFilters] = useState({
-    recording: false,
-    transcription: false,
-    classification: false,
-  });
-
   const [isTypeFilterPanelOpen, setIsTypeFilterPanelOpen] = useState(false);
   const [isCategoryFilterPanelOpen, setIsCategoryFilterPanelOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -175,21 +160,28 @@ export function ConversationsView({
     return Array.from(categoriesSet).sort();
   }, [conversations]);
 
-  useEffect(() => {
-    setTypeFilters({
-      interna: unifiedTypeFilters.types.interna,
-      externa: unifiedTypeFilters.types.externa,
-      llamada: unifiedTypeFilters.channels.llamada,
-      chat: unifiedTypeFilters.channels.chat,
-      entrante: unifiedTypeFilters.directions.entrante,
-      saliente: unifiedTypeFilters.directions.saliente,
-    });
-    setRuleFilters({
-      recording: unifiedTypeFilters.rules.recording,
-      transcription: unifiedTypeFilters.rules.transcription,
-      classification: unifiedTypeFilters.rules.classification,
-    });
-  }, [unifiedTypeFilters]);
+  /* `typeFilters` y `ruleFilters` son proyecciones planas de
+     `unifiedTypeFilters`. Antes vivían en useState con un useEffect
+     que sincronizaba al cambiar el unified — patrón "estado derivado
+     vía effect" que React desaconseja: el effect corre TRAS el render,
+     dejando un frame intermedio donde los downstream consumers ven
+     valores stale. useMemo computa la proyección en el mismo render
+     que el cambio del unified, sin frame intermedio y sin useState
+     redundante. (Sec 17 P2 cerrado en 15.40.) */
+  const typeFilters = useMemo(() => ({
+    interna: unifiedTypeFilters.types.interna,
+    externa: unifiedTypeFilters.types.externa,
+    llamada: unifiedTypeFilters.channels.llamada,
+    chat: unifiedTypeFilters.channels.chat,
+    entrante: unifiedTypeFilters.directions.entrante,
+    saliente: unifiedTypeFilters.directions.saliente,
+  }), [unifiedTypeFilters]);
+
+  const ruleFilters = useMemo(() => ({
+    recording: unifiedTypeFilters.rules.recording,
+    transcription: unifiedTypeFilters.rules.transcription,
+    classification: unifiedTypeFilters.rules.classification,
+  }), [unifiedTypeFilters]);
 
   useEffect(() => {
     const now = new Date();
@@ -305,7 +297,15 @@ export function ConversationsView({
         record. The toast counter uses tramos (not conversations) so
         the user sees the real cost. ──────────────────────────────── */
   const handleRequestTranscription = (ids: string | string[]) => {
-    const idArray = Array.isArray(ids) ? ids : [ids];
+    const idArrayRaw = Array.isArray(ids) ? ids : [ids];
+    // GDPR custody (15.40): conversaciones deleted no se transcriben
+    // — la custodia ya venció. Filtro defensivo para que llamadas
+    // directas (no vía bulk modal) tampoco las procesen accidentalmente.
+    const deletedIds = new Set(
+      conversations.filter((c) => c.deleted).map((c) => c.id),
+    );
+    const idArray = idArrayRaw.filter((id) => !deletedIds.has(id));
+    if (idArray.length === 0) return;
     setProcessingIds(prev => [...new Set([...prev, ...idArray])]);
     let tramoCount = 0;
     setTimeout(() => {
