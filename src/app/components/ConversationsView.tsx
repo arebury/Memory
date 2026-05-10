@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle, Calculator, BookOpen, ExternalLink } from "lucide-react";
+import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle, Calculator, Palette, BookOpen, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Tooltip,
@@ -671,6 +671,10 @@ export function ConversationsView({
                 <p className="px-[var(--sc-space-300)] pb-[var(--sc-space-200)] pt-[var(--sc-space-150)] text-sc-xs font-semibold uppercase tracking-wide text-sc-muted">
                   Documentación
                 </p>
+
+                {/* Tier 1 · documentación principal · full layout con
+                    descripción + icon en accent-strong. Estos dos docs
+                    son la entrada por defecto del stakeholder técnico. */}
                 <button
                   type="button"
                   onClick={() => {
@@ -694,20 +698,40 @@ export function ConversationsView({
                   onClick={() => {
                     setHelpPopoverOpen(false);
                     window.open(
-                      "https://github.com/arebury/Memory/blob/main/docs/decisiones.md",
+                      "https://github.com/arebury/Memory/blob/main/docs/sistema-de-diseno.md",
                       "_blank",
                       "noopener,noreferrer",
                     );
                   }}
                   className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
                 >
-                  <BookOpen size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-accent-strong" />
+                  <Palette size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-accent-strong" />
                   <span className="flex flex-col gap-[2px]">
-                    <span className="text-sc-sm font-medium text-sc-heading">Decisiones de diseño</span>
-                    <span className="text-sc-xs leading-snug text-sc-muted">Qué decidimos, por qué, y qué descartamos. En lenguaje narrativo.</span>
+                    <span className="text-sc-sm font-medium text-sc-heading">Sistema de diseño</span>
+                    <span className="text-sc-xs leading-snug text-sc-muted">Tipografía, color, espacio, componentes y anti-patrones.</span>
                   </span>
                 </button>
+
+                {/* Separator + tier 2 · documentación complementaria.
+                    Mismo icon size pero sin descripción y color muted
+                    para reducir peso visual (jerarquía por layout, no
+                    por chrome adicional). */}
                 <div className="my-[var(--sc-space-200)] h-px bg-sc-border-soft" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpPopoverOpen(false);
+                    window.open(
+                      "https://github.com/arebury/Memory/blob/main/docs/decisiones.md",
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-200)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
+                >
+                  <BookOpen size={14} strokeWidth={1.75} className="shrink-0 text-sc-muted" />
+                  <span className="text-sc-sm font-normal text-sc-body">Decisiones de diseño</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => {
@@ -718,13 +742,10 @@ export function ConversationsView({
                       "noopener,noreferrer",
                     );
                   }}
-                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
+                  className="flex w-full cursor-pointer items-center gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-200)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
                 >
-                  <ExternalLink size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-muted" />
-                  <span className="flex flex-col gap-[2px]">
-                    <span className="text-sc-sm font-medium text-sc-heading">Validar UX en Figma</span>
-                    <span className="text-sc-xs leading-snug text-sc-muted">Site con flujos para review (abre en nueva pestaña).</span>
-                  </span>
+                  <ExternalLink size={14} strokeWidth={1.75} className="shrink-0 text-sc-muted" />
+                  <span className="text-sc-sm font-normal text-sc-body">Validar UX en Figma</span>
                 </button>
               </PopoverContent>
             </Popover>
