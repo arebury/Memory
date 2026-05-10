@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle } from "lucide-react";
+import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle, Calculator, BookOpen, ExternalLink } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Tooltip,
@@ -7,6 +7,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { Toaster } from "./ui/sonner";
 import { scToast } from "./ui/sc-toast";
 import { ConversationFilters } from "./ConversationFilters";
@@ -130,6 +131,7 @@ export function ConversationsView({
   });
 
   const [isTypeFilterPanelOpen, setIsTypeFilterPanelOpen] = useState(false);
+  const [helpPopoverOpen, setHelpPopoverOpen] = useState(false);
   const [isCategoryFilterPanelOpen, setIsCategoryFilterPanelOpen] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
@@ -645,33 +647,87 @@ export function ConversationsView({
               </Tooltip>
             </TooltipProvider>
 
-            {/* Help · abre el Figma site con flujos para validación UX. La
-                distribución de docs técnicos pasa por .docx generado con
-                Claude Desktop, no por el prototipo (decisión 15.31). */}
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-9 w-9 text-sc-muted transition-all hover:bg-sc-canvas hover:text-sc-primary"
-                    aria-label="Validar UX en Figma · abre en nueva pestaña"
-                    onClick={() =>
-                      window.open(
-                        "https://group-image-51851861.figma.site",
-                        "_blank",
-                        "noopener,noreferrer",
-                      )
-                    }
-                  >
-                    <HelpCircle size={18} strokeWidth={1.75} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Validar UX en Figma</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            {/* Help · popover con docs canónicos. Los .md viven en
+                docs/ del repo; los enlaces abren la versión renderizada
+                por GitHub (no inline · respeta la decisión 15.36 de no
+                tener un DocumentationModal con render markdown propio).
+                El item del Figma site sigue presente para validación UX. */}
+            <Popover open={helpPopoverOpen} onOpenChange={setHelpPopoverOpen}>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 text-sc-muted transition-all hover:bg-sc-canvas hover:text-sc-primary data-[state=open]:bg-sc-canvas data-[state=open]:text-sc-primary"
+                  aria-label="Documentación y validación"
+                >
+                  <HelpCircle size={18} strokeWidth={1.75} />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent
+                align="end"
+                sideOffset={8}
+                className="w-[300px] p-[var(--sc-space-200)]"
+              >
+                <p className="px-[var(--sc-space-300)] pb-[var(--sc-space-200)] pt-[var(--sc-space-150)] text-sc-xs font-semibold uppercase tracking-wide text-sc-muted">
+                  Documentación
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpPopoverOpen(false);
+                    window.open(
+                      "https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md",
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
+                >
+                  <Calculator size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-accent-strong" />
+                  <span className="flex flex-col gap-[2px]">
+                    <span className="text-sc-sm font-medium text-sc-heading">Lógica de conteo y reglas</span>
+                    <span className="text-sc-xs leading-snug text-sc-muted">Cómo cuenta cada componente, invariantes del modelo, casuísticas.</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpPopoverOpen(false);
+                    window.open(
+                      "https://github.com/arebury/Memory/blob/main/docs/decisiones.md",
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
+                >
+                  <BookOpen size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-accent-strong" />
+                  <span className="flex flex-col gap-[2px]">
+                    <span className="text-sc-sm font-medium text-sc-heading">Decisiones de diseño</span>
+                    <span className="text-sc-xs leading-snug text-sc-muted">Qué decidimos, por qué, y qué descartamos. En lenguaje narrativo.</span>
+                  </span>
+                </button>
+                <div className="my-[var(--sc-space-200)] h-px bg-sc-border-soft" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHelpPopoverOpen(false);
+                    window.open(
+                      "https://group-image-51851861.figma.site",
+                      "_blank",
+                      "noopener,noreferrer",
+                    );
+                  }}
+                  className="flex w-full cursor-pointer items-start gap-[var(--sc-space-300)] rounded-sc-md px-[var(--sc-space-300)] py-[var(--sc-space-250)] text-left transition-colors hover:bg-sc-surface-muted focus:bg-sc-surface-muted focus:outline-none"
+                >
+                  <ExternalLink size={16} strokeWidth={1.75} className="mt-0.5 shrink-0 text-sc-muted" />
+                  <span className="flex flex-col gap-[2px]">
+                    <span className="text-sc-sm font-medium text-sc-heading">Validar UX en Figma</span>
+                    <span className="text-sc-xs leading-snug text-sc-muted">Site con flujos para review (abre en nueva pestaña).</span>
+                  </span>
+                </button>
+              </PopoverContent>
+            </Popover>
 
           </div>
 

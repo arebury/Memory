@@ -228,20 +228,25 @@ export function BulkTranscriptionModal({
   // the delta hint explains the gap explicitly: "5 conversaciones ·
   // 3 multi-grabación → 8 audios". Without this, the user sees a
   // number that doesn't match their selection and has to guess why.
+  /* Hint debajo del hero · regla aprendida en 15.41: solo aparece cuando
+     APORTA INFO NUEVA respecto al subtitle del Modal.Header. El subtitle
+     ya cuenta "X conversaciones seleccionadas · Y llamadas, Z chats" —
+     repetir "de N seleccionadas" en el hint es ruido (Nielsen #8 ·
+     Aesthetic & Minimalist, canon 20.16 · auditar señales duplicadas,
+     /impeccable · "DON'T repeat information users can already see").
+
+     El único caso donde el hint añade valor es multi-grabación: explicar
+     POR QUÉ el hero number puede ser mayor que el número de conversaciones
+     a procesar. Ese caso usa "Incluye N llamadas con varios tramos" —
+     dato no presente en el subtitle.
+
+     El slot del hint mantiene su `min-h` para evitar CLS cuando el caso
+     multi-rec aparece/desaparece. Slot vacío 95% del tiempo = breathing
+     room intencional, no pixel perdido. */
   const heroDeltaHint = (() => {
     if (isAllProcessed) return null;
     if (nMultiRec > 0 && !toggleOn) {
-      // "3 llamadas · 2 con varios tramos → 9 audios" — using "llamadas"
-      // (not "conversaciones") to disambiguate from the subtitle's
-      // selection-level count, and because chats never count toward
-      // transcription anyway. Mirrors the subtitle's existing breakdown
-      // wording ("3 llamadas, 2 chats") so the user maps numbers easily.
-      const calls = `${nConvTrans} ${nConvTrans === 1 ? "llamada" : "llamadas"}`;
-      const multi = `${nMultiRec} con varios tramos`;
-      return `${calls} · ${multi} → ${nTrans} audios`;
-    }
-    if (heroCount !== nSel) {
-      return `de ${nSel} ${nSel === 1 ? "seleccionada" : "seleccionadas"}`;
+      return `Incluye ${nMultiRec} ${nMultiRec === 1 ? "llamada con varios tramos" : "llamadas con varios tramos"}`;
     }
     return null;
   })();

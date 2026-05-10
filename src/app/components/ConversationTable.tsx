@@ -82,8 +82,17 @@ export function ConversationTable({
   // Audit A4: rows currently being processed cannot be selected — they
   // can't be acted on (no parallel ops on the same conversation) and
   // selecting them would leak into bulk counters as ineligible noise.
-  const isLocked = (id: string) =>
-    processingIds.includes(id) || analyzingIds.includes(id);
+  // GDPR custody (15.41): conversaciones con `deleted: true` tampoco
+  // son seleccionables — el periodo de retención venció y el contenido
+  // no es recuperable. Comparten el lock para que el bulk modal y la UI
+  // las traten igual: no checkbox, cursor-not-allowed, sin click.
+  const isLocked = (id: string) => {
+    const c = conversations.find((x) => x.id === id);
+    if (c?.deleted) return true;
+    return processingIds.includes(id) || analyzingIds.includes(id);
+  };
+
+  const isDeleted = (conv: Conversation) => !!conv.deleted;
 
   const selectableConvs = conversations.filter((c) => !isLocked(c.id));
   const allSelected =
@@ -317,8 +326,10 @@ export function ConversationTable({
                     "border-b border-sc-border transition-colors h-14",
                     locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-sc-accent-soft/50",
                     isRowDimmed(conv) && "opacity-50",
+                    isDeleted(conv) && "opacity-60",
                     getRowBg(conv),
                   )}
+                  title={isDeleted(conv) ? "Custodia GDPR vencida · datos no recuperables" : undefined}
                   // Audit A5: row click toggles selection (no longer opens
                   // the player). The StatusIcon is the explicit affordance
                   // for opening the conversation viewer.
@@ -329,7 +340,13 @@ export function ConversationTable({
                       checked={selectedIds.includes(conv.id)}
                       onCheckedChange={() => toggleRow(conv.id)}
                       disabled={locked}
-                      title={locked ? "En proceso · no se puede seleccionar" : undefined}
+                      title={
+                        isDeleted(conv)
+                          ? "Custodia GDPR vencida · datos no recuperables"
+                          : locked
+                          ? "En proceso · no se puede seleccionar"
+                          : undefined
+                      }
                       className="border-sc-muted disabled:opacity-40 disabled:cursor-not-allowed"
                     />
                   </TableCell>
