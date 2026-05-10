@@ -296,7 +296,14 @@ function RulesHeroCard({ onClick, count }: { onClick: () => void; count: number 
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              window.open("#", "_blank", "noopener,noreferrer");
+              // Mismo destino que el HelpCircle del toolbar de Conversations
+              // (Figma site con flujos de validación UX). Coherente con la
+              // decisión 15.36 de canal único de docs.
+              window.open(
+                "https://group-image-51851861.figma.site",
+                "_blank",
+                "noopener,noreferrer",
+              );
             }}
             /* font-size via style — twMerge collapses `text-sc-xs` and
                `text-sc-muted` into a single text-* bucket. */
