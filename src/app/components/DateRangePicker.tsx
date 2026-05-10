@@ -96,28 +96,28 @@ export function DateRangePicker({ value, onChange }: DateRangePickerProps) {
               className="justify-start h-8 px-3 text-sm text-[#5F6776] hover:bg-[#60D3E4] hover:text-white"
               onClick={() => handlePresetSelect("today")}
             >
-              Today
+              Hoy
             </Button>
             <Button
               variant="ghost"
               className="justify-start h-8 px-3 text-sm text-[#5F6776] hover:bg-[#60D3E4] hover:text-white"
               onClick={() => handlePresetSelect("yesterday")}
             >
-              Yesterday
+              Ayer
             </Button>
             <Button
               variant="ghost"
               className="justify-start h-8 px-3 text-sm text-[#5F6776] hover:bg-[#60D3E4] hover:text-white"
               onClick={() => handlePresetSelect("this-week")}
             >
-              This week
+              Esta semana
             </Button>
             <Button
               variant="ghost"
               className="justify-start h-8 px-3 text-sm text-[#5F6776] hover:bg-[#60D3E4] hover:text-white"
               onClick={() => handlePresetSelect("this-month")}
             >
-              This month
+              Este mes
             </Button>
           </div>
           <Calendar
