@@ -20,6 +20,18 @@ interface MockSampleSwitcherProps {
  * mock-data states (everything pending, everything processed, only chats…).
  * Lives next to the UX-validation easter-egg so it stays visible to
  * stakeholders without crowding the main toolbar.
+ *
+ * ⚠️ PURGA PRE-DEPLOY · stakeholder no técnico:
+ *   Este componente y `mockSamples.ts` son código exclusivo del
+ *   prototipo de demo interno. Antes de cualquier deploy a un
+ *   stakeholder NO técnico (cliente final, comercial sin contexto,
+ *   demo pública), eliminar:
+ *     · Este componente y su uso en `ConversationsView`.
+ *     · `src/app/data/mockSamples.ts` y `getSample()`/`defaultSampleId`.
+ *     · En `ConversationsView.tsx`: `currentSampleId`, `handleSampleChange`,
+ *       y la inicialización con `getSample(default)`.
+ *   Sustituir por una carga directa de `mockConversations` (o del
+ *   backend cuando exista). Sec 17 P3 (canon).
  */
 export function MockSampleSwitcher({
   currentSampleId,

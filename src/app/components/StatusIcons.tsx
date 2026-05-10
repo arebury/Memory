@@ -1,3 +1,4 @@
+import * as React from "react";
 import { motion } from "motion/react";
 import { Conversation } from "../data/mockData";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
@@ -126,7 +127,9 @@ interface StatusIconProps {
 }
 
 type ResolvedStatus = {
-  Icon: (props: IconProps) => JSX.Element;
+  /* React.ReactElement (no JSX.Element) — robusto si en el futuro se
+     desactiva el global JSX namespace al añadir tsconfig.json estricto. */
+  Icon: (props: IconProps) => React.ReactElement;
   label: string;
   color: string;
 };
