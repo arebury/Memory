@@ -1420,7 +1420,6 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Consolidar los tres tonos de navy en circulación (`#1B273D` / `#1C283D` / `#233155`) en el token canónico `--sc-navy-600`. (P1)
 - Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS. (P2)
 - Audio real en `ConversationPlayerModal` (hoy reproducción simulada con `setInterval`). El `PlayerModal` legacy queda muerto en el repo — borrar cuando todos los callers se hayan movido al nuevo. (P1)
-- Re-habilitar el filtro de categorías IA en `ConversationsView` (actualmente bloqueado con `{false && showCategoryFilter && (...)}`). (P2)
 - Implementar `onNavigateToEntities` en `ClassificationRuleBuilder` (actualmente lanza un toast "TBI"). (P2)
 - Paginación real en `ConversationTable`. (P2)
 - Exportación / importación real en `DataExportImport.tsx`. (P2)
