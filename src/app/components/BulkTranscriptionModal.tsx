@@ -50,7 +50,12 @@ export function BulkTranscriptionModal({
   selectedConversations,
   onConfirm,
 }: BulkTranscriptionModalProps) {
-  /* ── Counters derived from selection ──────────────────────────── */
+  /* ── Counters derived from selection ────────────────────────────
+        Multi-rec rule (sec 13.13): bulk transcribe acts on the WHOLE
+        conversation, so a multi-rec call with 3 untranscribed legs
+        counts as 3 audios in the hero number — not 1. The breakdown
+        caption ("X conversaciones · Y multi-grabación → Z audios")
+        keeps the math visible so the user isn't surprised. ─────── */
   const counters = useMemo(() => {
     const calls = selectedConversations.filter((c) => c.channel === "llamada");
     const chats = selectedConversations.filter((c) => c.channel === "chat");
@@ -58,6 +63,18 @@ export function BulkTranscriptionModal({
     const readyToTranscribe = calls.filter(
       (c) => c.hasRecording && !c.hasTranscription,
     );
+    // Tramos: count untranscribed legs for multi-rec, 1 for single-rec.
+    const tramoCountFor = (c: (typeof readyToTranscribe)[number]) => {
+      if (c.recordings && c.recordings.length > 1) {
+        return c.recordings.filter((r) => !r.hasTranscription).length;
+      }
+      return 1;
+    };
+    const nTramos = readyToTranscribe.reduce((sum, c) => sum + tramoCountFor(c), 0);
+    const multiRecCalls = readyToTranscribe.filter(
+      (c) => c.recordings && c.recordings.length > 1,
+    );
+
     const callsTranscribed = calls.filter((c) => c.hasTranscription);
     const callEa = callsTranscribed.filter((c) => !c.hasAnalysis);
     const chatEa = chats.filter((c) => !c.hasAnalysis);
@@ -66,13 +83,15 @@ export function BulkTranscriptionModal({
       readyToTranscribe,
       callEa,
       chatEa,
-      nTrans: readyToTranscribe.length,
+      nTrans: nTramos,
+      nConvTrans: readyToTranscribe.length,
+      nMultiRec: multiRecCalls.length,
       nAnBase: callEa.length + chatEa.length,
       nSel: selectedConversations.length,
     };
   }, [selectedConversations]);
 
-  const { readyToTranscribe, callEa, chatEa, nTrans, nAnBase, nSel } = counters;
+  const { readyToTranscribe, callEa, chatEa, nTrans, nConvTrans, nMultiRec, nAnBase, nSel } = counters;
 
   /* ── Toggle state ─────────────────────────────────────────────── */
   // Default ON only when transcription is impossible (nTrans=0) and there
@@ -197,10 +216,29 @@ export function BulkTranscriptionModal({
   // Optional delta line under the hero number when not everything in
   // the selection ends up being processed (typical case: chats can't
   // be transcribed, so they drop out of nTrans/heroCount).
-  const heroDeltaHint =
-    !isAllProcessed && heroCount !== nSel
-      ? `de ${nSel} ${nSel === 1 ? "seleccionada" : "seleccionadas"}`
-      : null;
+  //
+  // Multi-rec rule (sec 13.13): when at least one selected call has
+  // multiple recordings, the hero counts AUDIOS not conversations, so
+  // the delta hint explains the gap explicitly: "5 conversaciones ·
+  // 3 multi-grabación → 8 audios". Without this, the user sees a
+  // number that doesn't match their selection and has to guess why.
+  const heroDeltaHint = (() => {
+    if (isAllProcessed) return null;
+    if (nMultiRec > 0 && !toggleOn) {
+      // "3 llamadas · 2 con varios tramos → 9 audios" — using "llamadas"
+      // (not "conversaciones") to disambiguate from the subtitle's
+      // selection-level count, and because chats never count toward
+      // transcription anyway. Mirrors the subtitle's existing breakdown
+      // wording ("3 llamadas, 2 chats") so the user maps numbers easily.
+      const calls = `${nConvTrans} ${nConvTrans === 1 ? "llamada" : "llamadas"}`;
+      const multi = `${nMultiRec} con varios tramos`;
+      return `${calls} · ${multi} → ${nTrans} audios`;
+    }
+    if (heroCount !== nSel) {
+      return `de ${nSel} ${nSel === 1 ? "seleccionada" : "seleccionadas"}`;
+    }
+    return null;
+  })();
 
   return (
     <Modal
@@ -294,7 +332,7 @@ export function BulkTranscriptionModal({
                     differs from the selection size. Toggling the
                     "Incluir análisis" switch flips this content but
                     can't shift the layout. */}
-                <span className="min-h-[var(--sc-line-height-body2)] text-sc-xs leading-[var(--sc-line-height-body2)] text-sc-muted">
+                <span aria-live="polite" className="min-h-[var(--sc-line-height-body2)] text-sc-xs leading-[var(--sc-line-height-body2)] text-sc-muted">
                   {heroDeltaHint ?? " "}
                 </span>
               </div>
