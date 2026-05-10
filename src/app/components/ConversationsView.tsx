@@ -506,8 +506,10 @@ export function ConversationsView({
                 />
               </div>
 
-              {/* Categorías IA — hidden, preserved for future re-enable */}
-              {false && showCategoryFilter && (
+              {/* Categorías IA — solo se muestra si los datos cargados
+                  exponen categorías (samples sin clasificación lo ocultan
+                  automáticamente para no enseñar un filtro vacío). */}
+              {showCategoryFilter && (
                 <div className="relative">
                   <CategoryFilterButton
                     isActive={isCategoryFilterPanelOpen}
