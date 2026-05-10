@@ -1228,6 +1228,53 @@ How to apply:
 - `hasTranscription` se computa en el loader (`normalizeChats` o equivalente) a partir del estado por grabación, no se establece manualmente.
 - La columna Estado de la tabla y los iconos de `StatusIcons` siguen leyendo `hasTranscription` agregado — no necesitan saber del estado por tramo.
 
+**15. Estrategia phased v1/v2/v3 para producción** (cerrada 15.42).
+Memory en producción NO se construye de golpe ni todo según el prototipo. Phased rollout para optimizar time-to-ship en v1 y profundizar el UX en v2:
+
+- **v1 (sprints 1-2)**: reusar el reproductor existente de la plataforma + parches baratos (quitar diarización · renombrar tabs · cost cue inline en lugar de confirm modal · botón Analizar en header · fix pluralización). Resultado: ~70% del UX del prototipo a ~25% del coste de desarrollo.
+- **v2 (sprints 3-5)**: refactor profundo del reproductor hacia patrones del prototipo (empty states con CTAs claros · multi-rec timeline proporcional · sticky head + flex-1 tab body · per-tramo Check). Solo si feedback de supervisores valida el coste.
+- **v3 (cuando aterrice el backend real)**: hero count = audios con desglose multi-rec · per-tramo transcription state · chain transcribir→analizar event-driven sobre backend real.
+
+Why: el reproductor del prototipo desde cero cuesta ~3-4 semanas dev senior. Evolucionar el legacy con parches cuesta ~1 semana. El delta (3 semanas) sale rentable solo si Memory tiene vida útil >3 años con uso intensivo de supervisores (8h/día) — ROI documentado en sesión 15.42. La estrategia phased NO es deuda técnica · es decisión consciente de optimizar coste/valor en cada fase.
+
+How to apply:
+- v1 hereda decisiones del prototipo donde son cheap (cost cue inline, botón Analizar header, pluralización singular, Cancelar destructive).
+- v1 NO toca el reproductor estructuralmente (sigue siendo el legacy con quirks).
+- v2 ataca el refactor del reproductor solo cuando v1 esté validado en producción y haya feedback real de supervisores.
+- v3 espera al backend (no es trabajo frontend).
+
+**16. Sticky toast "Generando..." durante operaciones billables** (cerrada 15.42, ejecución pendiente para 15.43).
+Patrón adoptado del Figma legacy al prototipo: cuando se lanza una operación de transcripción/análisis (unitaria o bulk), aparece un toast persistente arriba a la derecha con copy "Generando transcripción..." o "Generando análisis..." y `duration: Infinity`. Al completar, el mismo toast (mismo `id`) se reemplaza por un success/error breve.
+
+Why: sin sticky toast, si el supervisor cambia de vista durante el batch, pierde visibilidad del estado en curso. El indicador en la fila no basta cuando navega fuera de la tabla. Sticky toast cumple Nielsen #1 "Visibility of system status".
+
+How to apply:
+- Lanzar `scToast.info({ title: "...", duration: Infinity, dismiss: true, id: "bulk-progress" })` al inicio de `handleRequestTranscription` / `handleRequestAnalysis`.
+- En `setTimeout` de simulación (o en el handler del completion event del backend real), llamar a `scToast.success({ ..., id: "bulk-progress" })` con el mismo id para que sonner haga update in-place.
+- Si el wrapper `scToast` no soporta update via id, hacer `scToast.dismiss(id)` + nuevo toast.
+
+**17. Botón "Analizar" en header del player** (cerrada 15.42, ejecución pendiente para 15.43).
+En el `ConversationPlayerModal`, añadir un botón "Analizar" en el header al lado de Re-transcribir y Download. Es la única acción discoverable sin tener que clicar en la pestaña Análisis. Disabled si no hay transcripción O si ya hay análisis (estado terminal). Click → dispatch directo a `handleRequestAnalysis` (NO modal de confirmación intermedio · respeta decisión 15.28).
+
+Why: el CTA dentro del tab Análisis requería al supervisor cambiar de pestaña para descubrir que puede analizar. El botón en header es visible siempre. Adopción del patrón del Figma legacy donde tiene esto bien.
+
+How to apply:
+- Botón con icono `Sparkles` (size 15, strokeWidth 1.75) al lado del Re-transcribir.
+- Tooltip `title="Análisis"`.
+- `disabled={!conversation.hasTranscription || conversation.hasAnalysis === true}`.
+- onClick → `setShowAnalysisConfirm(false)` (NO confirm) → directly call `onRequestAnalysis(conversation.id)`.
+- Mantener el CTA dentro del tab Análisis para casos "dead-end resuelto" (sin transcripción, opción combo) — esos no se pueden lanzar desde el botón header porque está disabled.
+
+**18. "Cancelar" como excepción para confirms destructivos** (cerrada 15.42, refinement de 15.23).
+La decisión 15.23 estableció "Cerrar" como copy estándar del footer-cancel de modales (pre-submit no hay nada que cancelar). Para confirms **destructivos** específicamente (`DeleteCategoryDialog`, `RetranscriptionConfirmModal`) el copy cambia a "Cancelar" — semánticamente representa cancelar una acción consciente sobre algo existente, no solo cerrar el modal.
+
+Why: en confirms destructivos, el supervisor inició explícitamente una acción (Eliminar, Re-transcribir) y el modal es el gate antes de ejecutarla. "Cancelar" es semánticamente más correcto que "Cerrar" en ese contexto.
+
+How to apply:
+- `DeleteCategoryDialog`: `<Modal.Cancel>Cancelar</Modal.Cancel>`.
+- `RetranscriptionConfirmModal`: `<Modal.Cancel>Cancelar</Modal.Cancel>`.
+- Resto de modales (`BulkTranscriptionModal`, `CreateEntityModal`, etc.): mantienen "Cerrar" según patrón general 15.23.
+
 ### Limitación asumida (consciente, no urgente)
 
 **Pérdida de feedback visual tras logout o inactividad.**
@@ -2415,3 +2462,106 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - `docs/decisiones.md` está cargado con todas las decisiones de las últimas sesiones. La próxima vez que se cierre una decisión nueva, el paso 6 del protocolo (sec 19) obliga a actualizar también este archivo. La regla es nueva — si se nota olvido en futuras sesiones, ese es el lugar donde mirar.
 - El popover del HelpCircle tiene 3 items hoy. Si se añaden más docs canónicos al repo (ej. `docs/api.md` o `docs/glosario.md`), el patrón ya está. Add item al popover.
 - Tres commits en esta sesión: `e9bd75f` (docs · renames + decisiones.md + actualización logica-de-conteo), `b4ceca7` (UI · popover + GDPR visual + hint redundancy), `be94a51` (este canon update).
+
+---
+
+### 15.42 · 2026-05-11 · Claude Code · favicon + sistema de diseño doc + popover tier hierarchy + análisis COA · plan persistido para 15.43
+
+**Contexto**: el usuario pidió añadir el doc del sistema de diseño al popover del help, dándole protagonismo junto al de Lógica de conteo. En paralelo, presentó el COA de transcripción masiva que escribió un compañero en Jira (basado en el Figma legacy) y pidió análisis honesto de diferencias con el prototipo + recomendación de qué adoptar de cada lado. La conversación derivó hacia un plan de migración phased para producción (v1/v2/v3). Al cerrar la sesión, el usuario decidió persistir el plan completo aquí para retomarlo mañana sin perder contexto.
+
+**Hecho** (commits):
+- **favicon SVG** (commit `b1b3f9a`): M+ amarillo (`#F5C518`) reproducido como SVG vectorial. Fondo amarillo + zigzag M + signo +, todo con `stroke-linecap: round` para mimetizar los remates del logo original. Servido desde `public/favicon.svg`, enlazado en `index.html` con `type="image/svg+xml"`.
+- **`docs/sistema-de-diseno.md` nuevo** (commit `5a92c76`): mirror narrativo del SC Design System en lenguaje stakeholder. Cubre filosofía (densidad antes que decoración), tipografía (Roboto + escala modular fija), color (3 capas L1/L2/L3 + paleta + reglas de uso), espacio y ritmo (4pt scale con tokens semánticos), iconografía (lucide-react, cero emojis, Sparkles reservado), movimiento (4 keyframes sc-* + prefers-reduced-motion), patrones de componente (Modal compound, scToast, empty states, buttons), anti-patrones explícitos (gradient text, border-left stripe, glassmorphism) y lo que NO está cerrado.
+- **Popover del HelpCircle con jerarquía visual de 2 tiers** (commit `5a92c76`):
+  - Tier 1 (full layout · icon 16px en accent-strong · con descripción): Lógica de conteo y reglas + Sistema de diseño
+  - Separator hairline
+  - Tier 2 (compact layout · icon 14px en muted · sin descripción): Decisiones de diseño + Validar UX en Figma
+  - La diferencia de peso visual viene del LAYOUT (con/sin descripción + icon size + color), no de labels "PRINCIPAL/EXTRA". Canon 20.15 · geometría carga el dato.
+
+**Análisis del COA del compañero** (sin commits · trabajo conceptual):
+
+El COA describe la transcripción masiva + unitaria basándose en lo que hay en el Figma legacy. Comparado con el prototipo:
+
+| Delta | Mejor UX | Coste migrar Figma→Proto | Coste migrar Proto→Figma | Decisión final |
+|---|---|---|---|---|
+| Confirmation modal intermedio antes de transcribir/analizar | Prototype (no modal, cost cue inline) | Diseño: ~3h | Código: ~5h (reintroducir componentes ya borrados) | **Migrar Figma → Proto** · prototipo gana |
+| Hero count: audios vs conversaciones (multi-rec) | Prototype (honesto con el coste real) | Trivial cliente-side | Pierde decisión 15.31 cerrada con producto | **Migrar Figma → Proto** · prototipo gana |
+| "Cerrar" vs "Cancelar" en footer modales | Discutible (semántica vs herencia plataforma) | 1 string | 1 string | **Excepción**: "Cancelar" solo en destructive confirms (`DeleteCategoryDialog`, `RetranscriptionConfirmModal`); resto sigue "Cerrar" |
+| Sticky toast "Generando..." durante el proceso | **Figma** · supervisor que cambia de vista ve estado persistente | ~3h en proto (gap nuestro) | — | **Adoptar al proto** · Figma gana |
+| Botón "Analizar" en header del player (descubribilidad) | **Figma** · sin necesidad de cambiar de tab para descubrirlo | ~3h en proto (gap nuestro) | — | **Adoptar al proto** · Figma gana |
+| Selección permisiva vs estricta de filas locked | Discutible · prototipo es transparente, Figma es permisivo | ~15 min | ~15 min | **Mantener estricta** (prototipo) · hereda menos confusión |
+| Pluralización "1 admite/admiten análisis" | Figma (correcto) | 5 min (bug local) | — | **Fix en proto** · bug nuestro |
+| Errores traducción FR del COA | — | — | — | Corregir en COA nuevo |
+
+**Estimación coste real de implementar el reproductor del prototipo en producción** (vs evolucionar el legacy):
+- From-scratch: ~3-4 semanas dev senior frontend (modal shell + audio player + tabs + empty states + multi-rec timeline + chain logic + integración backend)
+- Evolución del legacy con parches: ~1 semana (quitar diarización, renombrar tabs, quitar confirm modal, añadir botón Analizar, restyle tokens)
+- **Cuatro veces más caro** la versión completa.
+
+**ROI calculation** que justifica el coste:
+- 50 supervisores × 7s perdidos/sesión × 30 sesiones/día × 250 días/año = ~15 horas/año/supervisor → ~750 horas/año organización
+- ~€15-25k/año en productividad perdida vs ~€10-15k one-time desarrollo bien hecho
+- ROI < 12 meses si el producto tiene vida útil >3-5 años
+
+**Decidido**:
+- **Estrategia phased v1/v2/v3 para producción** · NUEVA decisión cerrada en esta sesión:
+  - **v1 (sprint 1-2)**: reusar reproductor legacy + parches baratos (quitar diarización · renombrar tabs · cost cue inline en lugar de confirm modal · botón Analizar en header · fix pluralización). ~70% UX del prototipo a ~25% coste.
+  - **v2 (sprint 3-5)**: refactor profundo del reproductor hacia patrones del prototipo (empty states con CTAs · multi-rec timeline · sticky head + flex-1 tab body · per-tramo Check). Solo si feedback de supervisores valida el coste.
+  - **v3 (cuando aterrice backend real)**: hero count = audios con desglose · per-tramo transcription state · chain transcribir→analizar event-driven sobre backend real.
+- **Adoptar 3 patrones del Figma al prototipo** (ejecución en 15.43):
+  - Sticky toast "Generando..." durante operaciones bulk + unitarias
+  - Botón Analizar explícito en header del player (no escondido en tab)
+  - "Cancelar" en confirms destructivos (mantener "Cerrar" como patrón general pre-submit)
+- **Mantener decisiones cerradas del prototipo** que el Figma legacy contradice:
+  - NO confirmation modal intermedio para acciones billables (15.23/15.28)
+  - Hero count cuenta audios cuando hay multi-rec (15.31)
+  - Selección estricta de filas locked (15.37 GDPR + processing)
+- **Phased rollout NO es deuda técnica · es decisión consciente** de optimizar time-to-ship en v1 y profundizar en v2. Si se trata como deuda y se aplaza indefinidamente, Memory se queda con la versión cutre del legacy y se desperdicia la oportunidad de elevar el listón.
+
+**Pendiente · plan para 15.43**:
+
+ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan de 15.42 que dejaste en el canon. Empieza por las adaptaciones al prototipo en este orden: sticky toast → discoverability player → cancelar destructive → pluralización. Cuando termines código, COA y MCP."*):
+
+1. **Adaptaciones código al prototipo**:
+   - **Sticky toast "Generando..."** — el más simple posible (sin variantes complejas por caso). `scToast.info({ title: "Generando transcripción...", duration: Infinity, dismiss: true, id: "bulk-progress" })` al lanzar `handleRequestTranscription`. Reemplazo por el toast de success/error al completar (usar el mismo `id` para que sonner haga update in-place). Aplicar análogamente a `handleRequestAnalysis` con copy "Generando análisis...". Para el dead-end resuelto (transcribir + analizar encadenado): un solo toast secuencial (no dos paralelos · cambia el copy según fase).
+   - **Botón "Analizar" en header del player** — añadir entre Re-transcribir y Download. Tooltip "Análisis". Disabled si `!conversation.hasTranscription` O `conversation.hasAnalysis === true`. Click → `handleRequestAnalysis` directo (cost cue inline en el icono via title o tooltip · NO modal de confirmación intermedio, fiel a decisión 15.28). Asegurar que sigue el patrón visual de los otros botones del header (size-8, rounded-sc-md, hover state, FOCUS_RING).
+   - **"Cancelar" en destructive confirms** — `DeleteCategoryDialog` y `RetranscriptionConfirmModal` cambian `<Modal.Cancel>Cerrar</Modal.Cancel>` por `<Modal.Cancel>Cancelar</Modal.Cancel>`. NO cambiar en otros modales (sigue siendo "Cerrar" como patrón pre-submit · 15.23).
+   - **Pluralización singular** — en `BulkTranscriptionModal`, donde renderizamos `${nAnBase} admiten análisis`, cambiar a `${nAnBase} ${nAnBase === 1 ? "admite" : "admiten"} análisis`. Verificar otros usos potenciales de plural fijo (probablemente en el toast post-completion · pluralizar también).
+
+2. **Roadmap canon sec 17** — añadir bloque nuevo "Estrategia de implementación en producción · phased v1/v2/v3" con el detalle de qué entra en cada fase (lo descrito arriba en "Decidido").
+
+3. **COA nuevo en `docs/coa-transcripcion-masiva.md`**:
+   - Standalone (escrito como si fuera primera versión, NO referencia al COA del compañero · usuario no quiere pisarle)
+   - Español
+   - Estilo plain text con bullet points como el del compañero (no markdown fancy)
+   - Notas entre `[corchetes]` para el usuario · ejemplo `[NOTA: este botón se añade nuevo, no estaba en el Figma legacy]` · usuario las borra al copiar a Jira
+   - Placeholders `[imagen: descripción de qué mostrar aquí]` donde van screenshots · usuario hace las capturas y las pega
+   - Incluir traducciones FR/EN corregidas al final (todas las strings nuevas + las del COA original con sus correcciones)
+   - Secciones: Consideraciones · Solución bulk masiva · Transcripción unitaria · Traducciones
+
+4. **Push a Figma vía MCP**:
+   - **Figma URL del proyecto**: https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?node-id=297-1875&t=Ldpnn0wTocilkLZ6-1
+   - **fileKey**: `EKXnAv7FND5VO6EcpKq3ZH`
+   - **nodeId** (página destino): `297:1875` (convertir el `-` del URL a `:` para la API)
+   - **Modo**: NO es replace · crear frames nuevos en esa página
+   - **Tres modales a publicar 1:1** del prototipo:
+     1. `BulkTranscriptionModal` · 1:1 visual con el estado actual del prototipo (subtitle con desglose · hero number · breakdown caption en multi-rec · toggle análisis · footer Cerrar/Procesar)
+     2. `DeleteCategoryDialog` · 1:1 visual con el estado tras la migración a SC Modal shell (AlertTriangle icon · warning box + Lightbulb hint · footer Cancelar/Eliminar destructive)
+     3. `ConversationPlayerModal` con el botón "Analizar" añadido en header (estado v2 del plan · 1:1 + **nota visible en el frame** indicando "Este modal corresponde a v2 del rollout · no entra en v1")
+   - Buscar tool MCP relevante: `mcp__claude_ai_Figma__create_new_file` no aplica (no es crear file, es push a existing); revisar herramientas Figma MCP disponibles (`use_figma`, `add_code_connect_map`, etc.) y elegir la que escribe diseño nuevo en un nodo existente.
+
+5. **Build + playwright validation** de los cambios código del paso 1.
+
+6. **Commits + canon update 15.43 + push**:
+   - Commits por categoría (sticky toast · botón Analizar · cancelar destructive · pluralización · COA · MCP push · canon)
+   - Entrada 15.43 en sec 15 con qué se hizo, decidió, pendientes
+   - Actualización de `project_session_status.md` con resumen condensado
+   - Actualización de `docs/decisiones.md` reflejando las decisiones nuevas (regla 15.41)
+   - Push a main · Netlify desplegará automáticamente
+
+**Notas para 15.43**:
+- Si al implementar el sticky toast aparece complicación con el `id` y el update in-place de sonner, verificar la API del wrapper `scToast` en `src/app/components/ui/sc-toast.tsx`. Si no soporta update via `id`, hacer `scToast.dismiss(id)` + nuevo toast de success/error. Documentar la decisión.
+- Si el push MCP a Figma falla por permisos o por que el fileKey no es accesible, el fallback es generar SVG export del modal del prototipo y dejarlo en `docs/figma-export/` para que el usuario lo importe manualmente.
+- El COA debe quedar copy-paste-ready · el usuario lo va a transcribir a Jira directamente. Cero referencias a "src/app/components/..." o jerga interna del prototipo. Lenguaje neutro de producto.
+- Cuando se cierre 15.43, recordar también pasar el resumen de las decisiones nuevas (sticky toast adopt, botón Analizar header, Cancelar destructive) a la sec 13 del canon + a `docs/decisiones.md` (mirror obligatorio · regla 15.41 paso 6).
+- Tres commits en esta sesión 15.42: `b1b3f9a` (favicon), `5a92c76` (sistema-de-diseno + popover hierarchy), `[SHA siguiente]` (este canon update con plan completo).

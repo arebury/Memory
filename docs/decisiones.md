@@ -140,6 +140,44 @@ Hubo una iteración temprana donde los docs se renderizaban dentro del prototipo
 
 **Decisión actual**: los docs se distribuyen como `.docx` generados desde los `.md` del repo. La integración inline se eliminó del prototipo y el botón Help abre directamente al GitHub o al Figma site según el caso.
 
+### Estrategia phased v1/v2/v3 para el rollout en producción
+
+Memory en su versión final NO se construye de golpe ni todo según el prototipo. La implementación en producción se hace por fases para optimizar coste/valor en cada momento.
+
+**v1 (primeros sprints)**: el equipo de desarrollo parte del reproductor existente en la plataforma Smart Contact y le aplica parches baratos — quitar la diarización, renombrar las pestañas, sustituir el modal de confirmación por la advertencia de coste inline, añadir el botón de Análisis en el header del reproductor, corregir la pluralización. El resultado captura alrededor del 70% del UX del prototipo a una fracción del coste. Memory entra en producción rápido y los supervisores empiezan a notar las mejoras.
+
+**v2 (sprints posteriores, una vez v1 está validado)**: refactor profundo del reproductor hacia los patrones del prototipo. Empty states con CTAs claros, multi-rec timeline proporcional, sticky audio + flex-1 tab body, per-tramo Check icon. Solo si el feedback real de los supervisores valida que la inversión adicional vale la pena.
+
+**v3 (cuando aterrice el backend real con soporte multi-grabación)**: hero count = audios totales con desglose, per-tramo transcription state visible en todas las superficies, chain transcribir→analizar event-driven sobre eventos del backend.
+
+**Por qué phased y no todo de golpe**: el reproductor del prototipo construido desde cero cuesta del orden de 3-4 semanas de un dev senior frontend (modal compound + audio player custom + tabs con cinco estados + transcript chat-bubbles + multi-rec timeline + chain logic + integración backend). Evolucionar el reproductor legacy con parches cuesta del orden de una semana. La diferencia (~3 semanas extra) sale rentable solo si Memory tiene vida útil de más de tres años con uso intensivo. El cálculo del ROI lo justifica, pero no en el primer sprint — primero hay que validar que el supervisor pide más.
+
+**No es deuda técnica diferida — es decisión consciente**. La diferencia importa: deuda implica "lo hacemos mal ahora y arrastramos el coste"; decisión consciente implica "lo hacemos en el momento óptimo del producto". El roadmap recoge explícitamente la v2 como ejecución pendiente, no como aspiración.
+
+### Sticky toast persistente durante operaciones billables
+
+Las operaciones que tardan (transcribir un batch de 200, analizar varias conversaciones) muestran un toast persistente arriba a la derecha — "Generando transcripción..." o "Generando análisis..." — que se mantiene visible mientras dura el proceso. Cuando termina, ese mismo toast se reemplaza por uno breve de éxito o error.
+
+**Por qué**: el supervisor lanza un batch y cambia a otra pestaña del navegador, o navega a otra vista del producto. Sin el sticky toast, pierde visibilidad del estado en curso — vuelve sin saber si terminó. Con él, el estado siempre está visible.
+
+Este patrón viene heredado del Figma original donde estaba bien resuelto. El prototipo se quedó sin él durante la primera iteración y se identificó como gap en la revisión 15.42 del COA del equipo. Adoptado y planificado para la siguiente iteración del prototipo.
+
+### Botón "Analizar" en el header del reproductor
+
+El reproductor de conversaciones tiene un botón "Analizar" visible en su header, al lado de Re-transcribir y Descargar. No hace falta entrar en la pestaña Análisis para descubrir que se puede analizar — el botón está ahí siempre, deshabilitado cuando no procede (sin transcripción aún, o ya analizado) y habilitado cuando hay algo que hacer.
+
+**Por qué**: si la única forma de descubrir que puedes analizar una conversación es cambiar a la pestaña Análisis y ver el CTA dentro, el supervisor que esté leyendo la transcripción tiene que dar un paso extra para enterarse de la siguiente acción. Discoverability en el header significa cero saltos.
+
+Click en el botón → dispatch directo, sin modal de confirmación intermedio (sigue la regla general "confirmación solo para destructivo"). La advertencia de coste vive como tooltip del botón.
+
+### "Cancelar" como excepción a "Cerrar" en confirms destructivos
+
+La regla general es: el footer-cancel de los modales dice "Cerrar" (porque pre-submit no hay nada que cancelar — el modal solo se cierra). Para confirms **destructivos** específicamente — el de eliminar una categoría, el de re-transcribir una conversación — el copy es "Cancelar".
+
+**Por qué**: en confirms destructivos, el supervisor inició explícitamente una acción (Eliminar, Re-transcribir) y el modal es el gate antes de ejecutarla. "Cancelar" representa cancelar esa acción consciente; "Cerrar" sería menos preciso porque el modal no se está limitando a abrirse y cerrarse, está mediando entre un click consciente y la ejecución real.
+
+La excepción es estrecha: solo confirms destructivos. El resto de modales (procesar, crear, editar, ver) siguen usando "Cerrar".
+
 ---
 
 ## Lo que NO está cerrado
