@@ -1557,7 +1557,7 @@ Esto evita que `memory.md` se haga ilegible. La sec 1-14 (estructura, componente
 |---|---|---|
 | **Cambio puntual de archivo** (fix, refactor, feature) | git commit + entrada de sesión 15.X (Hecho) | El detalle vive en el diff; la sesión registra el porqué |
 | **Decisión técnica reusable** (patrón que aplicará a futuros componentes) | Sec 20 del canon (numerada 20.X) + auto-memoria `feedback_*.md` (operativo para el agente) | Canon es discoverable por humanos; auto-memoria es trigger rápido para el agente |
-| **Decisión de producto / UX cerrada** (regla del producto, no del código) | Sec 13 del canon, subsección "Decisiones de producto cerradas" | Es load-bearing del producto, no patrón técnico |
+| **Decisión de producto / UX cerrada** (regla del producto, no del código) | Sec 13 del canon, subsección "Decisiones de producto cerradas" **+ mirror narrativo en `docs/decisiones.md`** | Sec 13 es jerga técnica para canon interno; `docs/decisiones.md` es la versión stakeholder-friendly accesible desde el help del prototipo. Cero drift entre ambos: el mismo evento de cierre que escribe sec 13 debe actualizar `docs/decisiones.md` |
 | **Pendiente con prioridad** (P0/P1/P2/P3) | Sec 17 del canon (lista plana) + entrada de sesión 15.X (Pendiente) | Sec 17 es single-source-of-truth de roadmap |
 | **Idea futura sin prioridad** (no urgente, "cuando un cliente lo pida") | Auto-memoria `project_*_roadmap.md` | No mete ruido al roadmap activo del canon |
 | **Gotcha operativo** (sandbox, esbuild, env, comando que falla) | Auto-memoria `project_session_status.md` ("Gotchas") | Es meta-info de cómo trabajar el repo, no del producto |
@@ -1584,7 +1584,7 @@ Cuando el usuario diga alguna de estas frases (o equivalentes naturales en espa�
 3. Escribir entrada `15.X` en este archivo siguiendo la plantilla obligatoria.
 4. Si hay pendientes nuevos, añadirlos a sec 17.
 5. Si hay patrones técnicos nuevos validados, añadirlos a sec 20 + crear o actualizar `feedback_*.md` en auto-memoria.
-6. Si hay decisiones de producto nuevas, añadirlas a sec 13 (subsección "Decisiones de producto cerradas").
+6. Si hay decisiones de producto nuevas, añadirlas a sec 13 (subsección "Decisiones de producto cerradas") **Y reescribir el bloque correspondiente en `docs/decisiones.md`** en lenguaje stakeholder. La sec 13 es jerga técnica para canon interno; `docs/decisiones.md` es la versión narrativa que un stakeholder puede leer desde el help del prototipo. Mantener ambos en sync es obligación del cierre (15.41 establece la regla).
 7. Actualizar `project_session_status.md` (auto-memoria) con HEAD nuevo y resumen 1-2 líneas de la sesión.
 8. Commit + push (preguntar antes solo si la sesión hizo cambios destructivos o el usuario no lo pidió explícitamente; si el usuario ya dijo "cerramos" sin matices, asumir que el cierre incluye push).
 9. Confirmar al usuario qué se ha guardado y dónde, en bullet list corto.
@@ -2386,3 +2386,32 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Seis commits en esta sesión: `a7a2913` (CSS quick wins), `a8e4edd` (types + docs), `720df88` (modales legacy), `6d9066e` (useMemo + per-tramo cue), `c49dc32` (GDPR custody), `834ec8e` (este canon update).
 - El tema GDPR ahora tiene sample funcional. Si en demo a stakeholder lo abren, se ve el caso completo. Si se quiere implementar el "archivo automático" o "tooltip explicativo en hover de fila deleted", entra en una próxima sesión — lo de hoy es la base mínima para comunicar la idea.
 - Sec 17 ya casi vacío de items P1/P2 ejecutables sin decisión. Lo que queda son discusiones/decisiones (Sparkles, side-panel, bubble alignment, modo oscuro) o backend. La próxima sesión probablemente NO sea técnica sino de producto.
+
+---
+
+### 15.41 · 2026-05-10 · Claude Code · docs públicos + GDPR visual + hero hint sin redundancia
+
+**Contexto**: el usuario adjuntó la v1 de `docs/01-logica-de-conteo.md` y pidió actualizar con los cambios 15.35-15.40 + adjuntarla a un link accesible desde el help de la UI. Conversación derivó hacia: (a) renombrar docs a names limpios sin prefijos numéricos, (b) crear `docs/decisiones.md` separado stakeholder-friendly como mirror narrativo de canon sec 13, (c) HelpCircle vuelve a ser popover con 3 enlaces externos, (d) routing matrix actualizada para sincronizar `docs/decisiones.md` al cierre de cada sesión. En paralelo, dos issues que reportó el usuario validando visualmente: GDPR sample sin tratamiento visual en la tabla, y hint redundante bajo el hero del bulk modal ("de N seleccionadas" repetía dato del subtitle).
+
+**Hecho**:
+- **Renames docs** (commit `e9bd75f`): `docs/01-logica-de-conteo.md` → `docs/logica-de-conteo.md`; `docs/02-referencia-ui.md` → `docs/referencia-ui.md`. Names identificables sin prefijos.
+- **Doc nuevo `docs/decisiones.md`** (commit `e9bd75f`): mirror stakeholder-friendly de las decisiones cerradas. Tono narrativo, lenguaje natural ("hubo iteración", "se descartó porque"), sin jerga de canon. Cubre: principio rector (todo gira alrededor del coste), decisiones de modelo, decisiones de flujo bulk, decisiones de UX cross-cutting, decisiones de prototipo vs producción, lo que NO está cerrado. Accesible desde el help del prototipo en nueva pestaña. Pensado para que un stakeholder no técnico que clica pueda leerlo y entender el por qué del producto.
+- **`logica-de-conteo.md` actualizado** (commit `e9bd75f`): invariantes globales movidas a sección top-level. Excepción GDPR añadida a invariante 1 + descripción del tratamiento visual en tabla. Invariante 3 reformulada como implementada (antes pendiente). Per-tramo Check icon mencionado. Hint redundancy rule documentada. hasDiarization marcado como retirado del schema. Tabla "Pendiente de decidir" reducida.
+- **HelpCircle vuelve a ser popover** (commit `b4ceca7`): 3 items, los 3 enlaces externos (nueva pestaña, sin render inline · respeta decisión 15.36 de no rehidratar DocumentationModal). Items: Lógica de conteo y reglas / Decisiones de diseño / Validar UX en Figma. Imports `Calculator`, `BookOpen`, `ExternalLink`, `Popover` restituidos. State `helpPopoverOpen` añadido.
+- **GDPR visual treatment en tabla** (commit `b4ceca7`): `isLocked` extendido para incluir `conv.deleted` (mismo path que conversaciones en proceso · cero UX nueva). Helper `isDeleted` para opacidad 60% selectiva. Tooltip en row + checkbox: "Custodia GDPR vencida · datos no recuperables". El supervisor ya las ve diferenciadas; el bulk modal ya las excluía silenciosamente del cálculo.
+- **Hero hint redundancy fix** (commit `b4ceca7`): el slot bajo el hero number del `BulkTranscriptionModal` solo se renderiza cuando aporta info NUEVA respecto al subtitle (caso multi-rec: "Incluye N llamadas con varios tramos"). Caso normal: null (el "de N seleccionadas" repetía dato del subtitle "X conversaciones seleccionadas"). Slot mantiene `min-h` para anti-CLS. Validado por `/ui-ux-pro-max` (Nielsen #8 · "no information competing", canon 20.16 · auditar señales duplicadas) y `/impeccable` (DON'T "Repeat information users can already see", DO "Make every word earn its place").
+- **Routing matrix actualizada** (sec 19 del canon + `feedback_session_close_protocol.md`): cada sesión que cierre una decisión nueva debe actualizar TAMBIÉN `docs/decisiones.md` en lenguaje stakeholder. La sec 13 del canon es jerga técnica interna; `docs/decisiones.md` es la versión narrativa que sale al exterior. Cero drift entre ambos: la misma rutina de cierre escribe en los dos sitios.
+
+**Decidido**:
+- **Names de docs sin prefijos numéricos**. Cada doc es self-contained, no es serie ordenada que requiera leerse 01 → 02 → 03. Usuario: "que sea perfectamente identificable y acorde".
+- **`docs/decisiones.md` separado de `logica-de-conteo.md`**. Mismo evento conceptual (decisiones del producto) pero registros distintos: técnico vs narrativo, audiencia distinta. Mantenidos en sync via routing matrix.
+- **Sync canon ↔ docs/decisiones.md es obligación del cierre de sesión, NO automática**. No hay script que genere `decisiones.md` desde sec 13. La integridad la mantengo yo (el agente) cuando cierro sesión. Si paso, drift entra; el riesgo se asume.
+- **El slot del hint del hero mantiene `min-h` aunque esté vacío 95% del tiempo**. Anti-CLS gana sobre "no reservar pixels muertos". El espacio vacío es **breathing room** intencional, no pixel perdido (`/impeccable` review confirmó: "Whitespace y ritmo importan más que decoración").
+- **GDPR-deleted comparte el `isLocked` con conversaciones en proceso**. Cero UX nueva. Mismo lock visual, mismo bloqueo de selección, mismo filtro en bulk. Patrón reutilizado.
+
+**Pendiente**: ninguno nuevo en sec 17. Items eliminados: ya estaban removidos en sesiones anteriores. Cambio estructural: nueva regla en el routing matrix de sec 19 (paso 6 actualizado).
+
+**Notas para próxima sesión**:
+- `docs/decisiones.md` está cargado con todas las decisiones de las últimas sesiones. La próxima vez que se cierre una decisión nueva, el paso 6 del protocolo (sec 19) obliga a actualizar también este archivo. La regla es nueva — si se nota olvido en futuras sesiones, ese es el lugar donde mirar.
+- El popover del HelpCircle tiene 3 items hoy. Si se añaden más docs canónicos al repo (ej. `docs/api.md` o `docs/glosario.md`), el patrón ya está. Add item al popover.
+- Tres commits en esta sesión: `e9bd75f` (docs · renames + decisiones.md + actualización logica-de-conteo), `b4ceca7` (UI · popover + GDPR visual + hint redundancy), `[SHA siguiente]` (este canon update).
