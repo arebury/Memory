@@ -1416,23 +1416,16 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 
 ### Pendiente
 
-- Migrar al `<Modal>` shell SC los modales legacy todavía pendientes: `CreateEntityModal`, `DeleteCategoryDialog`. (`TranscriptionRequestModal` y `RetranscriptionConfirmModal` migrados en 15.23. `DiarizationRequestModal`, `PlayerModal` legacy y `RuleSelectionModal` borrados — el primero en 15.23 como concepto deprecado, los otros dos en 15.26 como dead code.) (P1)
-- Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS. (P2)
 - Audio real en `ConversationPlayerModal` (hoy reproducción simulada con `setInterval`). El `PlayerModal` legacy queda muerto en el repo — borrar cuando todos los callers se hayan movido al nuevo. (P1)
 - Paginación real en `ConversationTable`. (P2)
 - Exportación / importación real en `DataExportImport.tsx`. (P2)
 - Backend / persistencia real (hoy todo es mock + `localStorage`). (P0 cuando empiece la integración)
 - Modo oscuro: tokens definidos en `default_theme.css` con `.dark`, falta toggle UI y variantes dark de los `--sc-*`. (P3)
 - Dividir `ConversationTable.tsx` en subcomponentes (es muy grande). (P2)
-- Migrar `useEffect` de sincronización `typeFilters`/`ruleFilters` en `ConversationsView` a `useMemo` (actualmente estado derivado vía effect). (P2)
 - Code-splitting del bundle: tras la reversión 15.36 el chunk JS está en 860 KB (gzip 246 KB). Si se quisiera bajar más, candidatos para `manualChunks`: `motion`, `react-day-picker` + `date-fns`, `@radix-ui/*`. (P3 — irrelevante en demo local, solo importa si el deploy tiene mucho tráfico)
 - Decisión pendiente sobre el destino del prototipo (rol 1/2/3) cuando el DS del cliente esté maduro — ver sección 16.
-- `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
-- Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
 - Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
-- Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
-- **Per-tramo state en el `MultiRecordingPlayer`** — diferido en 15.37. Hoy el player muestra todos los tramos sin distinguir transcritos vs pendientes. Para un prototipo de "comunicar ideas" no es crítico (el aggregate en la tabla ya cuenta la historia), pero si se quiere reflejar progreso parcial dentro del player, basta con un cue visual sobrio (pequeño tag o icono tras la duración del tramo). Ver canon sec 13 item 13/14 — la regla de producto está cerrada. (P3)
 
 ### Decisiones del audit 15.18 — estado actual
 
@@ -2341,3 +2334,55 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Si el modelo en producción separa `agent` de `origin`, el filtro `filters.agents` en `ConversationsView` rompe silenciosamente para llamadas entrantes. Comentario inline ya advierte.
 - El bundle se mantiene en 865 KB JS / gzip 247 KB tras el barrido (+0.5 KB CSS por nuevas utility classes generadas por Tailwind). Sin sorpresas.
 - Tres commits en esta sesión: `c229b35` (DS pass + navy harm), `f6850b3` (i18n DateRangePicker presets), `f357131` (este canon update).
+
+---
+
+### 15.40 · 2026-05-10 · Claude Code · cierre masivo · 8 items pendientes + GDPR custody case
+
+**Contexto**: a petición del usuario "adelante a todo" tras 15.39 — cerrar todo lo pendiente que sea seguro y aporte valor sin necesitar decisión nueva ni backend. Validado en /ui-ux-pro-max review antes de commits. Ocho items cerrados de sec 17 + el tema chat GDPR parqueado en 15.37.
+
+**Hecho**:
+
+- **Quick wins CSS** (commit `a7a2913`):
+  - Roboto `@import` movido de `globals.css:1` a `index.css:1` — debe preceder TODAS las declaraciones para no disparar el warning PostCSS "@import must precede all other statements". Comment placeholder en globals.css señala el move. (P2 sec 17 cerrado.)
+  - `@media (prefers-reduced-motion: reduce)` añadido para los 4 keyframes `sc-*` (delta-fly, bump, pulse, shake) en `sc-design-system.css`. `animation: none !important` cuando preferencia activada. Las animaciones SC son afirmativas (no críticas) — silenciarlas no rompe ningún flujo. (P3 a11y cerrado.)
+
+- **Types + docs** (commit `a8e4edd`):
+  - `resolveStatus` en `StatusIcons.tsx`: return type `JSX.Element` → `React.ReactElement`. Robusto si en el futuro se añade `tsconfig.json` con strict y se desactiva el global JSX namespace. Importa `React` explícitamente. (P3 sec 17 cerrado.)
+  - `MockSampleSwitcher.tsx`: doc-comment expandido con instrucciones EXACTAS de purga pre-deploy a stakeholder no técnico — qué archivos borrar, qué símbolos retirar de `ConversationsView`, qué sustituir (carga directa de `mockConversations`). Sirve como handover si llega ese momento. (P3 sec 17 cerrado.)
+
+- **Modales legacy migrados al SC Modal shell** (commit `720df88`, P1 sec 17 cerrado):
+  - `CreateEntityModal`: Dialog → Modal con icon Plus + title "Crear entidad". Modal.Body, Modal.Footer con Cancel + Action. Hex literals migrados a tokens `sc-*`. CTA principal con `bg-sc-accent hover:bg-sc-accent-strong`.
+  - `DeleteCategoryDialog`: AlertDialog → Modal con icon AlertTriangle. Modal.Action `bg-sc-error-strong hover:bg-sc-error-strong/90` para destructive. Cancel-izquierda + Destructive-derecha (matches macOS/iOS native). Hex literals migrados. **Emoji 💡 sustituido** por Lucide `Lightbulb` icon (canon 20.10 "cero emojis").
+  - Validado por /ui-ux-pro-max: Color Only rule (Severity High) cumplida — destructive button tiene color + texto + AlertTriangle en header (señales redundantes, no color-only). Confirmation Dialogs rule preservada.
+
+- **`useEffect` → `useMemo`** en `ConversationsView` (commit `6d9066e`, P2 sec 17 cerrado): `typeFilters` y `ruleFilters` eran proyecciones planas de `unifiedTypeFilters` mantenidas vía useState + useEffect que sincronizaba. Patrón "estado derivado vía effect" desaconsejado por React (frame intermedio donde consumers ven valores stale). useMemo computa la proyección en el mismo render.
+
+- **Per-tramo Check icon en `MultiRecordingPlayer`** (commit `6d9066e`, P3 sec 17 cerrado): cue visual sobrio (10px, strokeWidth 2.5, sc-info-strong/80 cuando activo, sc-accent-strong cuando inactivo) AL LADO de la duración SOLO si `rec.hasTranscription === true`. Asimetría "presente vs ausente" en lugar de "verde vs gris" — evita añadir un eje cromático nuevo (canon 20.16). aria-label="Tramo transcrito" para screen readers.
+
+- **Chat GDPR custody case** (commit `c49dc32`, parqueado en 15.37):
+  - **Sample dedicado** "Custodia GDPR vencida" en MockSampleSwitcher. Marca ~⅕ de chats con `deleted: true`, sin transcript recuperable. `normalizeChats` actualizado para respetar el flag deleted (si chat.deleted, no seedea transcripción) — rompe la invariante "chats siempre tienen transcripción" para este caso específico.
+  - **Filtro defensivo en bulk pipeline**: `BulkTranscriptionModal` excluye `deleted` del cálculo de counters. `handleRequestTranscription` también filtra deleted como guard por si una llamada directa intenta procesarlo. **Cero línea explicativa nueva en el modal** — la fila de la tabla ya pinta el estado deleted (canon 20.16).
+
+**Decidido**:
+- **GDPR custody silent exclusion** (vs explicit "X excluidas por custodia"): silent gana. Validado en /ui-ux-pro-max review. Coherente con regla del usuario "no llenar el modal de información" (15.37). Caveat: en modo multi-rec + GDPR mixto el `heroDeltaHint` muestra el breakdown multi-rec y NO menciona el delta de selección, así que la matemática queda opaca para ese edge case raro. Probabilidad baja en demo de stakeholder; si se materializa, el supervisor mira la fila roja en la tabla.
+- **Dos `AlertTriangle` icons en `DeleteCategoryDialog`** (Modal.Header + warning box del body): mantener ambos. Scopes legítimamente distintos (modal-wide vs context-specific use). El review confirmó que NO es redundancia confusa porque el body warning tiene contexto adicional ("esta categoría se usa en X reglas").
+- **Modales legacy SC shell migration NO incluyó cleanup de hex literales en componentes hijos** (`EntityTypeSelect`, `Collapsible`, etc.). Esos siguen con sus propios estilos. Foco mantenido: shell del modal y CTAs.
+
+**SKIPPED en esta sesión** (razonado, no olvidados):
+- **Modo oscuro toggle UI + variantes dark de tokens sc-*** (P3) — decisión grande sin trigger claro de cuándo activarlo. Esperar a que el equipo lo pida con caso de uso.
+- **`tsconfig.json` + typecheck script** (P2) — riesgo de surface errores latentes que derailen la sesión. Mejor sesión dedicada.
+- **`tailwind-merge` config para `text-sc-display` collapsing** (P2) — risky, ripples a través del repo. Migration coordinada, no parche puntual.
+- **Dividir `ConversationTable.tsx`** en subcomponentes (P2) — hygiene interno sin impacto stakeholder. ROI bajo.
+- **`<Sparkles>` tab icon discusión** (P3), **side-panel vs modal pattern** (P3), **bubble alignment iMessage** (P3) — todas decisiones que requieren input del usuario / validación con usuarios reales.
+- **Audio real, paginación real, export/import real, backend/persistencia** — backend-dependent, off the table per usuario.
+- **Code-splitting bundle** (P3) — irrelevante en demo local, no tiene caso de uso.
+- **Decisión destino del prototipo (rol 1/2/3)** — decisión, no código.
+- **Hex literales en archivos secundarios** (~250 restantes en rule builders, panels Edit/Create, etc.) — fuera del flujo principal, no críticos.
+
+**Pendiente**: ocho items eliminados de sec 17 (Roboto @import, prefers-reduced-motion, resolveStatus type, MockSampleSwitcher purga note, modales legacy SC shell, useEffect→useMemo, per-tramo state player, GDPR sample task que no estaba en sec 17 pero estaba parqueado en sec 15). Sec 17 reducido a 14 items (era 22+).
+
+**Notas para próxima sesión**:
+- Cinco commits en esta sesión: `a7a2913` (CSS quick wins), `a8e4edd` (types + docs), `720df88` (modales legacy), `6d9066e` (useMemo + per-tramo cue), `c49dc32` (GDPR custody) + canon update.
+- El tema GDPR ahora tiene sample funcional. Si en demo a stakeholder lo abren, se ve el caso completo. Si se quiere implementar el "archivo automático" o "tooltip explicativo en hover de fila deleted", entra en una próxima sesión — lo de hoy es la base mínima para comunicar la idea.
+- Sec 17 ya casi vacío de items P1/P2 ejecutables sin decisión. Lo que queda son discusiones/decisiones (Sparkles, side-panel, bubble alignment, modo oscuro) o backend. La próxima sesión probablemente NO sea técnica sino de producto.
