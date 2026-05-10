@@ -28,6 +28,7 @@ import { ClassificationRuleBuilder } from './rules/ClassificationRuleBuilder';
 interface RulesRepositoryProps {
   onNavigateBack: () => void;
   onNavigateToCategories: () => void;
+  onNavigateToEntities: () => void;
   navigationParams?: {
     openRuleId?: number;
     highlightSection?: string;
@@ -164,7 +165,7 @@ function StatusBadge({ rule, conflicts }: { rule: Rule; conflicts?: { conflictWi
 
 // --- Main Component ---
 
-export function RulesRepository({ onNavigateBack, onNavigateToCategories, navigationParams, onClearNavigationParams }: RulesRepositoryProps) {
+export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavigateToEntities, navigationParams, onClearNavigationParams }: RulesRepositoryProps) {
   const { rules, addRule, updateRule, deleteRule, duplicateRule, toggleRule, reorderRules } = useRules();
   const [view, setView] = useState<'list' | 'create_recording' | 'create_transcription' | 'create_classification' | 'edit'>('list');
   const [editingRuleId, setEditingRuleId] = useState<number | null>(null);
@@ -339,7 +340,7 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, naviga
         <ClassificationRuleBuilder
           {...commonProps}
           onNavigateToCategories={onNavigateToCategories}
-          onNavigateToEntities={() => toast.info("Navegar a entidades (TBI)")}
+          onNavigateToEntities={onNavigateToEntities}
         />
       );
     }

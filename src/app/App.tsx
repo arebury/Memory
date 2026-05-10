@@ -62,12 +62,13 @@ export default function App() {
 
         {currentView === 'repository-rules' && (
           <div className="flex-1 flex flex-col overflow-hidden">
-            <RulesRepository 
+            <RulesRepository
               onNavigateBack={() => {
                 setCurrentView('repository');
                 setNavigationParams({});
               }}
               onNavigateToCategories={() => setCurrentView('repository-categories')}
+              onNavigateToEntities={() => setCurrentView('repository-entities')}
               navigationParams={navigationParams}
               onClearNavigationParams={() => setNavigationParams({})}
             />
