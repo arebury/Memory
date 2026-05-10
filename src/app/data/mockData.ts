@@ -111,12 +111,18 @@ export interface TranscriptionLine {
  * end up split into N recordings (transfer to group A → back to IVR →
  * transfer to group B, each leg its own recording). When `recordings`
  * is undefined or has length 1, treat the conversation as single-audio.
+ *
+ * `hasTranscription` lives at the leg level in multi-rec calls because
+ * Whisper-style engines transcribe per audio file, not per conversation.
+ * Conversation.hasTranscription is the AGGREGATE — true only when every
+ * leg is transcribed. Computed in normalizeChats() / normalizeRecordings().
  */
 export interface Recording {
   id: string;
   duration: string; // mm:ss like "02:14"
   startTime: string; // hh:mm like "12:50"
   label?: string; // e.g. "Soporte Taller", "IVR retorno"
+  hasTranscription?: boolean;
 }
 
 export interface Conversation {

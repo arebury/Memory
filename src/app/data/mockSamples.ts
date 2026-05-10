@@ -31,13 +31,17 @@ const clone = (c: Conversation): Conversation => ({ ...c, aiCategories: c.aiCate
 
 const cloneAll = () => mockConversations.map(clone);
 
-/* Two-step normaliser run by every preset:
+/* Three-step normaliser run by every preset:
      1. Chats always have transcription (their "audio" IS the text).
-     2. There can never be analysis without transcription — the
-        analysis is derived from the transcription, so a row with
-        `hasAnalysis: true` but `hasTranscription: false` is
-        contradictory. We drop the analysis flag in that case (a
-        future update can re-enable it once a transcription lands). */
+     2. Multi-rec calls: per-leg `hasTranscription` is the source of truth.
+        The conversation-level `hasTranscription` is computed as "all legs
+        are transcribed". If recordings[] doesn't carry the flag, we seed
+        each leg from the conversation-level value — backwards-compat for
+        the existing presets that only set the rolled-up flag.
+     3. There can never be analysis without transcription — the analysis
+        is derived from the transcription, so a row with `hasAnalysis: true`
+        but `hasTranscription: false` is contradictory. We drop the
+        analysis flag in that case. */
 const normalizeChats = (list: Conversation[]): Conversation[] =>
   list.map((c) => {
     let next = c;
@@ -47,6 +51,15 @@ const normalizeChats = (list: Conversation[]): Conversation[] =>
           ? next.transcription
           : generateTranscriptionFor(next);
       next = { ...next, hasTranscription: true, transcription };
+    }
+    if (next.recordings && next.recordings.length > 1) {
+      const seeded = next.recordings.map((r) =>
+        r.hasTranscription === undefined
+          ? { ...r, hasTranscription: !!next.hasTranscription }
+          : r,
+      );
+      const allTranscribed = seeded.every((r) => r.hasTranscription === true);
+      next = { ...next, recordings: seeded, hasTranscription: allTranscribed };
     }
     if (next.hasAnalysis && !next.hasTranscription) {
       next = { ...next, hasAnalysis: false, aiCategories: undefined };
