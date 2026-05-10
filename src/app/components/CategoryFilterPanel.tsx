@@ -57,22 +57,22 @@ export function CategoryFilterPanel({
   return (
     <div
       ref={panelRef}
-      className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-[#CFD3DE] rounded-lg shadow-lg z-50 animate-in fade-in-0 slide-in-from-top-2"
+      className="absolute top-full left-0 mt-2 w-[320px] bg-white border border-sc-border rounded-lg shadow-sc-popover z-50 animate-in fade-in-0 slide-in-from-top-2"
     >
       <div className="p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            <h3 className="text-[#233155] font-medium text-sm">Categorías IA</h3>
+            <h3 className="text-sc-primary font-medium text-sm">Categorías IA</h3>
             {selectedCategories.length > 0 && (
-              <span className="px-1.5 py-0.5 bg-[#60D3E4] text-white text-xs rounded">
+              <span className="px-1.5 py-0.5 bg-sc-accent text-white text-xs rounded">
                 {selectedCategories.length}
               </span>
             )}
           </div>
           <button
             onClick={onClose}
-            className="text-[#8D939D] hover:text-[#233155] transition-colors"
+            className="text-sc-muted hover:text-sc-primary transition-colors"
           >
             <X size={16} />
           </button>
@@ -85,26 +85,26 @@ export function CategoryFilterPanel({
               key={category}
               className={`flex items-center gap-2.5 p-2 rounded cursor-pointer transition-colors ${
                 selectedCategories.includes(category)
-                  ? "bg-[#EEFBFD]"
-                  : "hover:bg-[#F4F6FC]"
+                  ? "bg-sc-accent-soft"
+                  : "hover:bg-sc-canvas"
               }`}
               onClick={() => handleToggle(category)}
             >
               <Checkbox
                 checked={selectedCategories.includes(category)}
                 onCheckedChange={() => handleToggle(category)}
-                className="border-[#D8F4F8] data-[state=checked]:bg-[#60D3E4] data-[state=checked]:border-[#60D3E4] h-4 w-4"
+                className="border-[#D8F4F8] data-[state=checked]:bg-sc-accent data-[state=checked]:border-sc-accent h-4 w-4"
               />
-              <span className="text-[#233155] text-sm select-none">{category}</span>
+              <span className="text-sc-primary text-sm select-none">{category}</span>
             </div>
           ))}
         </div>
 
         {/* Footer actions */}
-        <div className="flex gap-2 pt-3 border-t border-[#CFD3DE]">
+        <div className="flex gap-2 pt-3 border-t border-sc-border">
           <button
             onClick={handleSelectAll}
-            className="flex-1 px-3 py-1.5 text-sm text-[#5F6776] hover:bg-[#F4F6FC] rounded transition-colors"
+            className="flex-1 px-3 py-1.5 text-sm text-sc-body hover:bg-sc-canvas rounded transition-colors"
           >
             {selectedCategories.length === availableCategories.length
               ? "Deseleccionar todo"

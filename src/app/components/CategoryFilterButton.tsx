@@ -7,9 +7,9 @@ interface CategoryFilterButtonProps {
   categoryCount: number;
 }
 
-export function CategoryFilterButton({ 
-  isActive, 
-  hasActiveFilters, 
+export function CategoryFilterButton({
+  isActive,
+  hasActiveFilters,
   onClick,
   categoryCount
 }: CategoryFilterButtonProps) {
@@ -18,20 +18,20 @@ export function CategoryFilterButton({
       onClick={onClick}
       className={`h-9 px-3 rounded border transition-all flex items-center gap-2 text-sm font-medium ${
         hasActiveFilters
-          ? "bg-[#EEFBFD] border-[#60D3E4] text-[#387983]"
+          ? "bg-sc-accent-soft border-sc-accent text-sc-accent-strong"
           : isActive
-          ? "bg-[#F4F6FC] border-[#D2D6E0] text-[#233155]"
-          : "bg-white border-[#D2D6E0] text-[#233155] hover:bg-[#F4F6FC]"
+          ? "bg-sc-canvas border-sc-border text-sc-primary"
+          : "bg-white border-sc-border text-sc-primary hover:bg-sc-canvas"
       }`}
     >
-      <Tag size={15} className={hasActiveFilters ? "text-[#60D3E4]" : "text-[#233155]"} />
+      <Tag size={15} className={hasActiveFilters ? "text-sc-accent" : "text-sc-primary"} />
       <span>Categorías IA</span>
       {categoryCount > 0 && (
         <span
           className={`px-1.5 py-0.5 text-xs rounded ${
             hasActiveFilters
-              ? "bg-[#60D3E4] text-white"
-              : "bg-[#E5E7EB] text-[#5F6776]"
+              ? "bg-sc-accent text-white"
+              : "bg-sc-border text-sc-body"
           }`}
         >
           {categoryCount}

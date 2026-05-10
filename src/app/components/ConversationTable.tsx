@@ -137,12 +137,12 @@ export function ConversationTable({
     <>
       <div className="flex-1 overflow-auto bg-white relative">
         <table className="w-full caption-bottom text-sm">
-          <TableHeader className="bg-[#F4F6FC] sticky top-0 z-20 shadow-sm">
-            <TableRow className="bg-[#F4F6FC] border-b border-[#CFD3DE] hover:bg-[#F4F6FC]">
+          <TableHeader className="bg-sc-canvas sticky top-0 z-20 shadow-sm">
+            <TableRow className="bg-sc-canvas border-b border-sc-border hover:bg-sc-canvas">
               <TableHead className="w-[50px] h-11">
                 <Checkbox 
                   checked={allSelected}
-                  className={`border-[#A3A8B0] ${someSelected ? 'data-[state=checked]:bg-[#60D3E4]' : ''}`}
+                  className={`border-sc-muted ${someSelected ? 'data-[state=checked]:bg-sc-accent' : ''}`}
                   onCheckedChange={toggleAll}
                 />
               </TableHead>
@@ -150,7 +150,7 @@ export function ConversationTable({
                  <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium cursor-help">Estado</span>
+                      <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium cursor-help">Estado</span>
                     </TooltipTrigger>
                     <TooltipContent>
                       <p>Estado de procesamiento</p>
@@ -159,38 +159,38 @@ export function ConversationTable({
                 </TooltipProvider>
               </TableHead>
               <TableHead className="w-[100px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">Hora</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">Hora</span>
               </TableHead>
               <TableHead className="w-[120px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">Fecha</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">Fecha</span>
               </TableHead>
               <TableHead className="w-[200px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">Servicio</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">Servicio</span>
               </TableHead>
               <TableHead className="w-[180px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">Origen</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">Origen</span>
               </TableHead>
               <TableHead className="w-[200px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">Grupo</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">Grupo</span>
               </TableHead>
               <TableHead className="w-[160px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">Destino</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">Destino</span>
               </TableHead>
               <TableHead className="w-[110px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">T. Conv.</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">T. Conv.</span>
               </TableHead>
               <TableHead className="w-[110px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">T. Espera</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">T. Espera</span>
               </TableHead>
               <TableHead className="w-[140px] h-11">
-                <span className="text-[13px] uppercase tracking-wide text-[#A3A8B0] font-medium">ID</span>
+                <span className="text-[13px] uppercase tracking-wide text-sc-muted font-medium">ID</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           
           {/* Sticky Filter Row */}
           {showColumnFilters && (
-            <thead className="sticky top-[44px] z-10 bg-white border-b border-[#CFD3DE] filter-row-enter">
+            <thead className="sticky top-[44px] z-10 bg-white border-b border-sc-border filter-row-enter">
               <tr className="bg-white">
                 <th className="w-[50px] h-11 px-3"></th>
                 <th className="w-[80px] h-11 px-2">
@@ -221,11 +221,11 @@ export function ConversationTable({
                       placeholder="Search"
                       value={columnFilters.service}
                       onChange={(e) => onColumnFiltersChange({ ...columnFilters, service: e.target.value })}
-                      className={`h-8 text-xs border-[#CFD3DE] pr-7 placeholder:text-[#A3A8B0] ${
-                        columnFilters.service ? 'bg-[#EEFBFD] border-[#60D3E4] text-[#387983]' : 'bg-white hover:bg-[#F4F6FC] hover:border-[#A3A8B0]'
+                      className={`h-8 text-xs border-sc-border pr-7 placeholder:text-sc-muted ${
+                        columnFilters.service ? 'bg-sc-accent-soft border-sc-accent text-sc-accent-strong' : 'bg-white hover:bg-sc-canvas hover:border-sc-muted'
                       }`}
                     />
-                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A3A8B0] pointer-events-none" />
+                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-sc-muted pointer-events-none" />
                   </div>
                 </th>
                 <th className="w-[180px] h-11 px-2">
@@ -234,11 +234,11 @@ export function ConversationTable({
                       placeholder="Search"
                       value={columnFilters.origin}
                       onChange={(e) => onColumnFiltersChange({ ...columnFilters, origin: e.target.value })}
-                      className={`h-8 text-xs border-[#CFD3DE] pr-7 placeholder:text-[#A3A8B0] ${
-                        columnFilters.origin ? 'bg-[#EEFBFD] border-[#60D3E4] text-[#387983]' : 'bg-white hover:bg-[#F4F6FC] hover:border-[#A3A8B0]'
+                      className={`h-8 text-xs border-sc-border pr-7 placeholder:text-sc-muted ${
+                        columnFilters.origin ? 'bg-sc-accent-soft border-sc-accent text-sc-accent-strong' : 'bg-white hover:bg-sc-canvas hover:border-sc-muted'
                       }`}
                     />
-                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A3A8B0] pointer-events-none" />
+                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-sc-muted pointer-events-none" />
                   </div>
                 </th>
                 <th className="w-[200px] h-11 px-2">
@@ -247,11 +247,11 @@ export function ConversationTable({
                       placeholder="Search"
                       value={columnFilters.group}
                       onChange={(e) => onColumnFiltersChange({ ...columnFilters, group: e.target.value })}
-                      className={`h-8 text-xs border-[#CFD3DE] pr-7 placeholder:text-[#A3A8B0] ${
-                        columnFilters.group ? 'bg-[#EEFBFD] border-[#60D3E4] text-[#387983]' : 'bg-white hover:bg-[#F4F6FC] hover:border-[#A3A8B0]'
+                      className={`h-8 text-xs border-sc-border pr-7 placeholder:text-sc-muted ${
+                        columnFilters.group ? 'bg-sc-accent-soft border-sc-accent text-sc-accent-strong' : 'bg-white hover:bg-sc-canvas hover:border-sc-muted'
                       }`}
                     />
-                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A3A8B0] pointer-events-none" />
+                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-sc-muted pointer-events-none" />
                   </div>
                 </th>
                 <th className="w-[160px] h-11 px-2">
@@ -260,11 +260,11 @@ export function ConversationTable({
                       placeholder="Search"
                       value={columnFilters.destination}
                       onChange={(e) => onColumnFiltersChange({ ...columnFilters, destination: e.target.value })}
-                      className={`h-8 text-xs border-[#CFD3DE] pr-7 placeholder:text-[#A3A8B0] ${
-                        columnFilters.destination ? 'bg-[#EEFBFD] border-[#60D3E4] text-[#387983]' : 'bg-white hover:bg-[#F4F6FC] hover:border-[#A3A8B0]'
+                      className={`h-8 text-xs border-sc-border pr-7 placeholder:text-sc-muted ${
+                        columnFilters.destination ? 'bg-sc-accent-soft border-sc-accent text-sc-accent-strong' : 'bg-white hover:bg-sc-canvas hover:border-sc-muted'
                       }`}
                     />
-                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A3A8B0] pointer-events-none" />
+                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-sc-muted pointer-events-none" />
                   </div>
                 </th>
                 <th className="w-[110px] h-11 px-2">
@@ -289,11 +289,11 @@ export function ConversationTable({
                       placeholder="Search"
                       value={columnFilters.id}
                       onChange={(e) => onColumnFiltersChange({ ...columnFilters, id: e.target.value })}
-                      className={`h-8 text-xs border-[#CFD3DE] pr-7 placeholder:text-[#A3A8B0] ${
-                        columnFilters.id ? 'bg-[#EEFBFD] border-[#60D3E4] text-[#387983]' : 'bg-white hover:bg-[#F4F6FC] hover:border-[#A3A8B0]'
+                      className={`h-8 text-xs border-sc-border pr-7 placeholder:text-sc-muted ${
+                        columnFilters.id ? 'bg-sc-accent-soft border-sc-accent text-sc-accent-strong' : 'bg-white hover:bg-sc-canvas hover:border-sc-muted'
                       }`}
                     />
-                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-[#A3A8B0] pointer-events-none" />
+                    <Search size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-sc-muted pointer-events-none" />
                   </div>
                 </th>
               </tr>
@@ -303,7 +303,7 @@ export function ConversationTable({
           <TableBody>
             {conversations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={11} className="text-center py-8 text-sm text-[#A3A8B0]">
+                <TableCell colSpan={11} className="text-center py-8 text-sm text-sc-muted">
                   No se encontraron conversaciones
                 </TableCell>
               </TableRow>
@@ -314,8 +314,8 @@ export function ConversationTable({
                 <TableRow
                   key={conv.id}
                   className={cn(
-                    "border-b border-[#CFD3DE] transition-colors h-14",
-                    locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-[#EEFBFD]/50",
+                    "border-b border-sc-border transition-colors h-14",
+                    locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-sc-accent-soft/50",
                     isRowDimmed(conv) && "opacity-50",
                     getRowBg(conv),
                   )}
@@ -330,7 +330,7 @@ export function ConversationTable({
                       onCheckedChange={() => toggleRow(conv.id)}
                       disabled={locked}
                       title={locked ? "En proceso · no se puede seleccionar" : undefined}
-                      className="border-[#A3A8B0] disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="border-sc-muted disabled:opacity-40 disabled:cursor-not-allowed"
                     />
                   </TableCell>
 
@@ -384,19 +384,19 @@ export function ConversationTable({
                     </div>
                   </TableCell>
 
-                  <TableCell className="w-[100px] text-sm text-[#5F6776] py-3 font-light">{conv.hour}</TableCell>
-                  <TableCell className="w-[120px] text-sm text-[#5F6776] py-3 font-light">{conv.date}</TableCell>
-                  <TableCell className="w-[200px] text-sm text-[#5F6776] py-3">
+                  <TableCell className="w-[100px] text-sm text-sc-body py-3 font-light">{conv.hour}</TableCell>
+                  <TableCell className="w-[120px] text-sm text-sc-body py-3 font-light">{conv.date}</TableCell>
+                  <TableCell className="w-[200px] text-sm text-sc-body py-3">
                     <div className="flex items-center gap-1.5">
                       {conv.service}
                     </div>
                   </TableCell>
-                  <TableCell className="w-[180px] text-sm text-[#5F6776] py-3">{conv.origin}</TableCell>
-                  <TableCell className="w-[200px] text-sm text-[#5F6776] py-3">{conv.group}</TableCell>
-                  <TableCell className="w-[160px] text-sm text-[#5F6776] py-3">{conv.destination}</TableCell>
-                  <TableCell className="w-[110px] text-sm text-[#5F6776] py-3">{conv.duration}</TableCell>
-                  <TableCell className="w-[110px] text-sm text-[#5F6776] py-3">{conv.waiting}</TableCell>
-                  <TableCell className="w-[140px] text-xs text-[#5F6776] py-3 font-light font-mono">{conv.id}</TableCell>
+                  <TableCell className="w-[180px] text-sm text-sc-body py-3">{conv.origin}</TableCell>
+                  <TableCell className="w-[200px] text-sm text-sc-body py-3">{conv.group}</TableCell>
+                  <TableCell className="w-[160px] text-sm text-sc-body py-3">{conv.destination}</TableCell>
+                  <TableCell className="w-[110px] text-sm text-sc-body py-3">{conv.duration}</TableCell>
+                  <TableCell className="w-[110px] text-sm text-sc-body py-3">{conv.waiting}</TableCell>
+                  <TableCell className="w-[140px] text-xs text-sc-body py-3 font-light font-mono">{conv.id}</TableCell>
                 </TableRow>
               );
               })

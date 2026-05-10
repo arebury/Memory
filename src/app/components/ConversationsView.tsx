@@ -242,6 +242,12 @@ export function ConversationsView({
         if (!groupMatch) return false;
       }
       if (filters.agents.length > 0) {
+        // En los mocks `origin` ES el nombre del agente para llamadas
+        // salientes (Oscar Fernández, María García, …), así que filtrar
+        // por origin coincide con filtrar por agente. Si en el futuro
+        // el modelo separa los conceptos (ej. campo `agent` distinto
+        // de `origin` para llamadas entrantes con DNI/teléfono cliente),
+        // este filtro deja silenciosamente de matchear las entrantes.
         const agentMatch = filters.agents.some(v => conv.origin.toLowerCase().includes(v.toLowerCase()));
         if (!agentMatch) return false;
       }
@@ -489,14 +495,14 @@ export function ConversationsView({
       <Toaster />
 
       {/* Breadcrumb header */}
-      <div className="bg-white border-b border-[#CFD3DE] px-6 py-4">
+      <div className="bg-white border-b border-sc-border px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 text-sm">
-            <Home size={15} className="text-[#8D939D]" />
-            <ChevronRight size={14} className="text-[#CFD3DE]" />
-            <span className="text-[#8D939D]">Monitor</span>
-            <ChevronRight size={14} className="text-[#CFD3DE]" />
-            <span className="text-[#233155] font-medium">Conversaciones</span>
+            <Home size={15} className="text-sc-muted" />
+            <ChevronRight size={14} className="text-sc-border" />
+            <span className="text-sc-muted">Monitor</span>
+            <ChevronRight size={14} className="text-sc-border" />
+            <span className="text-sc-primary font-medium">Conversaciones</span>
           </div>
           
           <div className="flex items-center gap-3">
@@ -519,17 +525,17 @@ export function ConversationsView({
       {/* Content area */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Toolbar row */}
-        <div className="bg-white px-6 py-3.5 border-b border-[#CFD3DE] flex items-center justify-between">
+        <div className="bg-white px-6 py-3.5 border-b border-sc-border flex items-center justify-between">
           <div className="flex items-center gap-3">
             
             {/* Column filter toggle */}
             <Button 
               onClick={() => setShowColumnFilters(!showColumnFilters)}
               variant="outline"
-              className={`h-9 px-4 gap-2 text-sm font-medium border-[#D2D6E0] hover:bg-[#F4F6FC] ${showColumnFilters ? 'bg-[#F4F6FC]' : ''}`}
+              className={`h-9 px-4 gap-2 text-sm font-medium border-sc-border hover:bg-sc-canvas ${showColumnFilters ? 'bg-sc-canvas' : ''}`}
             >
-              <Columns3 size={15} className="text-[#233155]" />
-              <span className="text-[#233155]">Filtros</span>
+              <Columns3 size={15} className="text-sc-primary" />
+              <span className="text-sc-primary">Filtros</span>
             </Button>
             
             {/* Type + Rules filter */}
@@ -581,7 +587,7 @@ export function ConversationsView({
               )}
             </div>
 
-            <div className="h-6 w-px bg-[#E5E7EB]" />
+            <div className="h-6 w-px bg-sc-border" />
 
             {/* Bulk transcribe trigger — AlignLeft icon mirrors the
                 BulkTranscriptionModal header so the user maps trigger →
@@ -597,13 +603,13 @@ export function ConversationsView({
                     aria-label={hasSelection ? `Transcribir selección (${selectedIds.length})` : "Transcribir selección"}
                     className={`h-9 w-9 relative transition-all ${
                       !hasSelection
-                        ? 'text-[#9CA3AF] cursor-not-allowed hover:bg-transparent'
-                        : 'text-[#60D3E4] hover:text-[#4FC3D3] hover:bg-[#EEFBFD]'
+                        ? 'text-sc-muted cursor-not-allowed hover:bg-transparent'
+                        : 'text-sc-accent hover:text-sc-accent-strong hover:bg-sc-accent-soft'
                     }`}
                   >
                     <AlignLeft size={18} strokeWidth={1.75} />
                     {hasSelection && (
-                      <span className="absolute -top-1 -right-1 bg-[#233155] text-white text-[9px] rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none font-medium tabular-nums">
+                      <span className="absolute -top-1 -right-1 bg-sc-primary text-white text-[9px] rounded-full min-w-[16px] h-4 px-0.5 flex items-center justify-center leading-none font-medium tabular-nums">
                         {selectedIds.length > 99 ? "99+" : selectedIds.length}
                       </span>
                     )}
@@ -626,8 +632,8 @@ export function ConversationsView({
                     size="icon"
                     className={`h-9 w-9 transition-all ${
                       !hasSelection
-                        ? 'text-[#9CA3AF] cursor-not-allowed hover:bg-transparent'
-                        : 'text-[#60D3E4] hover:text-[#4FC3D3] hover:bg-[#EEFBFD]'
+                        ? 'text-sc-muted cursor-not-allowed hover:bg-transparent'
+                        : 'text-sc-accent hover:text-sc-accent-strong hover:bg-sc-accent-soft'
                     }`}
                   >
                     <Download size={18} />
@@ -648,7 +654,7 @@ export function ConversationsView({
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-9 w-9 text-[#8D939D] transition-all hover:bg-[#F4F6FC] hover:text-[#233155]"
+                    className="h-9 w-9 text-sc-muted transition-all hover:bg-sc-canvas hover:text-sc-primary"
                     aria-label="Validar UX en Figma · abre en nueva pestaña"
                     onClick={() =>
                       window.open(
@@ -682,8 +688,8 @@ export function ConversationsView({
                 <span>Limpiar filtro</span>
               </button>
             )}
-            <div className="text-sm text-[#8D939D]">
-              Resultados: <span className="text-[#233155] font-medium tabular-nums">{filteredConversations.length}</span> | Última Búsqueda: <span className="text-[#233155] font-light tabular-nums">{lastSearchTime}</span>
+            <div className="text-sm text-sc-muted">
+              Resultados: <span className="text-sc-primary font-medium tabular-nums">{filteredConversations.length}</span> | Última Búsqueda: <span className="text-sc-primary font-light tabular-nums">{lastSearchTime}</span>
             </div>
           </div>
         </div>

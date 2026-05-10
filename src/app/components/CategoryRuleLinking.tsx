@@ -113,26 +113,26 @@ export function CategoryRuleLinking({
     return (
       <>
         <div className="space-y-4">
-          <div className="h-px bg-[#E5E7EB]" />
+          <div className="h-px bg-sc-border" />
           
           <div>
-            <h3 className="text-xs font-medium text-[#8D939D] tracking-wide mb-3">VINCULACIÓN CON REGLAS</h3>
+            <h3 className="text-xs font-medium text-sc-muted tracking-wide mb-3">VINCULACIÓN CON REGLAS</h3>
             
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
                 <div className="space-y-2">
-                  <p className="text-sm font-medium text-[#233155]">
+                  <p className="text-sm font-medium text-sc-primary">
                     Esta categoría no está activa
                   </p>
-                  <p className="text-sm text-[#8D939D]">
+                  <p className="text-sm text-sc-muted">
                     Para que la IA detecte <strong>{category.name}</strong> en tus llamadas, necesitas vincularla a una regla de grabación.
                   </p>
-                  <p className="text-sm text-[#8D939D]">
+                  <p className="text-sm text-sc-muted">
                     Aún no tienes reglas creadas.
                   </p>
                   <div className="bg-white/70 border border-amber-300 rounded p-2.5 mt-2">
-                    <p className="text-xs text-[#233155]">
+                    <p className="text-xs text-sc-primary">
                       💡 <strong>Tip:</strong> Cuando crees una regla y vincules esta categoría desde allí, aparecerá automáticamente reflejada aquí. La vinculación es bidireccional.
                     </p>
                   </div>
@@ -141,7 +141,7 @@ export function CategoryRuleLinking({
               
               <Button
                 onClick={handleNavigateToCreateRule}
-                className="w-full bg-[#60D3E4] hover:bg-[#4FC3D3] text-white"
+                className="w-full bg-sc-accent hover:bg-sc-accent-strong text-white"
               >
                 + Crear mi primera regla
               </Button>
@@ -164,19 +164,19 @@ export function CategoryRuleLinking({
     return (
       <>
         <div className="space-y-4">
-          <div className="h-px bg-[#E5E7EB]" />
+          <div className="h-px bg-sc-border" />
           
           <div>
-            <h3 className="text-xs font-medium text-[#8D939D] tracking-wide mb-3">VINCULACIÓN CON REGLAS</h3>
+            <h3 className="text-xs font-medium text-sc-muted tracking-wide mb-3">VINCULACIÓN CON REGLAS</h3>
             
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
               <div className="flex items-start gap-2">
                 <AlertTriangle size={20} className="text-amber-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-[#233155] mb-1">
+                  <p className="text-sm font-medium text-sc-primary mb-1">
                     Esta categoría no está activa
                   </p>
-                  <p className="text-sm text-[#8D939D]">
+                  <p className="text-sm text-sc-muted">
                     Para que la IA detecte <strong>{category.name}</strong> en tus llamadas, necesitas añadirla a una regla de grabación.
                   </p>
                 </div>
@@ -187,14 +187,14 @@ export function CategoryRuleLinking({
               <Button
                 onClick={() => setShowAddToRule(true)}
                 variant="outline"
-                className="w-full border-[#60D3E4] text-[#60D3E4] hover:bg-[#60D3E4] hover:text-white"
+                className="w-full border-sc-accent text-sc-accent hover:bg-sc-accent hover:text-white"
               >
                 + Añadir a regla existente
               </Button>
             ) : (
               <div className="space-y-3">
                 <div>
-                  <label className="text-sm text-[#233155] mb-2 block">
+                  <label className="text-sm text-sc-primary mb-2 block">
                     Añadir a regla existente:
                   </label>
                   
@@ -204,7 +204,7 @@ export function CategoryRuleLinking({
                     </SelectTrigger>
                     <SelectContent>
                       {/* Input de búsqueda dentro del dropdown */}
-                      <div className="px-2 pb-2 pt-1 border-b border-[#E5E7EB]">
+                      <div className="px-2 pb-2 pt-1 border-b border-sc-border">
                         <Input
                           value={searchQuery}
                           onChange={(e) => setSearchQuery(e.target.value)}
@@ -218,7 +218,7 @@ export function CategoryRuleLinking({
                       {/* Lista de reglas */}
                       <div className="max-h-[300px] overflow-y-auto">
                         {availableRules.length === 0 ? (
-                          <div className="p-2 text-sm text-[#8D939D] text-center">
+                          <div className="p-2 text-sm text-sc-muted text-center">
                             {searchQuery ? "No se encontraron reglas" : "No hay más reglas disponibles"}
                           </div>
                         ) : (
@@ -229,7 +229,7 @@ export function CategoryRuleLinking({
                                   <FileText size={14} />
                                   <span className="font-medium">{rule.name}</span>
                                 </div>
-                                <span className="text-xs text-[#8D939D]">
+                                <span className="text-xs text-sc-muted">
                                   Servicios: {rule.servicios.slice(0, 2).join(", ")}
                                   {rule.servicios.length > 2 && ` +${rule.servicios.length - 2}`} · {rule.categorias?.length || 0} categorías
                                 </span>
@@ -243,14 +243,14 @@ export function CategoryRuleLinking({
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px bg-[#E5E7EB]" />
-                  <span className="text-xs text-[#8D939D]">o</span>
-                  <div className="flex-1 h-px bg-[#E5E7EB]" />
+                  <div className="flex-1 h-px bg-sc-border" />
+                  <span className="text-xs text-sc-muted">o</span>
+                  <div className="flex-1 h-px bg-sc-border" />
                 </div>
 
                 <button
                   onClick={handleNavigateToCreateRule}
-                  className="text-sm text-[#60D3E4] hover:text-[#4FC3D3] transition-colors"
+                  className="text-sm text-sc-accent hover:text-sc-accent-strong transition-colors"
                 >
                   + Crear nueva regla
                 </button>
@@ -274,14 +274,14 @@ export function CategoryRuleLinking({
     return (
       <TooltipProvider>
         <div className="space-y-4">
-          <div className="h-px bg-[#E5E7EB]" />
+          <div className="h-px bg-sc-border" />
           
           <div>
             <div className="flex items-center gap-1.5 mb-3">
-              <h3 className="text-xs font-medium text-[#8D939D] tracking-wide">VINCULACIÓN CON REGLAS</h3>
+              <h3 className="text-xs font-medium text-sc-muted tracking-wide">VINCULACIÓN CON REGLAS</h3>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="text-[#8D939D] hover:text-[#233155] transition-colors">
+                  <button className="text-sc-muted hover:text-sc-primary transition-colors">
                     <Info size={14} />
                   </button>
                 </TooltipTrigger>
@@ -302,7 +302,7 @@ export function CategoryRuleLinking({
               {linkedRules.map((rule) => (
                 <div 
                   key={rule.id} 
-                  className="bg-white border border-[#E5E7EB] rounded-lg p-3 transition-all duration-200 hover:border-[#60D3E4] hover:shadow-md hover:bg-[#F9FCFD] group relative"
+                  className="bg-white border border-sc-border rounded-lg p-3 transition-all duration-200 hover:border-sc-accent hover:shadow-md hover:bg-sc-accent-soft/40 group relative"
                 >
                   <div 
                     className="flex items-center justify-between cursor-pointer"
@@ -313,10 +313,10 @@ export function CategoryRuleLinking({
                     }}
                   >
                     <div className="flex items-start gap-3 flex-1">
-                      <FileText size={16} className="text-[#8D939D] mt-1 group-hover:text-[#60D3E4] transition-colors" />
+                      <FileText size={16} className="text-sc-muted mt-1 group-hover:text-sc-accent transition-colors" />
                       <div className="flex-1">
-                        <p className="text-sm font-medium text-[#233155] group-hover:text-[#60D3E4] transition-colors">{rule.name}</p>
-                        <p className="text-xs text-[#8D939D]">
+                        <p className="text-sm font-medium text-sc-primary group-hover:text-sc-accent transition-colors">{rule.name}</p>
+                        <p className="text-xs text-sc-muted">
                           Servicios: {rule.services.slice(0, 2).join(", ")}
                           {rule.services.length > 2 && ` +${rule.services.length - 2}`}
                         </p>
@@ -327,7 +327,7 @@ export function CategoryRuleLinking({
                         e.stopPropagation();
                         handleUnlinkRule(rule.id);
                       }}
-                      className="unlink-button opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center rounded hover:bg-red-50 text-[#8D939D] hover:text-red-600"
+                      className="unlink-button opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center rounded hover:bg-red-50 text-sc-muted hover:text-red-600"
                       aria-label="Desvincular"
                     >
                       <X size={14} />
@@ -341,7 +341,7 @@ export function CategoryRuleLinking({
               onClick={() => setShowAddToRule(true)}
               variant="outline"
               size="sm"
-              className="w-full border-[#60D3E4] text-[#60D3E4] hover:bg-[#60D3E4] hover:text-white"
+              className="w-full border-sc-accent text-sc-accent hover:bg-sc-accent hover:text-white"
             >
               + Añadir a otra regla
             </Button>
@@ -354,7 +354,7 @@ export function CategoryRuleLinking({
                   </SelectTrigger>
                   <SelectContent>
                     {/* Input de búsqueda dentro del dropdown */}
-                    <div className="px-2 pb-2 pt-1 border-b border-[#E5E7EB]">
+                    <div className="px-2 pb-2 pt-1 border-b border-sc-border">
                       <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -368,7 +368,7 @@ export function CategoryRuleLinking({
                     {/* Lista de reglas */}
                     <div className="max-h-[300px] overflow-y-auto">
                       {availableRules.length === 0 ? (
-                        <div className="p-2 text-sm text-[#8D939D] text-center">
+                        <div className="p-2 text-sm text-sc-muted text-center">
                           {searchQuery ? "No se encontraron reglas" : "No hay más reglas disponibles"}
                         </div>
                       ) : (
@@ -379,7 +379,7 @@ export function CategoryRuleLinking({
                                 <FileText size={14} />
                                 <span className="font-medium">{rule.name}</span>
                               </div>
-                              <span className="text-xs text-[#8D939D]">
+                              <span className="text-xs text-sc-muted">
                                 Servicios: {rule.servicios.slice(0, 2).join(", ")}
                                 {rule.servicios.length > 2 && ` +${rule.servicios.length - 2}`} · {rule.categorias?.length || 0} categorías
                               </span>
@@ -410,14 +410,14 @@ export function CategoryRuleLinking({
     return (
       <TooltipProvider>
         <div className="space-y-4">
-          <div className="h-px bg-[#E5E7EB]" />
+          <div className="h-px bg-sc-border" />
           
           <div>
             <div className="flex items-center gap-1.5 mb-3">
-              <h3 className="text-xs font-medium text-[#8D939D] tracking-wide">VINCULACIÓN CON REGLAS</h3>
+              <h3 className="text-xs font-medium text-sc-muted tracking-wide">VINCULACIÓN CON REGLAS</h3>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button className="text-[#8D939D] hover:text-[#233155] transition-colors">
+                  <button className="text-sc-muted hover:text-sc-primary transition-colors">
                     <Info size={14} />
                   </button>
                 </TooltipTrigger>
@@ -428,7 +428,7 @@ export function CategoryRuleLinking({
             </div>
             
             <div className="mb-4">
-              <p className="text-sm text-[#8D939D] flex items-center gap-2">
+              <p className="text-sm text-sc-muted flex items-center gap-2">
                 <span>⏸️</span>
                 <span>En {linkedRules.length} {linkedRules.length === 1 ? 'regla (inactiva)' : 'reglas (inactivas)'}</span>
               </p>
@@ -438,7 +438,7 @@ export function CategoryRuleLinking({
               {linkedRules.map((rule) => (
                 <div 
                   key={rule.id} 
-                  className="bg-white border border-[#E5E7EB] rounded-lg p-3 transition-all duration-200 hover:border-[#60D3E4] hover:shadow-md hover:bg-[#F9FCFD] group relative"
+                  className="bg-white border border-sc-border rounded-lg p-3 transition-all duration-200 hover:border-sc-accent hover:shadow-md hover:bg-sc-accent-soft/40 group relative"
                 >
                   <div 
                     className="flex items-center justify-between cursor-pointer"
@@ -449,15 +449,15 @@ export function CategoryRuleLinking({
                     }}
                   >
                     <div className="flex items-start gap-3 flex-1">
-                      <FileText size={16} className="text-[#8D939D] mt-1 group-hover:text-[#60D3E4] transition-colors" />
+                      <FileText size={16} className="text-sc-muted mt-1 group-hover:text-sc-accent transition-colors" />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <p className="text-sm font-medium text-[#233155] group-hover:text-[#60D3E4] transition-colors">{rule.name}</p>
+                          <p className="text-sm font-medium text-sc-primary group-hover:text-sc-accent transition-colors">{rule.name}</p>
                           <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
                             ⏸️ Inactiva
                           </span>
                         </div>
-                        <p className="text-xs text-[#8D939D]">
+                        <p className="text-xs text-sc-muted">
                           Esta regla está desactivada
                         </p>
                       </div>
@@ -467,7 +467,7 @@ export function CategoryRuleLinking({
                         e.stopPropagation();
                         handleUnlinkRule(rule.id);
                       }}
-                      className="unlink-button opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center rounded hover:bg-red-50 text-[#8D939D] hover:text-red-600"
+                      className="unlink-button opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 flex items-center justify-center rounded hover:bg-red-50 text-sc-muted hover:text-red-600"
                       aria-label="Desvincular"
                     >
                       <X size={14} />
@@ -481,7 +481,7 @@ export function CategoryRuleLinking({
               onClick={() => setShowAddToRule(true)}
               variant="outline"
               size="sm"
-              className="w-full border-[#60D3E4] text-[#60D3E4] hover:bg-[#60D3E4] hover:text-white"
+              className="w-full border-sc-accent text-sc-accent hover:bg-sc-accent hover:text-white"
             >
               + Añadir a otra regla
             </Button>
@@ -494,7 +494,7 @@ export function CategoryRuleLinking({
                   </SelectTrigger>
                   <SelectContent>
                     {/* Input de búsqueda dentro del dropdown */}
-                    <div className="px-2 pb-2 pt-1 border-b border-[#E5E7EB]">
+                    <div className="px-2 pb-2 pt-1 border-b border-sc-border">
                       <Input
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -508,7 +508,7 @@ export function CategoryRuleLinking({
                     {/* Lista de reglas */}
                     <div className="max-h-[300px] overflow-y-auto">
                       {availableRules.length === 0 ? (
-                        <div className="p-2 text-sm text-[#8D939D] text-center">
+                        <div className="p-2 text-sm text-sc-muted text-center">
                           {searchQuery ? "No se encontraron reglas" : "No hay más reglas disponibles"}
                         </div>
                       ) : (
@@ -519,7 +519,7 @@ export function CategoryRuleLinking({
                                 <FileText size={14} />
                                 <span className="font-medium">{rule.name}</span>
                               </div>
-                              <span className="text-xs text-[#8D939D]">
+                              <span className="text-xs text-sc-muted">
                                 Servicios: {rule.servicios.slice(0, 2).join(", ")}
                                 {rule.servicios.length > 2 && ` +${rule.servicios.length - 2}`} · {rule.categorias?.length || 0} categorías
                               </span>

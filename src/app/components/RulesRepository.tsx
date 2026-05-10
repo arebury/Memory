@@ -131,15 +131,15 @@ function StatusBadge({ rule, conflicts }: { rule: Rule; conflicts?: { conflictWi
             En conflicto
           </button>
         </PopoverTrigger>
-        <PopoverContent className="w-72 p-4 bg-white border-[#CFD3DE] shadow-lg" align="start">
-          <p className="text-sm text-[#233155] mb-3">Conflictos detectados:</p>
+        <PopoverContent className="w-72 p-4 bg-white border-sc-border shadow-lg" align="start">
+          <p className="text-sm text-sc-primary mb-3">Conflictos detectados:</p>
           {conflicts.map((c, i) => (
             <div key={i} className="mb-3 last:mb-0">
-              <p className="text-sm text-[#233155]">
+              <p className="text-sm text-sc-primary">
                 Con <span className="font-medium">"{c.conflictWith.name}"</span>
               </p>
-              <p className="text-xs text-[#8D939D] mt-0.5">{c.reason}</p>
-              <p className="text-xs text-[#60D3E4] mt-1">
+              <p className="text-xs text-sc-muted mt-0.5">{c.reason}</p>
+              <p className="text-xs text-sc-accent mt-1">
                 Gana la regla con mayor prioridad (más arriba en la lista).
               </p>
             </div>
@@ -157,7 +157,7 @@ function StatusBadge({ rule, conflicts }: { rule: Rule; conflicts?: { conflictWi
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-gray-50 text-[#8D939D] border border-gray-200">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs bg-gray-50 text-sc-muted border border-gray-200">
       Inactiva
     </span>
   );
@@ -363,9 +363,9 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
         onDragEnd={isActive ? handleDragEnd : undefined}
         onDragOver={isActive ? (e) => handleDragOver(e, index) : undefined}
         className={`
-          group border-b border-[#F4F6FC] last:border-b-0 transition-all duration-200
+          group border-b border-sc-canvas last:border-b-0 transition-all duration-200
           ${isDragging ? 'opacity-50' : ''}
-          ${isDragTarget ? 'bg-[#EEFBFD]' : 'hover:bg-[#FAFBFD]'}
+          ${isDragTarget ? 'bg-sc-accent-soft' : 'hover:bg-sc-surface-muted'}
           ${isHighlighted ? 'animate-highlight-fade' : ''}
           ${rule.isDraft ? 'bg-amber-50/30' : ''}
         `}
@@ -374,11 +374,11 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
         <td className="w-12 pl-4 pr-2 py-4 text-center">
           {isActive ? (
             <div className="flex items-center gap-1">
-              <GripVertical size={14} className="text-[#CFD3DE] cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
-              <span className="text-xs text-[#8D939D] tabular-nums w-4">{index + 1}</span>
+              <GripVertical size={14} className="text-sc-border cursor-grab active:cursor-grabbing opacity-0 group-hover:opacity-100 transition-opacity" />
+              <span className="text-xs text-sc-muted tabular-nums w-4">{index + 1}</span>
             </div>
           ) : (
-            <span className="text-xs text-[#CFD3DE]">—</span>
+            <span className="text-xs text-sc-border">—</span>
           )}
         </td>
 
@@ -389,14 +389,14 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
             <div className="min-w-0">
               <button
                 onClick={() => handleEdit(rule.id)}
-                className="text-sm text-[#233155] hover:text-[#60D3E4] transition-colors text-left block"
+                className="text-sm text-sc-primary hover:text-sc-accent transition-colors text-left block"
               >
                 {rule.name}
               </button>
               {rule.description && (
-                <p className="text-xs text-[#A3A8B0] mt-1 leading-relaxed">{rule.description}</p>
+                <p className="text-xs text-sc-muted mt-1 leading-relaxed">{rule.description}</p>
               )}
-              <span className="inline-block mt-1.5 text-[10px] text-[#8D939D] bg-[#F4F6FC] px-1.5 py-0.5 rounded">
+              <span className="inline-block mt-1.5 text-[10px] text-sc-muted bg-sc-canvas px-1.5 py-0.5 rounded">
                 {getTypeLabel(type)}
               </span>
             </div>
@@ -407,7 +407,7 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
         <td className="py-4 pr-4 align-top">
           <Tooltip>
             <TooltipTrigger asChild>
-              <span className="text-xs text-[#5F6776] block max-w-[180px]">
+              <span className="text-xs text-sc-body block max-w-[180px]">
                 {getScopeText(rule)}
               </span>
             </TooltipTrigger>
@@ -424,7 +424,7 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
 
         {/* Last modified */}
         <td className="py-4 pr-4 align-top">
-          <span className="text-xs text-[#8D939D]">{getRelativeTime(rule.lastModified)}</span>
+          <span className="text-xs text-sc-muted">{getRelativeTime(rule.lastModified)}</span>
         </td>
 
         {/* Toggle + Kebab */}
@@ -445,13 +445,13 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
               <Switch
                 checked={rule.active}
                 onCheckedChange={() => toggleRule(rule.id)}
-                className="data-[state=checked]:bg-[#60D3E4]"
+                className="data-[state=checked]:bg-sc-accent"
               />
             )}
 
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-[#8D939D] hover:text-[#233155] opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-sc-muted hover:text-sc-primary opacity-0 group-hover:opacity-100 transition-opacity">
                   <MoreVertical size={14} />
                 </Button>
               </DropdownMenuTrigger>
@@ -484,14 +484,14 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
   // Shared table header
   const TableHeader = ({ showOrder = false }: { showOrder?: boolean }) => (
     <thead>
-      <tr className="border-b border-[#F4F6FC]">
-        <th className="w-12 pl-4 pr-2 py-2 text-left text-[10px] text-[#A3A8B0] uppercase tracking-wider">
+      <tr className="border-b border-sc-canvas">
+        <th className="w-12 pl-4 pr-2 py-2 text-left text-[10px] text-sc-muted uppercase tracking-wider">
           {showOrder ? '#' : ''}
         </th>
-        <th className="py-2 pr-6 text-left text-[10px] text-[#A3A8B0] uppercase tracking-wider">Regla</th>
-        <th className="py-2 pr-4 text-left text-[10px] text-[#A3A8B0] uppercase tracking-wider">Alcance</th>
-        <th className="py-2 pr-4 text-left text-[10px] text-[#A3A8B0] uppercase tracking-wider">Estado</th>
-        <th className="py-2 pr-4 text-left text-[10px] text-[#A3A8B0] uppercase tracking-wider">Modificada</th>
+        <th className="py-2 pr-6 text-left text-[10px] text-sc-muted uppercase tracking-wider">Regla</th>
+        <th className="py-2 pr-4 text-left text-[10px] text-sc-muted uppercase tracking-wider">Alcance</th>
+        <th className="py-2 pr-4 text-left text-[10px] text-sc-muted uppercase tracking-wider">Estado</th>
+        <th className="py-2 pr-4 text-left text-[10px] text-sc-muted uppercase tracking-wider">Modificada</th>
         <th className="py-2 pr-4 w-24"></th>
       </tr>
     </thead>
@@ -499,9 +499,9 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
 
   // --- List View ---
   return (
-    <div className="h-full bg-[#F4F6FC] flex flex-col">
+    <div className="h-full bg-sc-canvas flex flex-col">
       {/* Header */}
-      <div className="bg-white border-b border-[#CFD3DE] px-6 py-4 shrink-0">
+      <div className="bg-white border-b border-sc-border px-6 py-4 shrink-0">
         <Breadcrumbs
           items={[
             { label: 'Repositorio', onClick: onNavigateBack },
@@ -511,43 +511,43 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
       </div>
 
       {/* Toolbar */}
-      <div className="bg-white border-b border-[#E5E7EB] px-8 py-5 shrink-0">
+      <div className="bg-white border-b border-sc-border px-8 py-5 shrink-0">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div>
-            <h2 className="text-[#233155] mb-1">Reglas de automatización</h2>
-            <p className="text-sm text-[#8D939D]">
+            <h2 className="text-sc-primary mb-1">Reglas de automatización</h2>
+            <p className="text-sm text-sc-muted">
               Define qué llamadas grabar, transcribir y analizar. Las reglas aplican a futuro, en orden de prioridad.
             </p>
           </div>
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button className="bg-[#60D3E4] hover:bg-[#387983] text-white">
+              <Button className="bg-sc-accent hover:bg-sc-accent-strong text-white">
                 <Plus size={16} className="mr-2" />
                 Crear regla
                 <ChevronDown size={14} className="ml-2 opacity-80" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-72 p-2">
-              <DropdownMenuItem className="p-3 cursor-pointer hover:bg-[#F4F6FC] rounded-md flex items-start gap-3" onClick={() => handleCreate('recording')}>
+              <DropdownMenuItem className="p-3 cursor-pointer hover:bg-sc-canvas rounded-md flex items-start gap-3" onClick={() => handleCreate('recording')}>
                 <div className="p-2 bg-red-50 text-red-500 rounded-full shrink-0"><Circle size={8} className="fill-current" /></div>
                 <div>
-                  <div className="text-sm text-[#233155] mb-0.5">Regla de Grabación</div>
-                  <div className="text-xs text-[#8D939D]">Guarda el audio de las llamadas</div>
+                  <div className="text-sm text-sc-primary mb-0.5">Regla de Grabación</div>
+                  <div className="text-xs text-sc-muted">Guarda el audio de las llamadas</div>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem className="p-3 cursor-pointer hover:bg-[#F4F6FC] rounded-md flex items-start gap-3" onClick={() => handleCreate('transcription')}>
+              <DropdownMenuItem className="p-3 cursor-pointer hover:bg-sc-canvas rounded-md flex items-start gap-3" onClick={() => handleCreate('transcription')}>
                 <div className="p-2 bg-blue-50 text-blue-500 rounded-full shrink-0"><FileText size={14} /></div>
                 <div>
-                  <div className="text-sm text-[#233155] mb-0.5">Regla de Transcripción</div>
-                  <div className="text-xs text-[#8D939D]">Convierte el audio en texto</div>
+                  <div className="text-sm text-sc-primary mb-0.5">Regla de Transcripción</div>
+                  <div className="text-xs text-sc-muted">Convierte el audio en texto</div>
                 </div>
               </DropdownMenuItem>
-              <DropdownMenuItem className="p-3 cursor-pointer hover:bg-[#F4F6FC] rounded-md flex items-start gap-3" onClick={() => handleCreate('classification')}>
+              <DropdownMenuItem className="p-3 cursor-pointer hover:bg-sc-canvas rounded-md flex items-start gap-3" onClick={() => handleCreate('classification')}>
                 <div className="p-2 bg-purple-50 text-purple-500 rounded-full shrink-0"><Sparkles size={14} /></div>
                 <div>
-                  <div className="text-sm text-[#233155] mb-0.5">Regla de Clasificación IA</div>
-                  <div className="text-xs text-[#8D939D]">Analiza con inteligencia artificial</div>
+                  <div className="text-sm text-sc-primary mb-0.5">Regla de Clasificación IA</div>
+                  <div className="text-xs text-sc-muted">Analiza con inteligencia artificial</div>
                 </div>
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -559,30 +559,30 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
       <div className="flex-1 overflow-y-auto px-8 py-6" ref={listRef}>
         <div className="max-w-5xl mx-auto">
           {rules.length === 0 ? (
-            <div className="bg-white rounded-lg border border-[#E5E7EB] p-16 text-center">
-              <div className="w-14 h-14 bg-[#EEFBFD] rounded-xl flex items-center justify-center mx-auto mb-4">
-                <FileText size={24} className="text-[#60D3E4]" />
+            <div className="bg-white rounded-lg border border-sc-border p-16 text-center">
+              <div className="w-14 h-14 bg-sc-accent-soft rounded-xl flex items-center justify-center mx-auto mb-4">
+                <FileText size={24} className="text-sc-accent" />
               </div>
-              <h3 className="text-[#233155] mb-2">No hay reglas configuradas</h3>
-              <p className="text-sm text-[#8D939D] mb-6 max-w-md mx-auto">
+              <h3 className="text-sc-primary mb-2">No hay reglas configuradas</h3>
+              <p className="text-sm text-sc-muted mb-6 max-w-md mx-auto">
                 Las reglas definen qué conversaciones se graban, transcriben y analizan automáticamente. Crea tu primera regla para empezar.
               </p>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button className="bg-[#60D3E4] hover:bg-[#387983] text-white">
+                  <Button className="bg-sc-accent hover:bg-sc-accent-strong text-white">
                     <Plus size={16} className="mr-2" />
                     Crear primera regla
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="center" className="w-72 p-2">
-                  <DropdownMenuItem className="p-3 cursor-pointer hover:bg-[#F4F6FC] rounded-md" onClick={() => handleCreate('recording')}>
-                    <div className="text-sm text-[#233155]">Regla de Grabación</div>
+                  <DropdownMenuItem className="p-3 cursor-pointer hover:bg-sc-canvas rounded-md" onClick={() => handleCreate('recording')}>
+                    <div className="text-sm text-sc-primary">Regla de Grabación</div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="p-3 cursor-pointer hover:bg-[#F4F6FC] rounded-md" onClick={() => handleCreate('transcription')}>
-                    <div className="text-sm text-[#233155]">Regla de Transcripción</div>
+                  <DropdownMenuItem className="p-3 cursor-pointer hover:bg-sc-canvas rounded-md" onClick={() => handleCreate('transcription')}>
+                    <div className="text-sm text-sc-primary">Regla de Transcripción</div>
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="p-3 cursor-pointer hover:bg-[#F4F6FC] rounded-md" onClick={() => handleCreate('classification')}>
-                    <div className="text-sm text-[#233155]">Regla de Clasificación IA</div>
+                  <DropdownMenuItem className="p-3 cursor-pointer hover:bg-sc-canvas rounded-md" onClick={() => handleCreate('classification')}>
+                    <div className="text-sm text-sc-primary">Regla de Clasificación IA</div>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -591,21 +591,21 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
             <div className="space-y-5">
 
               {/* ─── Active Rules ─── */}
-              <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
-                <div className="px-5 py-3 bg-[#FAFBFD] border-b border-[#F4F6FC] flex items-center justify-between">
+              <div className="bg-white rounded-lg border border-sc-border overflow-hidden">
+                <div className="px-5 py-3 bg-sc-surface-muted border-b border-sc-canvas flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full" />
-                    <span className="text-sm text-[#233155]">Reglas activas</span>
-                    <span className="text-xs text-[#8D939D] bg-[#F4F6FC] px-1.5 py-0.5 rounded">{activeRules.length}</span>
+                    <span className="text-sm text-sc-primary">Reglas activas</span>
+                    <span className="text-xs text-sc-muted bg-sc-canvas px-1.5 py-0.5 rounded">{activeRules.length}</span>
                   </div>
                   {activeRules.length > 1 && (
-                    <span className="text-[11px] text-[#A3A8B0]">Arrastra para reordenar · Arriba = más prioridad</span>
+                    <span className="text-[11px] text-sc-muted">Arrastra para reordenar · Arriba = más prioridad</span>
                   )}
                 </div>
 
                 {activeRules.length === 0 ? (
                   <div className="px-5 py-8 text-center">
-                    <p className="text-sm text-[#8D939D]">Ninguna regla activa todavía.</p>
+                    <p className="text-sm text-sc-muted">Ninguna regla activa todavía.</p>
                   </div>
                 ) : (
                   <table className="w-full">
@@ -619,11 +619,11 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
 
               {/* ─── Inactive Rules ─── */}
               {inactiveRules.length > 0 && (
-                <div className="bg-white rounded-lg border border-[#E5E7EB] overflow-hidden">
-                  <div className="px-5 py-3 bg-[#FAFBFD] border-b border-[#F4F6FC] flex items-center gap-2">
-                    <span className="w-2 h-2 bg-[#CFD3DE] rounded-full" />
-                    <span className="text-sm text-[#233155]">Inactivas</span>
-                    <span className="text-xs text-[#8D939D] bg-[#F4F6FC] px-1.5 py-0.5 rounded">{inactiveRules.length}</span>
+                <div className="bg-white rounded-lg border border-sc-border overflow-hidden">
+                  <div className="px-5 py-3 bg-sc-surface-muted border-b border-sc-canvas flex items-center gap-2">
+                    <span className="w-2 h-2 bg-sc-border rounded-full" />
+                    <span className="text-sm text-sc-primary">Inactivas</span>
+                    <span className="text-xs text-sc-muted bg-sc-canvas px-1.5 py-0.5 rounded">{inactiveRules.length}</span>
                   </div>
                   <table className="w-full">
                     <TableHeader />
@@ -672,7 +672,7 @@ export function RulesRepository({ onNavigateBack, onNavigateToCategories, onNavi
 
           <div className="space-y-4 py-4">
             <div>
-              <Label className="text-sm text-[#233155] mb-2 block">
+              <Label className="text-sm text-sc-primary mb-2 block">
                 Escribe el nombre de la regla para confirmar: <span className="font-medium">{rules.find(r => r.id === ruleToDelete)?.name}</span>
               </Label>
               <Input

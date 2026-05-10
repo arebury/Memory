@@ -121,9 +121,9 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
   const filteredSystemEntities = systemEntities;
 
   return (
-    <div className="h-full bg-[#F4F6FC] flex flex-col">
+    <div className="h-full bg-sc-canvas flex flex-col">
       {/* Header con breadcrumbs */}
-      <div className="bg-white border-b border-[#CFD3DE] px-6 py-4">
+      <div className="bg-white border-b border-sc-border px-6 py-4">
         {onNavigateBack ? (
           <Breadcrumbs 
             items={[
@@ -132,23 +132,23 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
             ]}
           />
         ) : (
-          <h1 className="text-xl text-[#1C283D]">ENTIDADES IA</h1>
+          <h1 className="text-xl text-sc-primary">ENTIDADES IA</h1>
         )}
       </div>
 
       {/* Título y toolbar */}
-      <div className="bg-white border-b border-[#E5E7EB] px-12 py-4">
+      <div className="bg-white border-b border-sc-border px-12 py-4">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-[#233155] mb-1">Entidades IA</h2>
-            <p className="text-sm text-[#8D939D]">Gestiona las variables que la IA extraerá de tus conversaciones</p>
+            <h2 className="text-sc-primary mb-1">Entidades IA</h2>
+            <p className="text-sm text-sc-muted">Gestiona las variables que la IA extraerá de tus conversaciones</p>
           </div>
           <div className="flex items-center gap-3">
             <Button
               onClick={() => {
                 setIsCreateModalOpen(true);
               }}
-              className="bg-[#60D3E4] hover:bg-[#387983] text-white"
+              className="bg-sc-accent hover:bg-sc-accent-strong text-white"
             >
               <Plus size={16} className="mr-2" />
               Nueva entidad
@@ -161,12 +161,12 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
         
         {/* No results anywhere */}
         {searchQuery && filteredEntities.length === 0 && entities.length > 0 && (
-          <div className="bg-white border border-[#E5E7EB] rounded-lg p-12 flex flex-col items-center text-center">
-            <div className="w-20 h-20 bg-[#F4F6FC] rounded-full flex items-center justify-center mb-4">
-              <Search size={32} className="text-[#8D939D]" />
+          <div className="bg-white border border-sc-border rounded-lg p-12 flex flex-col items-center text-center">
+            <div className="w-20 h-20 bg-sc-canvas rounded-full flex items-center justify-center mb-4">
+              <Search size={32} className="text-sc-muted" />
             </div>
-            <h3 className="text-lg font-medium text-[#233155] mb-2">No se encontraron resultados</h3>
-            <p className="text-[#8D939D] max-w-md">
+            <h3 className="text-lg font-medium text-sc-primary mb-2">No se encontraron resultados</h3>
+            <p className="text-sc-muted max-w-md">
               No hay entidades que coincidan con tu búsqueda: "{searchQuery}"
             </p>
           </div>
@@ -175,16 +175,16 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
         {/* System Entities Section - Always visible regardless of search */}
         {filteredSystemEntities.length > 0 && (
           <section>
-            <h2 className="text-lg font-medium text-[#233155] mb-4">Entidades del sistema</h2>
+            <h2 className="text-lg font-medium text-sc-primary mb-4">Entidades del sistema</h2>
             <div className="flex flex-wrap gap-2">
               {filteredSystemEntities.map((entity) => (
                 <div 
                   key={entity.id} 
-                  className="group bg-white hover:bg-[#EEFBFD] border border-[#E5E7EB] hover:border-[#60D3E4] rounded-full px-3 py-1.5 flex items-center gap-2 cursor-pointer transition-all duration-200"
+                  className="group bg-white hover:bg-sc-accent-soft border border-sc-border hover:border-sc-accent rounded-full px-3 py-1.5 flex items-center gap-2 cursor-pointer transition-all duration-200"
                   onClick={() => handleSystemEntityClick(entity)}
                 >
-                  <Pin size={12} className="text-[#8D939D] group-hover:text-[#60D3E4] transition-colors" />
-                  <span className="text-sm font-medium text-[#233155] group-hover:text-[#387983]">{entity.name}</span>
+                  <Pin size={12} className="text-sc-muted group-hover:text-sc-accent transition-colors" />
+                  <span className="text-sm font-medium text-sc-primary group-hover:text-sc-accent-strong">{entity.name}</span>
                 </div>
               ))}
             </div>
@@ -195,9 +195,9 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
         {!(searchQuery && filteredEntities.length === 0 && entities.length > 0) && (
           <section>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-medium text-[#233155]">Entidades personalizadas</h2>
+              <h2 className="text-lg font-medium text-sc-primary">Entidades personalizadas</h2>
               <div className="relative w-64">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8D939D]" size={16} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-sc-muted" size={16} />
                 <Input
                   placeholder="Buscar entidades..."
                   value={searchQuery}
@@ -209,19 +209,19 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
             
             {entities.length === 0 ? (
               // Empty State
-              <div className="bg-white border border-[#E5E7EB] rounded-lg p-12 flex flex-col items-center text-center">
-                <div className="w-20 h-20 bg-[#EEFBFD] rounded-full flex items-center justify-center mb-4">
-                  <Info size={32} className="text-[#60D3E4]" />
+              <div className="bg-white border border-sc-border rounded-lg p-12 flex flex-col items-center text-center">
+                <div className="w-20 h-20 bg-sc-accent-soft rounded-full flex items-center justify-center mb-4">
+                  <Info size={32} className="text-sc-accent" />
                 </div>
-                <h3 className="text-lg font-medium text-[#233155] mb-2">Aún no has creado entidades personalizadas</h3>
-                <p className="text-[#8D939D] max-w-md mb-6">
+                <h3 className="text-lg font-medium text-sc-primary mb-2">Aún no has creado entidades personalizadas</h3>
+                <p className="text-sc-muted max-w-md mb-6">
                   Las entidades te permiten extraer datos específicos de tus conversaciones, como números de pedido, códigos de producto o motivos de llamada.
                 </p>
                 <Button
                   onClick={() => {
                     setIsCreateModalOpen(true);
                   }}
-                  className="bg-[#60D3E4] hover:bg-[#387983] text-white"
+                  className="bg-sc-accent hover:bg-sc-accent-strong text-white"
                 >
                   Crear mi primera entidad
                 </Button>
@@ -231,7 +231,7 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
               <></>
             ) : (
               // Table State with sticky header
-              <div className="bg-white border border-[#E5E7EB] rounded-lg overflow-hidden flex flex-col max-h-[500px]">
+              <div className="bg-white border border-sc-border rounded-lg overflow-hidden flex flex-col max-h-[500px]">
                 <div className="overflow-auto flex-1">
                   <Table>
                     <TableHeader className="sticky top-0 bg-white z-10 shadow-sm">
@@ -247,20 +247,20 @@ export function EntityManagement({ onNavigateBack }: EntityManagementProps) {
                       {filteredEntities.map((entity) => (
                         <TableRow 
                           key={entity.id}
-                          className="cursor-pointer hover:bg-[#FAFBFC] transition-colors"
+                          className="cursor-pointer hover:bg-sc-surface-muted transition-colors"
                           onClick={() => handleRowClick(entity)}
                         >
-                          <TableCell className="font-medium text-[#233155]">{entity.name}</TableCell>
-                          <TableCell className="text-[#8D939D] max-w-xs truncate">
+                          <TableCell className="font-medium text-sc-primary">{entity.name}</TableCell>
+                          <TableCell className="text-sc-muted max-w-xs truncate">
                             {entity.description || "–"}
                           </TableCell>
                           <TableCell>
-                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[#F4F6FC] text-[#233155]">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-sc-canvas text-sc-primary">
                               {TYPE_LABELS[entity.type] || entity.type}
                             </span>
                           </TableCell>
-                          <TableCell className="text-[#8D939D]">{(entity as any).format || "–"}</TableCell>
-                          <TableCell className="text-[#8D939D]">{formatDate(entity.updatedAt)}</TableCell>
+                          <TableCell className="text-sc-muted">{(entity as any).format || "–"}</TableCell>
+                          <TableCell className="text-sc-muted">{formatDate(entity.updatedAt)}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

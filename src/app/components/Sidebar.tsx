@@ -30,7 +30,7 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
   ];
 
   return (
-    <div className="w-[90px] bg-[#1C283D] flex flex-col items-center py-4 gap-1.5 border-r border-[#11131A]">
+    <div className="w-[90px] bg-sc-primary flex flex-col items-center py-4 gap-1.5 border-r border-sc-primary-hover">
       <div className="mb-4 w-12 h-12 flex items-center justify-center overflow-hidden">
         <div className="scale-[0.5] origin-center">
           <ScLogo />
@@ -46,10 +46,10 @@ export function Sidebar({ currentView, onNavigate }: SidebarProps) {
           aria-current={item.active ? 'page' : undefined}
           className={`p-2.5 rounded-lg transition-all ${
             item.active
-              ? 'bg-[#60D3E4] text-white shadow-md'
+              ? 'bg-sc-accent text-white shadow-md'
               : item.view
-                ? 'text-[#CFD3DE] hover:bg-[#2C3E50] hover:text-white cursor-pointer'
-                : 'text-[#CFD3DE] opacity-50 cursor-not-allowed'
+                ? 'text-sc-border hover:bg-sc-primary-hover hover:text-white cursor-pointer'
+                : 'text-sc-border opacity-50 cursor-not-allowed'
           }`}
         >
           <item.icon size={19} strokeWidth={1.5} />
