@@ -8,7 +8,7 @@
 
 Memory es la parte de Smart Contact que permite revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin que el supervisor tenga que escucharlas todas a mano.
 
-Este documento explica **qué datos necesita cada componente clave del producto, qué deriva a partir de esos datos, y qué reglas de negocio aplica antes de dispatchar acciones**. La parte visual y de interacción —cómo se ve, cómo se comporta, qué dice— vive en el documento hermano *Memory · Referencia de UI*.
+Este documento explica **qué datos necesita cada componente clave del producto, qué deriva a partir de esos datos, y qué reglas de negocio aplica antes de dispatchar acciones**. La parte visual y de interacción —cómo se ve, cómo se comporta, qué dice— vive en el documento hermano *Memory · Referencia de UI*. Las decisiones de producto cross-cutting (qué se confirma, qué se silencia, qué se cancela) viven en *Memory · Decisiones de diseño*.
 
 Cuatro componentes se documentan aquí, en este orden:
 
@@ -18,6 +18,33 @@ Cuatro componentes se documentan aquí, en este orden:
 | `ConversationPlayerModal` | Ver una conversación: audio (si es llamada), transcripción tipo chat, panel de análisis IA. |
 | `RecordingTimeline` | Cuando una conversación tiene varias grabaciones, elegir cuál se está oyendo. |
 | `scToast` | Notificaciones (éxito, error, en proceso) emitidas desde cualquier flujo. |
+
+Antes de entrar en componentes, hay un puñado de reglas que aplican a todo el modelo. Conviene leerlas primero porque las cuatro secciones siguientes las dan por supuestas.
+
+---
+
+## Invariantes globales del modelo
+
+Estas reglas son transversales: rigen el estado de cualquier `Conversation` y los handlers que la mutan. Viven centralizadas en `normalizeChats(list)` dentro de `mockSamples.ts`.
+
+**Invariante 1 — Los chats siempre están transcritos, excepto cuando su custodia GDPR venció.**
+Un chat es texto por definición; no requiere procesamiento. Cuando se carga una conversación con `channel === "chat"`, el sistema fuerza `hasTranscription === true` y rellena `transcription[]` si estaba vacío.
+
+Excepción GDPR: si el chat tiene `deleted: true` (la custodia del proveedor venció y el texto ya no es recuperable), el sistema respeta ese estado y NO seedea transcripción. La conversación queda visible en el listado en estado "no recuperable" pero queda fuera del bulk de transcripción/análisis silenciosamente (el filtrado lo aplica `BulkTranscriptionModal` antes de calcular contadores).
+
+En la tabla, las filas `deleted` se renderizan con opacidad reducida (~60%), checkbox deshabilitado y tooltip *"Custodia GDPR vencida · datos no recuperables"*. El supervisor las ve pero no puede operar sobre ellas: el StatusIcon no abre player, el row no es seleccionable, el bulk modal las excluye del cálculo. Comparten el mismo `isLocked` que las conversaciones "en proceso" — no hay UX nueva para este caso, se reutiliza el patrón existente.
+
+**Invariante 2 — No hay análisis sin transcripción.**
+El análisis (resumen + sentimiento) se deriva del texto. Una conversación no puede tener `hasAnalysis === true` sin `hasTranscription === true`. Si llega un dato contradictorio (`hasAnalysis: true, hasTranscription: false`), el sistema baja `hasAnalysis` a `false` y limpia las categorías IA asociadas.
+
+**Invariante 3 — Para multi-grabación, `hasTranscription` agregado solo es TRUE si todas las grabaciones lo están.**
+Las llamadas con transferencias IVR generan N grabaciones, cada una con su propio `hasTranscription` por tramo. La conversación se considera transcrita solo si las N están transcritas. La agregación se computa en `normalizeChats` a partir de `recordings[i].hasTranscription`; el campo `Conversation.hasTranscription` no se establece manualmente para multi-rec.
+
+Una conversación con tres grabaciones, dos transcritas y una pendiente, sigue siendo "pendiente" en la columna Estado y en el contador `nTrans`. Esto mantiene coherencia con el resto del producto: una conversación parcialmente transcrita es funcionalmente "pendiente", igual que el análisis sigue requiriendo el texto completo.
+
+**Comportamiento *fire-and-forget* en operaciones billable.** Las operaciones que generan coste (transcribir, analizar, exportar) se dispatchan y el componente se cierra de inmediato, sin esperar respuesta del backend. El feedback (éxito o fallo) llega vía `scToast` desde la vista que originó la acción.
+
+**Sobre la diarización (concepto retirado).** Versiones anteriores del modelo tenían un campo `Conversation.hasDiarization`. El concepto se eliminó del producto entero en una pasada de simplificación y el campo se borró del schema. Cualquier referencia a "diarización" en código o copy hoy es un bug residual.
 
 ---
 
@@ -97,13 +124,15 @@ Una conversación puede tener N grabaciones (transferencias entre grupos vía IV
 
 **La regla del producto es: el bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo concreto solo existe en el modo individual, dentro del reproductor (`RecordingTimeline`). El bulk es para volumen; el single es para precisión.
 
+**Implementación actual**: el modelo `Recording` lleva un campo `hasTranscription: boolean` por tramo. El handler `handleRequestTranscription` flipa cada tramo pendiente y deja los ya transcritos intactos (idempotente). El agregado `Conversation.hasTranscription` se computa en `normalizeChats` como "todos los tramos transcritos".
+
 Razones detrás de esta decisión:
 
 - **Una sola regla, sencilla**. El supervisor no tiene que entender heurísticas ("¿el sistema escogió por mí cuál es la importante?").
 - **Transparente sobre el coste**. El modal muestra el desglose explícito antes de confirmar (ver más abajo).
 - **Consistente con el principio del bulk**. El bulk ejecuta sobre lo seleccionado, sin lógica oculta. Si el supervisor sabe que en la conversación X solo le interesa el tramo de retención, abre esa conversación, la transcribe individualmente, y luego puede usar el bulk sobre el resto.
 
-**Comunicación al usuario antes de confirmar**: cuando hay multi-grabación en la selección, el subtítulo del modal o una caption junto al número grande lo dice explícitamente. Por ejemplo: *"14 conversaciones · 3 con varias grabaciones · 22 transcripciones totales"*. El usuario ve el coste real (en número de operaciones) antes de pulsar Procesar. Si le sorprende, puede deseleccionar las multi-grabación manualmente y tratarlas aparte.
+**Comunicación al usuario antes de confirmar**: cuando hay multi-grabación en la selección, aparece una caption bajo el hero number con la única info que el subtitle no tiene: `"Incluye N llamadas con varios tramos"`. El subtitle del modal ya cuenta cuántas conversaciones se seleccionaron y el desglose llamadas / chats; el hero ya muestra el total de audios. La caption solo se renderiza cuando AÑADE información nueva — repetir "de N seleccionadas" cuando el subtitle ya lo dice se descartó como ruido (regla establecida en 15.41 · principio "make every word earn its place" del design system + Nielsen #8). El slot del hint mantiene altura reservada para evitar layout shift cuando aparece/desaparece la caption multi-rec.
 
 **Implicación para el contador `nTrans`**: cuando hay multi-grabación en la selección, `nTrans` cuenta tramos pendientes, no conversaciones pendientes. Una conversación con 3 grabaciones sin transcribir suma 3 a `nTrans`, no 1.
 
@@ -200,20 +229,7 @@ Un modal por conversación. Se abre al hacer clic en el icono de estado de una f
 - Lanzar la transcripción si la conversación todavía no la tiene.
 - Lanzar el análisis si la transcripción está pero el análisis no.
 
-### Invariantes globales del modelo
-
-Hay dos reglas duras sobre el estado de una `Conversation` que el reproductor (y todo el resto del producto) asume siempre:
-
-**Invariante 1 — Los chats siempre están transcritos.**
-Un chat es texto por definición; la transcripción no requiere procesamiento. Cuando se carga cualquier conversación con `channel === "chat"`, el sistema fuerza `hasTranscription === true` y rellena `transcription[]` si estaba vacío.
-
-**Invariante 2 — No hay análisis sin transcripción.**
-El análisis (resumen + sentimiento) se deriva del texto. Una conversación no puede tener `hasAnalysis === true` si no tiene `hasTranscription === true`. Si por alguna razón el dato llega contradictorio (`hasAnalysis: true, hasTranscription: false`), el sistema baja `hasAnalysis` a `false` y limpia las categorías IA asociadas.
-
-**Invariante 3 — Para multi-grabación, `hasTranscription` agregado solo es TRUE si todas las grabaciones lo están.**
-Como se detalla en la regla de bulk multi-rec (sección 1), una conversación con N grabaciones se considera transcrita solo si las N están transcritas. Esta agregación se computa en el loader; el campo `Conversation.hasTranscription` no se establece manualmente.
-
-Estas tres reglas viven centralizadas en `normalizeChats(list)` dentro de `mockSamples.ts`. Cualquier código que mute una `Conversation` debe pasar por esas reglas o respetarlas en su propio camino. El handler `handleRequestAnalysis` en la vista de conversaciones añade además un filtro defensivo: ignora targets sin transcripción antes de actuar.
+Las invariantes globales del modelo (chats siempre transcritos salvo GDPR, no análisis sin transcripción, agregación multi-rec) viven en la sección "Invariantes globales del modelo" al inicio de este documento. El reproductor las asume siempre; el handler `handleRequestAnalysis` añade además un filtro defensivo: ignora targets sin transcripción antes de actuar.
 
 ### Estado de la pestaña Transcripción
 
@@ -281,6 +297,8 @@ Esta regla evita el patrón "¿estás seguro?" antes de cada acción billable, q
 
 Si la conversación tiene más de una grabación (es decir, `recordings.length > 1`), aparece un componente adicional sobre la barra de audio: el `RecordingTimeline`. Permite al supervisor elegir qué tramo está oyendo. Su lógica se documenta en la sección siguiente.
 
+Cada tramo lleva su propio estado de transcripción (`Recording.hasTranscription`). En el strip de tramos del player, los que ya están transcritos llevan un check pequeño junto a la duración; los pendientes no muestran nada (asimetría presente vs ausente, en lugar de verde vs gris — evita añadir un eje cromático nuevo). El supervisor lee el progreso del lote sin tener que abrir cada tramo individualmente.
+
 ---
 
 ## 3. RecordingTimeline
@@ -326,6 +344,12 @@ El componente expone un patrón estándar de radiogroup ARIA:
 El estado `selectedRecordingId` lo controla el padre (`ConversationPlayerModal`). El componente no decide qué tramo está seleccionado; solo notifica al padre cuando el usuario quiere cambiar via `onSelect(id)`.
 
 Al cambiar de tramo, el padre hace dos cosas: actualizar `selectedRecordingId` y resetear el transporte del audio (`isPlaying: false`, `currentTime: 0`). La barra de audio toma su duración del tramo seleccionado, no de la duración agregada de la conversación.
+
+### Estado de transcripción por tramo
+
+Cada tramo lleva `Recording.hasTranscription` independiente. En la fila de labels del strip, los tramos ya transcritos muestran un check pequeño junto a la duración; los pendientes no muestran nada. La elección "presente vs ausente" (en lugar de "verde vs gris") evita añadir un eje cromático nuevo y mantiene la jerarquía visual limpia: el color sigue dedicado a "tramo activo" (sc-info-strong) vs "tramo inactivo" (sc-heading muted), no a estado de transcripción.
+
+El `aria-label` del icono explicita "Tramo transcrito" para lectores de pantalla. Para tramos pendientes no se añade nada (la ausencia del icono ya es la información).
 
 ### Edge cases
 
@@ -416,16 +440,19 @@ Cuando un toast es sticky, ten siempre `dismiss: true` (default) para que el usu
 
 ## Decisiones de producto cerradas
 
+> Para el listado completo en lenguaje narrativo (qué se decidió, por qué, cuándo), ver el documento hermano *Memory · Decisiones de diseño*. Lo que sigue es el resumen rápido en jerga técnica.
+
 - **El bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo concreto vive solo en el modo individual. El modal muestra el desglose explícito antes de confirmar.
-- **`Conversation.hasTranscription` para multi-grabación es TRUE solo si todas las grabaciones lo están.** Una conversación parcialmente transcrita es funcionalmente "pendiente".
+- **`Conversation.hasTranscription` para multi-grabación es TRUE solo si todas las grabaciones lo están.** Una conversación parcialmente transcrita es funcionalmente "pendiente". Implementado: `Recording.hasTranscription` por tramo + agregado computado en `normalizeChats`.
 - **El modal de confirmación adicional se reserva para operaciones destructivas.** Las operaciones que solo generan coste se dispatchan directo, con la advertencia inline en el CTA. Único superviviente: `RetranscriptionConfirmModal`.
 - **El bulk no decide por el usuario.** Los items en proceso se filtran antes de llegar al modal (selección masiva los deselecciona silenciosamente; en vista individual no son seleccionables). El modal nunca recibe items en vuelo.
+- **Chats con custodia GDPR vencida se excluyen silenciosamente.** Los chats con `deleted: true` quedan fuera del bulk (no se cuentan en `nTrans` / `nAnBase`), pero siguen visibles en el listado en estado "no recuperable". La fila lo comunica visualmente; el modal no añade líneas explicativas (canon: evitar señales duplicadas).
 - **No hay cancelación de batch a mitad de proceso.** Una vez disparada la acción, el coste se genera completo. La copia del modal lo refleja: no se promete "cancelar" en ningún sitio.
 - **Errores se notifican solo al inicio y al final del batch.** El backend no notifica errores granulares durante el proceso. La UI no diseña feedback fino tipo "fallo en la 27 de 50".
+- **Diarización retirada del producto entero.** El campo `Conversation.hasDiarization` se borró del schema. Cualquier referencia residual en código o copy es un bug.
 
 ## Pendiente de decidir
 
 - **Contrato de backend para los contadores `nTrans`, `nAnBase`, `nAlready`.** Endpoint concreto, payload esperado, paginación si la selección es muy grande.
 - **Eventos de telemetría.** Qué eventos disparar al abrir el modal, al togglear el switch, al confirmar; con qué atributos. Útil para medir adopción del switch de análisis.
 - **Límite máximo de selección para el bulk.** ¿Hay un tope duro? ¿Aviso si se excede? ¿Paginación de la acción?
-- **Implementación del estado por grabación y agregación en `hasTranscription`.** La regla está cerrada en producto, pero el modelo y los handlers todavía cuentan a nivel de conversación. Pasada de implementación pendiente.

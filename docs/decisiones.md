@@ -1,0 +1,154 @@
+# Memory · Decisiones de diseño
+
+*Memory · Smart Contact · Por Rafael Areses*
+
+---
+
+## Sobre este documento
+
+Memory tiene muchas piezas pequeñas y, detrás de cada una, una decisión. Algunas de esas decisiones se tomaron rápido y se quedaron; otras vinieron tras varias iteraciones, descartes y vuelta atrás. Este documento recoge **las decisiones de producto y UX que se han cerrado a lo largo del desarrollo, por qué se tomaron, y qué descartamos a propósito**.
+
+No es el manual de usuario ni la referencia técnica. Es el *por qué* del producto, en lenguaje natural. Sirve para que cualquiera que llegue al proyecto entienda no solo qué hace Memory sino también qué decidimos NO hacer, y la razón.
+
+Las decisiones técnicas más finas (estructura del modelo, contratos entre componentes, contadores específicos) viven en *Memory · Lógica de conteo y reglas de negocio*. La anatomía visual y de copy de cada componente vive en *Memory · Referencia de UI*. Este doc se queda con el plano de las decisiones que afectan al producto en su conjunto.
+
+---
+
+## El principio rector · todo gira alrededor del coste
+
+Memory existe porque transcribir y analizar conversaciones con IA cuesta dinero. Mucho dinero si se hace mal, sin control, sin criterio. La pregunta de fondo que el producto responde es: *¿cómo dejamos que un supervisor decida qué procesar sin que se le vaya la mano ni quede ciego ante miles de conversaciones?*
+
+De ahí derivan casi todas las decisiones que siguen. Cuándo confirmar, cuándo no, cuándo enseñar el desglose, qué silenciar — todo se inclina hacia: **hacer visible el coste antes de incurrirlo, y no añadir fricción innecesaria cuando ya lo es**.
+
+---
+
+## Decisiones de modelo
+
+### Los chats no se "transcriben" — ya son texto
+
+Un chat es texto por definición. No tiene audio. Sin embargo, en el flujo del producto, una conversación "está transcrita" o "no está transcrita" como atributo binario.
+
+**Decisión**: para que el modelo sea coherente, los chats se cargan siempre como `hasTranscription = true`. La columna Estado del listado pinta el icono de "transcrito" desde el primer momento. El supervisor no tiene que entender la sutileza de "los chats no necesitan transcripción"; simplemente nunca aparecen como pendientes en esa dimensión.
+
+**Excepción · custodia GDPR vencida**: hay un caso real donde un chat sí queda "no transcrito": cuando el periodo de retención de los datos venció y el texto ya no es recuperable. En ese caso el chat aparece con un estado especial ("no recuperable") y queda fuera de cualquier operación bulk.
+
+### Una llamada con varias grabaciones está "transcrita" solo si TODAS lo están
+
+Las llamadas que pasan por transferencias entre grupos generan grabaciones separadas (cliente → IVR → comercial → IVR → retención = tres grabaciones, no una). El producto considera esa llamada como una unidad: si una de las tres grabaciones no está transcrita, la llamada entera queda "pendiente".
+
+**Por qué**: si una llamada parcialmente transcrita apareciera como "transcrita" en el listado, el supervisor la abriría esperando el texto completo y vería un agujero. Es mejor que aparezca explícitamente como pendiente y se complete cuando se lance la transcripción.
+
+### No hay análisis sin transcripción
+
+El análisis (resumen + sentimiento) trabaja sobre el texto, no sobre el audio. Si no hay transcripción, no hay nada que analizar. El producto enfuerza esta dependencia en el modelo y en la UI: el botón "Analizar" no aparece hasta que haya transcripción, y los handlers internos rechazan análisis sin transcripción asociada.
+
+### La diarización se eliminó del producto
+
+Versiones tempranas del modelo distinguían entre "transcripción" y "diarización con separación de hablantes". El concepto se eliminó: ahora la transcripción siempre separa hablantes (es la forma única). Se evitó tener dos tipos de transcripción con dos costes y dos toggles para el supervisor. Resultado: menos opciones, menos confusión.
+
+---
+
+## Decisiones de flujo bulk
+
+### Bulk siempre actúa sobre la conversación entera
+
+Cuando una conversación tiene varias grabaciones y entra en una selección masiva, el bulk transcribe TODAS sus grabaciones. No elige una "principal" ni heurísticamente decide cuál parece importante.
+
+**Por qué**:
+
+- Una sola regla es más fácil de explicar al supervisor que una heurística.
+- Es transparente sobre el coste: si se seleccionan 14 conversaciones y 3 son multi-grabación con 4 audios cada una, el contador del modal lo dice ("14 conversaciones · 3 con varios tramos → 26 audios"). El supervisor decide con la cuenta completa delante.
+- Si en algún caso concreto el supervisor solo quiere un tramo específico (por ejemplo, solo el del agente de retención), tiene un camino claro: abre esa conversación individualmente y la transcribe desde el reproductor, donde sí puede elegir tramo.
+
+El bulk es para volumen; el single es para precisión. La separación es deliberada.
+
+### Confirmación adicional solo para operaciones destructivas
+
+El producto trabaja con muchas acciones billables: transcribir, analizar, re-transcribir, exportar. Si todas requirieran un modal "¿estás seguro?" el supervisor lo cerraría sin leer al tercer click.
+
+**Decisión**: el modal de confirmación se reserva para acciones *destructivas* (sobrescribir datos existentes, borrar). Para acciones que solo "generan coste" basta con la advertencia inline en el CTA ("Genera coste · ~30 s") y el toast de éxito al terminar. El consentimiento se da con el click del botón y la advertencia visible.
+
+Único modal de confirmación que sobrevive: re-transcribir. Re-transcribir sobrescribe la transcripción existente e invalida el análisis derivado; eso sí requiere consentimiento explícito.
+
+### El bulk no decide por el supervisor
+
+Si una conversación está "en proceso" (transcribiéndose o analizándose ahora mismo), no puede entrar en otro bulk hasta que termine. Pero en lugar de mostrar al supervisor un mensaje "X items excluidos porque están en proceso" en el modal, el filtrado ocurre silenciosamente antes:
+
+- En la fila del listado, las conversaciones en proceso no son seleccionables.
+- En la selección masiva, las en proceso se deseleccionan silenciosamente al abrir el modal.
+
+**Por qué silenciar**: la fila ya tiene su indicador visual de "en proceso" (spinner, badge). Añadir una línea en el modal lo recuerda dos veces.
+
+Misma lógica con chats de custodia GDPR vencida: el listado los pinta como "no recuperable", el bulk los excluye. El modal no añade explicación porque la fila ya la dio.
+
+### No hay cancelación de batch a mitad de proceso
+
+Una vez disparada la acción, no se puede cancelar a mitad. El coste se genera completo. La copia del modal lo refleja: no se promete "cancelar" en ningún sitio. Esto es restricción del backend (no del producto): el motor de transcripción procesa por lotes y no expone API de cancelación parcial.
+
+Cuando el supervisor confirma "Procesar", asume el coste completo. El producto evita prometer flexibilidad que el backend no puede entregar.
+
+### Errores se notifican al inicio y al final, no granularmente
+
+Por la misma restricción de backend, no llegan eventos "fallo en la conversación 27 de 50" durante el proceso. El backend notifica solo al inicio del batch (aceptado / rechazado) y al final (cuántas terminaron bien, cuántas fallaron). La UI se diseñó alrededor de esto: el feedback de error llega como un toast único al final del batch ("X transcripciones fallaron · Ver fallidas"), no como progreso granular.
+
+---
+
+## Decisiones de UX cross-cutting
+
+### Empty states centrados, en una columna
+
+Cuando un componente está vacío (sin grabación, sin transcripción, sin análisis), el cuerpo no se divide en dos columnas tipo split. Se queda en una sola columna centrada con el mensaje + CTA + advertencia de coste.
+
+**Por qué**: el split-layout se probó en una iteración y se descartó. Daba sensación de "página marketing" en un panel operativo. La columna centrada es más sobria, más oficinista, y se alinea con el resto del producto.
+
+### La geometría carga la información, no la decoración
+
+Cuando una llamada tiene varios tramos, el strip que los representa reparte el ancho proporcionalmente a la duración real de cada tramo. Si el tramo del comercial dura 3 minutos y el de retención 30 segundos, el del comercial se ve seis veces más ancho.
+
+Este principio se aplica en general: la forma del componente debe cargar el dato, no se le añade ornamento (mini-gráficos dentro de cards, badges decorativos, colores temáticos). Cuando se piensa en añadir un indicador visual, primero se audita si la geometría existente ya lo cuenta. Solo se añade ornamento si la geometría falla.
+
+### Asimetría presente/ausente para estados, no semáforos verde/gris
+
+Cuando un tramo de una llamada ya está transcrito, aparece un pequeño check junto a su duración. Cuando no, no aparece nada. NO se usa verde-vs-gris para distinguir.
+
+**Por qué**: el color ya está dedicado a otra dimensión (tramo activo vs inactivo). Si añadimos verde-vs-gris para transcrito-vs-pendiente, el supervisor lee dos códigos cromáticos simultáneamente y se pierde. La asimetría presente-vs-ausente comunica el mismo dato sin competir por el canal visual del color.
+
+### Los iconos llevan aria-label explícito
+
+Cada icono que comunica estado (transcrito, en proceso, fallido, custodia vencida) lleva su `aria-label`. La información nunca depende solo del color o solo de la forma; un lector de pantalla la recibe siempre.
+
+---
+
+## Decisiones de prototipo vs producción
+
+### El prototipo es para comunicar ideas, no para sustituir al producto
+
+Memory en su versión actual es un prototipo. Existe para que stakeholders puedan recorrer el flujo principal —filtrar conversaciones, lanzar transcripciones masivas, abrir el reproductor, revisar el análisis IA— y entender qué hace el producto sin necesidad de que el backend esté listo.
+
+Esto explica varias renuncias deliberadas:
+
+- **No hay backend real**. Todo es mock + localStorage. Las transcripciones se simulan con un retraso de unos segundos. El supervisor ve la mecánica del flujo, no el contenido real.
+- **Algunos filtros del producto real no están en el prototipo**. El manual oficial de Smart Contact lista filtros de Tipificación, Custom Code, Comentarios, Resultado. El prototipo solo incluye los del flujo principal (servicio, fecha, origen, destino, grupo, agente). El resto se omiten a propósito para mantener el foco.
+- **Algunos botones no están conectados**. El botón Search en la barra de filtros y los iconos del sidebar (Dashboard, Grupos, Agentes, etc.) son orientativos: emulan el aspecto del producto real para que el stakeholder vea Memory en su contexto.
+
+### Distribución de docs · `.docx` por Claude Desktop, no inline en el prototipo
+
+Hubo una iteración temprana donde los docs se renderizaban dentro del prototipo (un modal con markdown). Se descartó por dos razones:
+
+- Los docs largos (más de 30 KB) se cortaban en el modal o forzaban scroll incómodo.
+- Mantener un canal alternativo de distribución dentro del prototipo creaba drift entre la versión renderizada y la oficial.
+
+**Decisión actual**: los docs se distribuyen como `.docx` generados desde los `.md` del repo. La integración inline se eliminó del prototipo y el botón Help abre directamente al GitHub o al Figma site según el caso.
+
+---
+
+## Lo que NO está cerrado
+
+Estas decisiones siguen abiertas y vendrán con caso de uso o validación real:
+
+- **Toggle de modo oscuro en la UI.** Los tokens están preparados pero no hay caso de uso definido. Se activará cuando el equipo lo pida con un trigger claro.
+- **Patrón side-panel vs modal para creación/edición.** Hoy hay panels laterales con anchuras de 40-50% y modales centrales conviviendo. Cuándo usar cada uno no está unificado. Decisión pendiente cuando se haga la siguiente pasada de diseño.
+- **Alineación de las bubbles del chat en el reproductor (Agente derecha / Cliente izquierda).** El patrón "right = me" está culturalmente sesgado y el supervisor es observador, no participante. Validar con usuarios antes de cambiar.
+- **Sparkles como icono de la pestaña Análisis.** Hay tensión entre la regla "Sparkles reservado a la pill 'Generado por IA'" y la práctica de usarlo como cue de "esta pestaña va de IA". Estricto vs práctico, sin urgencia.
+
+Cuando alguna de estas se cierre, se mueve al apartado anterior con su razonamiento.
