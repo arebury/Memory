@@ -335,3 +335,19 @@
 .animate-sc-bump      { animation: sc-bump      260ms var(--sc-ease-out); }
 .animate-sc-pulse     { animation: sc-pulse     360ms var(--sc-ease-out); }
 .animate-sc-shake     { animation: sc-shake     280ms ease; }
+
+/* a11y · respetar prefers-reduced-motion. Las animaciones sc-* son
+   afirmativas (bump on success, pulse on counter change, etc.) — su
+   ausencia no rompe el flujo, solo lo silencia. forwards en delta-fly
+   se preserva con `animation: none` porque el elemento solo aparece
+   durante el periodo de animación; sin animation se monta y desmonta
+   instantáneamente, que es el comportamiento esperado al desactivar
+   motion. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-sc-delta-fly,
+  .animate-sc-bump,
+  .animate-sc-pulse,
+  .animate-sc-shake {
+    animation: none !important;
+  }
+}

@@ -1,4 +1,6 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap');
+/* Roboto @import movido a src/styles/index.css (15.40) — debe preceder
+   todas las declaraciones para no disparar el warning PostCSS
+   "@import must precede all other statements". */
 
 @custom-variant dark (&:is(.dark *));
 
