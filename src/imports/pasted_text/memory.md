@@ -2255,4 +2255,4 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - El siguiente item crítico del roadmap es la **regla "bulk transcribe TODAS las grabaciones de cada conversación seleccionada"** (sec 17 P1, sec 13 items 13+14, decidida en 15.31, NO implementada). Es la deuda concreta del producto que el prototipo debería estar comunicando hoy. 5 sub-pasos definidos.
 - El otro item P2 abierto es **re-habilitar el filtro de categorías IA** en `ConversationsView` (hoy `{false && showCategoryFilter && ...}`). Las categorías son parte de la idea principal — esconder el filtro envía señal de feature incompleto.
 - Después de esos dos items P1+P2, lo que queda es hygiene interno (hex→tokens, partir `ConversationTable`, tsconfig.json) que no afecta lo que el stakeholder ve. El usuario fue claro: prototipo = comunicar ideas, no app de producción.
-- Tres commits en esta sesión: `68fa765` (revert DocumentationModal), `a77641e` (eliminar hasDiarization), [SHA siguiente] (este canon update).
+- Tres commits en esta sesión: `68fa765` (revert DocumentationModal), `a77641e` (eliminar hasDiarization), `5b60dd9` (este canon update).
