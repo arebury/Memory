@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "./ui/dialog";
+import { Modal } from "./ui/modal";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
 import { Button } from "./ui/button";
@@ -42,13 +42,12 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
   const [description, setDescription] = useState("");
   const [type, setType] = useState<EntityType>("text");
   const [format, setFormat] = useState("");
-  const [listValues, setListValues] = useState<string[]>([]); // Array of comma-separated strings
-  const [showSynonymsFor, setShowSynonymsFor] = useState<number[]>([]); // Track which values show synonym input
+  const [listValues, setListValues] = useState<string[]>([]);
+  const [showSynonymsFor, setShowSynonymsFor] = useState<number[]>([]);
   const [isDescriptionOpen, setIsDescriptionOpen] = useState(false);
 
   useEffect(() => {
     if (open) {
-      // Reset form when modal opens
       setName("");
       setDescription("");
       setType("text");
@@ -83,18 +82,15 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
   };
 
   const handleSave = () => {
-    // Basic validation
     if (!name.trim()) {
       toast.error("El nombre es obligatorio");
       return;
     }
-
     if (type === 'list' && listValues.filter(v => v.trim()).length === 0) {
       toast.error("Debes añadir al menos un valor para la lista");
       return;
     }
 
-    // Parse list values: first term is value, rest are synonyms
     const parsedListValues = listValues.length > 0 ? listValues
       .filter(v => v.trim())
       .map(v => {
@@ -108,7 +104,7 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
 
     const entityData = {
       name,
-      description: description.trim() || "", // Use user-provided description or empty string
+      description: description.trim() || "",
       type,
       format: format.trim() || undefined,
       isSystem: false,
@@ -121,21 +117,17 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="text-lg text-[#1C283D]">
-            Crear entidad
-          </DialogTitle>
-          <DialogDescription className="sr-only">
-            Crear una nueva entidad para extracción de datos
-          </DialogDescription>
-        </DialogHeader>
+    <Modal open={open} onOpenChange={onOpenChange}>
+      <Modal.Content width={520}>
+        <Modal.Header
+          icon={<Plus className="size-full" strokeWidth={1.75} />}
+          title="Crear entidad"
+        />
 
-        <div className="space-y-6 py-4">
+        <Modal.Body className="space-y-6">
           {/* Name */}
           <div className="space-y-2">
-            <Label htmlFor="name" className="text-[#233155]">
+            <Label htmlFor="name" className="text-sc-primary">
               Nombre
             </Label>
             <Input
@@ -148,12 +140,12 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
 
           {/* Description */}
           <Collapsible open={isDescriptionOpen} onOpenChange={setIsDescriptionOpen}>
-            <CollapsibleTrigger className="flex items-center gap-2 text-[#233155] hover:text-[#60D3E4] transition-colors">
-              <ChevronDown 
-                size={16} 
+            <CollapsibleTrigger className="flex items-center gap-2 text-sc-primary hover:text-sc-accent transition-colors">
+              <ChevronDown
+                size={16}
                 className={`transition-transform ${isDescriptionOpen ? 'rotate-180' : ''}`}
               />
-              <span className="text-sm">Descripción <span className="text-[#8D939D]">(opcional)</span></span>
+              <span className="text-sm">Descripción <span className="text-sc-muted">(opcional)</span></span>
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2">
               <Input
@@ -167,24 +159,24 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
 
           {/* Data Type */}
           <div className="space-y-2">
-            <Label htmlFor="type" className="text-[#233155]">
+            <Label htmlFor="type" className="text-sc-primary">
               Tipo de dato
             </Label>
-            <EntityTypeSelect 
-              value={type} 
-              onValueChange={(v) => setType(v as EntityType)} 
+            <EntityTypeSelect
+              value={type}
+              onValueChange={(v) => setType(v as EntityType)}
             />
           </div>
 
           {/* Expected Format */}
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              <Label htmlFor="format" className="text-[#233155]">
-                Formato esperado <span className="text-[#8D939D] font-normal">(opcional)</span>
+              <Label htmlFor="format" className="text-sc-primary">
+                Formato esperado <span className="text-sc-muted font-normal">(opcional)</span>
               </Label>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <button type="button" className="text-[#8D939D] hover:text-[#233155] transition-colors">
+                  <button type="button" className="text-sc-muted hover:text-sc-primary transition-colors">
                     <Info size={14} />
                   </button>
                 </TooltipTrigger>
@@ -206,10 +198,10 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
             {listValues.length > 0 && (
               <>
                 <div className="flex items-center gap-2">
-                  <Label className="text-[#233155]">Valores</Label>
+                  <Label className="text-sc-primary">Valores</Label>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <button type="button" className="text-[#8D939D] hover:text-[#233155] transition-colors">
+                      <button type="button" className="text-sc-muted hover:text-sc-primary transition-colors">
                         <Info size={14} />
                       </button>
                     </TooltipTrigger>
@@ -218,10 +210,10 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
                     </TooltipContent>
                   </Tooltip>
                 </div>
-                
+
                 <div className="max-h-[240px] overflow-y-auto pr-1 space-y-3">
                   {listValues.map((value, index) => (
-                    <div key={index} className="bg-[#F8F9FA] border border-[#E5E7EB] rounded-lg p-3">
+                    <div key={index} className="bg-sc-surface-muted border border-sc-border rounded-lg p-3">
                       <div className="flex gap-2 items-start">
                         <div className="flex-1 space-y-2">
                           <Input
@@ -237,13 +229,13 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
                             <button
                               type="button"
                               onClick={() => toggleSynonymsField(index)}
-                              className="text-xs text-[#8D939D] pl-1 hover:text-[#233155] cursor-pointer transition-colors underline decoration-dotted underline-offset-2"
+                              className="text-xs text-sc-muted pl-1 hover:text-sc-primary cursor-pointer transition-colors underline decoration-dotted underline-offset-2"
                             >
                               Añadir sinónimos, separados por comas
                             </button>
                           ) : (
                             <div className="space-y-1">
-                              <Label className="text-xs text-[#233155]">Sinónimos</Label>
+                              <Label className="text-xs text-sc-primary">Sinónimos</Label>
                               <Input
                                 value={value.includes(',') ? value.split(',').slice(1).join(',').trim() : ''}
                                 onChange={(e) => {
@@ -261,7 +253,7 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
                           variant="ghost"
                           size="icon"
                           onClick={() => handleRemoveValue(index)}
-                          className="text-[#8D939D] hover:text-red-500 h-9 w-9 shrink-0"
+                          className="text-sc-muted hover:text-sc-error-strong h-9 w-9 shrink-0"
                         >
                           <Minus size={16} />
                         </Button>
@@ -282,20 +274,15 @@ export function CreateEntityModal({ open, onOpenChange, onSave }: CreateEntityMo
               Añadir valor
             </Button>
           </div>
-        </div>
+        </Modal.Body>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSave}
-            className="bg-[#60D3E4] hover:bg-[#387983] text-white"
-          >
+        <Modal.Footer>
+          <Modal.Cancel>Cerrar</Modal.Cancel>
+          <Modal.Action onClick={handleSave}>
             Crear entidad
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </Modal.Action>
+        </Modal.Footer>
+      </Modal.Content>
+    </Modal>
   );
 }
