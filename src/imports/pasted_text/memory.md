@@ -2383,6 +2383,6 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 **Pendiente**: ocho items eliminados de sec 17 (Roboto @import, prefers-reduced-motion, resolveStatus type, MockSampleSwitcher purga note, modales legacy SC shell, useEffect→useMemo, per-tramo state player, GDPR sample task que no estaba en sec 17 pero estaba parqueado en sec 15). Sec 17 reducido a 14 items (era 22+).
 
 **Notas para próxima sesión**:
-- Cinco commits en esta sesión: `a7a2913` (CSS quick wins), `a8e4edd` (types + docs), `720df88` (modales legacy), `6d9066e` (useMemo + per-tramo cue), `c49dc32` (GDPR custody) + canon update.
+- Seis commits en esta sesión: `a7a2913` (CSS quick wins), `a8e4edd` (types + docs), `720df88` (modales legacy), `6d9066e` (useMemo + per-tramo cue), `c49dc32` (GDPR custody), `834ec8e` (este canon update).
 - El tema GDPR ahora tiene sample funcional. Si en demo a stakeholder lo abren, se ve el caso completo. Si se quiere implementar el "archivo automático" o "tooltip explicativo en hover de fila deleted", entra en una próxima sesión — lo de hoy es la base mínima para comunicar la idea.
 - Sec 17 ya casi vacío de items P1/P2 ejecutables sin decisión. Lo que queda son discusiones/decisiones (Sparkles, side-panel, bubble alignment, modo oscuro) o backend. La próxima sesión probablemente NO sea técnica sino de producto.
