@@ -30,21 +30,20 @@
 | Lenguaje | TypeScript | (sin versión fija en package.json, viene con Vite) |
 | Build tool | Vite | 6.3.5 |
 | CSS | Tailwind CSS v4 | 4.1.12 |
-| Gestor de paquetes | pnpm | (lockfile pnpm-lock.yaml) |
-| UI Components | shadcn/ui (Radix UI based) | varios |
+| Gestor de paquetes | pnpm | 10.33.2 (lockfile pnpm-lock.yaml) |
+| UI Components | shadcn/ui (Radix UI based) | varios — kit purgado en 15.35, ver abajo |
 | Iconos | lucide-react | 0.487.0 |
 | Animaciones | motion (ex-Framer Motion) | 12.23.24 |
-| Routing | react-router | 7.13.0 (instalado pero NO usado — navegación via useState) |
 | Notificaciones | sonner | 2.0.3 |
-| Drag & Drop | react-dnd + react-dnd-html5-backend | 16.0.1 |
-| Formularios | react-hook-form | 7.55.0 |
-| Fechas | date-fns | 3.6.0 |
-| Calendarios | react-day-picker | 8.10.1 |
-| Gráficos | recharts | 2.15.2 |
-| MUI (instalado, mínimamente usado) | @mui/material + @emotion/react + @emotion/styled | 7.3.5 / 11.x |
+| Markdown render | react-markdown + remark-gfm | 10.1 / 4.0 (DocumentationModal) |
+| Fechas | date-fns | 3.6.0 (DateRangePicker) |
+| Calendarios | react-day-picker | 8.10.1 (DateRangePicker via Calendar primitive) |
+| Tema | next-themes | 0.4.6 (sonner Toaster lee modo) |
 | Fuente | Roboto (Google Fonts, via CSS `@import`) | 300, 400, 500, 700 |
 
-**IMPORTANTE**: `react-router` está instalado pero **no se usa para la navegación**. Toda la navegación entre vistas se gestiona con `useState<View>` en `App.tsx`. No hay `RouterProvider`, no hay rutas declaradas. Si algún día se migra a react-router, hay que refactorizar `App.tsx` completamente.
+**Navegación**: el proyecto **no usa react-router** (15.35 lo desinstaló al confirmar 0 imports). Las vistas se gestionan con `useState<View>` en `App.tsx` y nunca se planificó cambiar. Si algún día se migra a router real, hay que refactorizar `App.tsx` completamente.
+
+**Dependencias purgadas en 15.35** (sin importadores · build verificado): `@mui/material`, `@mui/icons-material`, `@emotion/react`, `@emotion/styled`, `@popperjs/core`, `react-popper`, `react-dnd`, `react-dnd-html5-backend`, `react-hook-form`, `react-router`, `react-slick`, `react-responsive-masonry`, `recharts`, `cmdk`, `vaul`, `embla-carousel-react`, `input-otp`, `react-resizable-panels`, y 14 paquetes `@radix-ui/*` correspondientes a primitives shadcn borrados. La drag & drop de reglas usa **HTML Drag API nativo** (nunca `react-dnd`).
 
 ---
 
@@ -67,12 +66,10 @@ project-root/
 │   ├── imports/
 │   │   ├── README.md                   # Handoff notes desde Claude Design (transcripciones masivas)
 │   │   └── pasted_text/
-│   │       ├── memory.md               # ESTE ARCHIVO
-│   │       ├── bulk-transcription-modal.md      # Spec de diseño del modal masivo
-│   │       ├── bulk-transcription-modal.tsx     # Referencia/spec del modal v11
-│   │       ├── bulk-transcription-modal-1.tsx   # Versión anterior de referencia
-│   │       ├── rule-constructor-update.md       # Primera spec de rule builders
-│   │       └── rule-constructor-update-1.md     # Spec actualizada de rule builders
+│   │       └── memory.md               # ESTE ARCHIVO (canon)
+│   │
+│   │   # Las specs antiguas (`bulk-transcription-modal.md`, `rule-constructor-update*.md`)
+│   │   # se movieron a `docs/specs/` en 15.35 — el código no debía vivir junto a docs.
 │   │
 │   └── app/
 │       ├── App.tsx                     # Root component: gestión de vistas con useState, providers anidados
@@ -100,55 +97,30 @@ project-root/
 │           ├── figma/
 │           │   └── ImageWithFallback.tsx   # 🔒 PROTEGIDO — wrapper de <img> con fallback
 │           │
-│           ├── ui/                     # shadcn/ui components (Radix UI wrappers)
-│           │   ├── accordion.tsx
+│           ├── ui/                     # primitives en uso (post-purga 15.35: 26 sin importadores borrados)
 │           │   ├── alert-dialog.tsx
 │           │   ├── alert.tsx
-│           │   ├── aspect-ratio.tsx
-│           │   ├── avatar.tsx
 │           │   ├── badge.tsx
-│           │   ├── breadcrumb.tsx
 │           │   ├── button.tsx
-│           │   ├── calendar.tsx
-│           │   ├── card.tsx
-│           │   ├── carousel.tsx
-│           │   ├── chart.tsx
+│           │   ├── calendar.tsx        # usado por DateRangePicker
 │           │   ├── checkbox.tsx
 │           │   ├── collapsible.tsx
-│           │   ├── command.tsx
-│           │   ├── context-menu.tsx
 │           │   ├── dialog.tsx
-│           │   ├── drawer.tsx
 │           │   ├── dropdown-menu.tsx
-│           │   ├── form.tsx
-│           │   ├── hover-card.tsx
-│           │   ├── input-otp.tsx
+│           │   ├── focus.ts            # FOCUS_RING shared
 │           │   ├── input.tsx
 │           │   ├── label.tsx
-│           │   ├── menubar.tsx
-│           │   ├── navigation-menu.tsx
-│           │   ├── pagination.tsx
+│           │   ├── modal.tsx           # ⭐ SC design system Modal compound (Radix Dialog + sc-* tokens). v25.
 │           │   ├── popover.tsx
-│           │   ├── progress.tsx
-│           │   ├── radio-group.tsx
-│           │   ├── resizable.tsx
-│           │   ├── scroll-area.tsx
+│           │   ├── sc-toast.tsx        # ⭐ scToast.{success,error,warning,info,indigo} (sobre sonner)
 │           │   ├── select.tsx
 │           │   ├── separator.tsx
 │           │   ├── sheet.tsx
-│           │   ├── sidebar.tsx
-│           │   ├── skeleton.tsx
-│           │   ├── slider.tsx
-│           │   ├── sonner.tsx          # Toast notifications (Toaster wrapper)
+│           │   ├── sonner.tsx          # Toaster wrapper
 │           │   ├── switch.tsx
 │           │   ├── table.tsx
-│           │   ├── tabs.tsx
 │           │   ├── textarea.tsx
-│           │   ├── toggle-group.tsx
-│           │   ├── toggle.tsx
 │           │   ├── tooltip.tsx
-│           │   ├── modal.tsx           # ⭐ SC design system Modal compound (Radix Dialog + sc-* tokens). Header / Body / Footer slots, Cancel + Action footer buttons. NEW v25.
-│           │   ├── use-mobile.ts       # Hook isMobile
 │           │   └── utils.ts            # cn() helper (clsx + tailwind-merge)
 │           │
 │           ├── rules/                  # Sistema de constructores de reglas
@@ -1457,19 +1429,17 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Modo oscuro: tokens definidos en `default_theme.css` con `.dark`, falta toggle UI y variantes dark de los `--sc-*`. (P3)
 - Dividir `ConversationTable.tsx` en subcomponentes (es muy grande). (P2)
 - Migrar `useEffect` de sincronización `typeFilters`/`ruleFilters` en `ConversationsView` a `useMemo` (actualmente estado derivado vía effect). (P2)
-- Code-splitting del bundle: el chunk JS pasa de 500kB. Considerar `manualChunks` en `vite.config.ts` (separar `recharts`, `motion`, `@mui/*`, `react-day-picker`). (P3)
+- Code-splitting del bundle: tras la purga 15.35 el chunk JS sigue en 1095 KB (gzip 319 KB). Candidatos para `manualChunks`: `motion`, `react-day-picker` + `date-fns`, `react-markdown` + `remark-gfm`, `@radix-ui/*`. (P3)
 - Decisión pendiente sobre el destino del prototipo (rol 1/2/3) cuando el DS del cliente esté maduro — ver sección 16.
 - `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
-- Reemplazar `alert()` de `handleDownload` (`ConversationsView.tsx:249-251`) por `scToast.info` o cablear a download real. (P3)
 - Wire del link "Cómo funcionan las reglas" en `Repository.tsx:299` — hoy `window.open("#", ...)`. Apuntar a docs reales o reusar la URL de Figma site del help button. (P2)
 - Wire o eliminar el botón Search decorativo en `ConversationFilters.tsx:91-95` — los filtros se aplican en `onChange` así que el botón no hace nada. (P3)
 - Eliminar `Conversation.hasDiarization` del modelo y de los presets (`mockData.ts`, `mockSamples.ts`) — la diarización es concepto deprecado (15.23) pero el campo persiste. Pasada de schema cleanup. (P3)
 - Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
 - Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
 - 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled aun con aria-label "Próximamente: …"). (P3)
-- ~22 archivos shadcn primitives en `src/app/components/ui/` están sin importadores hoy (`accordion`, `aspect-ratio`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `resizable`, `skeleton`, `toggle`, `toggle-group`, `breadcrumb`, `form`, `use-mobile`, `alert`, `calendar`, `radio-group`, `slider`). Mantenidos como kit reutilizable; auditar si una pasada de bundle-size lo requiere o si un feature concreto los necesita. (P3)
 - **Decidir destino de la integración `DocumentationModal` + popover en `ConversationsView`** (15.31): los docs externos pasan a distribuirse como `.docx` generados desde los `.md` de `docs/` con Claude Desktop. La integración del prototipo sigue funcional pero ya no es el canal canónico. Decisiones posibles: (a) revertir todo (volver al simple `<HelpCircle>` con link a Figma site, borrar `DocumentationModal.tsx` y deps `react-markdown`/`remark-gfm`), (b) mantener la integración porque sincroniza con los `.md` automáticamente y ofrece "ver online" además de "descargar PDF", (c) simplificar a solo links de descarga (que el popover apunte a las URLs raw de GitHub o a `.docx` pre-generados servidos desde `public/`). (P2)
 - **Implementar regla "bulk transcribe TODAS las grabaciones de cada conversación seleccionada"** (sec 13 decisiones de producto items 13 + 14, cerradas en 15.31). Cambios:
   1. Modelo: añadir estado `hasTranscription` por grabación dentro de `Conversation.recordings[]`. Computar `Conversation.hasTranscription` agregado en `normalizeChats` (TRUE solo si todas).
@@ -2234,3 +2204,34 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Validar visualmente: (1) sin filtros activos, el botón `Tipo` se ve limpio sin punto; (2) marcando solo `interna`, aparece el punto + accent border; (3) chequear `solo fallidas` en el panel pinta el chip rojo en la toolbar + filtra la tabla; (4) limpiar desde el chip desmarca la checkbox del panel.
 - El sample `Errores de transcripción` sigue lanzando el toast `Ver fallidas` automáticamente al cargar — el handler escribe ahora a `unifiedTypeFilters.status.onlyFailed` via el wrapper, no a un useState aparte.
 - Commit de esta sesión: `3711278`.
+
+---
+
+### 15.35 · 2026-05-10 · Claude Code · audit completo · purga de primitives + 18 deps huérfanas + quick wins UX
+
+**Contexto**: pedido del usuario "auditoría completa, optimizamos, limpiamos, curamos · foco en simpleza, organización y resultados". Última auditoría documentada: `audit/2026-05-04.md` (sesión 15.26). Hace 6 días, 9 sesiones intermedias (15.27–15.34) habían cerrado varios items "out of scope" del audit anterior. Hoy: barrido fresco con foco en palancas reales.
+
+**Hecho**:
+- **26 primitives shadcn borrados** (verificado con grep limpio: 0 importadores en todo `src/`). Lista: `accordion`, `aspect-ratio`, `avatar`, `breadcrumb`, `card`, `carousel`, `chart`, `command`, `context-menu`, `drawer`, `form`, `hover-card`, `input-otp`, `menubar`, `navigation-menu`, `pagination`, `progress`, `radio-group`, `resizable`, `scroll-area`, `skeleton`, `slider`, `tabs`, `toggle`, `toggle-group`, `use-mobile`. Esto **reversa** el "mantener como kit" del audit 15.26 (en hindsight, la deuda de mantener kit > beneficio de re-add con `npx shadcn add` cuando se necesite).
+- **18 deps npm purgadas de package.json** — todas con 0 importadores tras grep exhaustivo. Tres grupos:
+  - **Dependencias arrastradas por los primitives borrados** (6): `cmdk`, `vaul`, `embla-carousel-react`, `input-otp`, `react-resizable-panels`, `recharts`.
+  - **Radix correspondientes a los primitives borrados** (14): `@radix-ui/react-accordion`, `react-aspect-ratio`, `react-avatar`, `react-context-menu`, `react-hover-card`, `react-menubar`, `react-navigation-menu`, `react-progress`, `react-radio-group`, `react-scroll-area`, `react-slider`, `react-tabs`, `react-toggle`, `react-toggle-group`. Quedan los 12 radix que sí se usan (alert-dialog, checkbox, collapsible, dialog, dropdown-menu, label, popover, select, separator, slot, switch, tooltip).
+  - **Libs huérfanas históricas** (12 paquetes / 6 conceptos): `@mui/material`, `@mui/icons-material`, `@emotion/react`, `@emotion/styled`, `@popperjs/core`, `react-popper`, `react-dnd` + `react-dnd-html5-backend`, `react-hook-form`, `react-router`, `react-slick`, `react-responsive-masonry`. La canon ya las marcaba como "instalado pero no usado" / "mínimamente usado" — confirmado y eliminado. La drag & drop de reglas activas usa **HTML Drag API nativo** (15.21).
+- **Spec docs movidas fuera de `src/`**: `bulk-transcription-modal.md`, `rule-constructor-update.md`, `rule-constructor-update-1.md` → `docs/specs/`. La regla operativa: `src/` es código, `docs/` es contenido. Se eliminó el directorio `src/app/imports/pasted_text/` (vacío). El canon `src/imports/pasted_text/memory.md` se queda donde está (single source of truth, separado físicamente del código vivo del prototipo, exactamente lo que debe).
+- **`alert()` → `scToast.info`** en `ConversationsView.handleDownload` (línea 264). Cierra item del roadmap P3. archivos: `src/app/components/ConversationsView.tsx`.
+- **`console.log("download")` → `scToast.info`** en el botón download del player single-grabación (`ConversationPlayerModal.tsx:430`). Mensaje contextual `isChat ? "Descargando conversación" : "Descargando audio"`. archivos: `src/app/components/ConversationPlayerModal.tsx`.
+- **Build verificado**: `pnpm build` pasa con 3237 módulos. Bundle final 1095 KB JS (gzip 319 KB) + 102 KB CSS (gzip 18 KB). El warning de chunk > 500 KB sigue ahí — es un P3 separado.
+
+**Decidido**:
+- **Reversar la decisión "mantener primitives shadcn como kit"** del 15.26. Razón: 26 archivos sin uso real son ruido (tab-completion, búsquedas, imports accidentales), y el coste de re-add es trivial. La regla nueva: `src/app/components/ui/` lista solo lo que tiene importadores. Si una feature futura los necesita, `npx shadcn add <name>` los reinstala con la versión actualizada.
+- **NO migrar hex literals a tokens en este audit**. RulesRepository (63 hex), CategoryRuleLinking (45), ConversationTable (42), EntityManagement (31) suman 181 literales en 4 archivos. El canon ya marca esto como barrido dedicado (sec 17 P2 + P1 navy harmonization). Riesgo visual alto sin tests automatizados; no toca mezclarlo con limpieza de dead code.
+- **NO añadir `tsconfig.json` en este audit** (P2 roadmap). Si surfacea errores latentes, alarga la sesión sin techo claro. Mejor dedicarle una sesión propia.
+- **Archivos grandes (`ConversationPlayerModal.tsx` 1045 lns, `RulesRepository.tsx` 720, `ConversationsView.tsx` 719) NO se parten** — `ConversationTable.tsx` ya es item P2 explícito; el resto son orgánicos al feature y partir por partir es worse-than-useless. Decisión: mantener hasta que un cambio funcional lo requiera.
+
+**Pendiente**: ninguno nuevo en sec 17. Items cerrados removidos: (1) primitives shadcn sin importadores, (2) `alert()` en handleDownload. Items reescritos: (3) bullet de code-splitting actualizado para reflejar el nuevo bundle (ya no menciona `recharts` ni `@mui/*` porque se borraron).
+
+**Notas para próxima sesión**:
+- `dist/` regenerada y commiteada en .gitignore — verificar que Netlify hace su install limpio (la versión de pnpm es 10.33.2, no la latest que pide Node 22).
+- Si llega un día con tiempo, el siguiente nivel de simplificación sería: barrido hex → tokens en RulesRepository (63 hex) + CategoryRuleLinking (45). Total 108 substituciones mecánicas. Hacerlo en una pasada con el canon `--sc-*` mapping cargado. Riesgo controlado si se valida visualmente cada vista tras el cambio.
+- El audit `audit/2026-05-04.md` queda como snapshot histórico — esta sesión NO lo regenera. La próxima auditoría hará uno nuevo cuando haga falta otra foto fechada.
+- Cuatro commits separados (deps purge, spec docs move, UX feedback fixes, canon update) en lugar de un commit monolítico — más fácil de revertir cualquiera selectivamente.
