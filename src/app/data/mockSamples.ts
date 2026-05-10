@@ -46,11 +46,22 @@ const normalizeChats = (list: Conversation[]): Conversation[] =>
   list.map((c) => {
     let next = c;
     if (next.channel === "chat") {
-      const transcription =
-        next.transcription && next.transcription.length > 0
-          ? next.transcription
-          : generateTranscriptionFor(next);
-      next = { ...next, hasTranscription: true, transcription };
+      // Custodia GDPR (15.40): un chat con `deleted: true` representa
+      // una conversación cuya custodia caducó y la transcripción ya no
+      // es recuperable. Saltamos el seed de transcripción y mantenemos
+      // hasTranscription en el valor original (típicamente undefined →
+      // tratado como false en la UI). El resto de chats sigue la
+      // invariante "siempre tienen transcripción" (sec 13.7).
+      if (next.deleted) {
+        // No-op: respetamos el estado deleted y dejamos hasTranscription
+        // tal como venga del preset (sin seedear transcript).
+      } else {
+        const transcription =
+          next.transcription && next.transcription.length > 0
+            ? next.transcription
+            : generateTranscriptionFor(next);
+        next = { ...next, hasTranscription: true, transcription };
+      }
     }
     if (next.recordings && next.recordings.length > 1) {
       const seeded = next.recordings.map((r) =>
@@ -240,6 +251,33 @@ export const mockSamples: MockSample[] = [
       const out = list.map((c) =>
         failedSet.has(c.id) ? { ...c, hasFailedTranscription: true } : c,
       );
+      return normalizeChats(out);
+    },
+  },
+  {
+    id: "gdpr-expired",
+    label: "Custodia GDPR vencida",
+    description:
+      "Algunos chats han pasado el periodo de retención y su transcripción ya no es recuperable. La fila aparece marcada como deleted y queda fuera del bulk de procesamiento.",
+    build: () => {
+      const list = cloneAll();
+      // Marca ~⅕ de los chats como deleted/custodia vencida.
+      const chats = list.filter((c) => c.channel === "chat");
+      const expiredSet = new Set(chats.filter((_, idx) => idx % 5 === 0).map((c) => c.id));
+      const out = list.map((c) => {
+        if (!expiredSet.has(c.id)) return c;
+        return {
+          ...c,
+          deleted: true,
+          // El campo `hasTranscription` se ignora una vez deleted=true:
+          // normalizeChats respeta el estado y la UI muestra la fila
+          // como recurso no recuperable.
+          hasTranscription: false,
+          hasAnalysis: false,
+          transcription: undefined,
+          aiCategories: undefined,
+        };
+      });
       return normalizeChats(out);
     },
   },

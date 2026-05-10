@@ -57,8 +57,14 @@ export function BulkTranscriptionModal({
         caption ("X conversaciones · Y multi-grabación → Z audios")
         keeps the math visible so the user isn't surprised. ─────── */
   const counters = useMemo(() => {
-    const calls = selectedConversations.filter((c) => c.channel === "llamada");
-    const chats = selectedConversations.filter((c) => c.channel === "chat");
+    /* GDPR custody (15.40): conversaciones con `deleted: true` representan
+       recursos no recuperables (custodia vencida) — quedan FUERA del
+       bulk silenciosamente, sin línea explicativa en el modal. La fila
+       de la tabla ya muestra el estado deleted, no hace falta repetirlo
+       aquí (canon principio 20.16 · evitar señales duplicadas). */
+    const eligible = selectedConversations.filter((c) => !c.deleted);
+    const calls = eligible.filter((c) => c.channel === "llamada");
+    const chats = eligible.filter((c) => c.channel === "chat");
 
     const readyToTranscribe = calls.filter(
       (c) => c.hasRecording && !c.hasTranscription,
