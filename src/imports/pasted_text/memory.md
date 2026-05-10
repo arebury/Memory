@@ -2564,4 +2564,4 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 - Si el push MCP a Figma falla por permisos o por que el fileKey no es accesible, el fallback es generar SVG export del modal del prototipo y dejarlo en `docs/figma-export/` para que el usuario lo importe manualmente.
 - El COA debe quedar copy-paste-ready · el usuario lo va a transcribir a Jira directamente. Cero referencias a "src/app/components/..." o jerga interna del prototipo. Lenguaje neutro de producto.
 - Cuando se cierre 15.43, recordar también pasar el resumen de las decisiones nuevas (sticky toast adopt, botón Analizar header, Cancelar destructive) a la sec 13 del canon + a `docs/decisiones.md` (mirror obligatorio · regla 15.41 paso 6).
-- Tres commits en esta sesión 15.42: `b1b3f9a` (favicon), `5a92c76` (sistema-de-diseno + popover hierarchy), `[SHA siguiente]` (este canon update con plan completo).
+- Tres commits en esta sesión 15.42: `9410ae5` (favicon · originalmente b1b3f9a, después de rebase), `5a92c76` (sistema-de-diseno + popover hierarchy), `a32b875` (este canon update con análisis COA + plan completo).
