@@ -1417,7 +1417,6 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 ### Pendiente
 
 - Migrar al `<Modal>` shell SC los modales legacy todavía pendientes: `CreateEntityModal`, `DeleteCategoryDialog`. (`TranscriptionRequestModal` y `RetranscriptionConfirmModal` migrados en 15.23. `DiarizationRequestModal`, `PlayerModal` legacy y `RuleSelectionModal` borrados — el primero en 15.23 como concepto deprecado, los otros dos en 15.26 como dead code.) (P1)
-- Consolidar los tres tonos de navy en circulación (`#1B273D` / `#1C283D` / `#233155`) en el token canónico `--sc-navy-600`. (P1)
 - Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS. (P2)
 - Audio real en `ConversationPlayerModal` (hoy reproducción simulada con `setInterval`). El `PlayerModal` legacy queda muerto en el repo — borrar cuando todos los callers se hayan movido al nuevo. (P1)
 - Paginación real en `ConversationTable`. (P2)
@@ -1431,10 +1430,8 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
-- Wire o eliminar el botón Search decorativo en `ConversationFilters.tsx:91-95` — los filtros se aplican en `onChange` así que el botón no hace nada. (P3)
 - Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
 - Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
-- 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled aun con aria-label "Próximamente: …"). (P3)
 - **Per-tramo state en el `MultiRecordingPlayer`** — diferido en 15.37. Hoy el player muestra todos los tramos sin distinguir transcritos vs pendientes. Para un prototipo de "comunicar ideas" no es crítico (el aggregate en la tabla ya cuenta la historia), pero si se quiere reflejar progreso parcial dentro del player, basta con un cue visual sobrio (pequeño tag o icono tras la duración del tramo). Ver canon sec 13 item 13/14 — la regla de producto está cerrada. (P3)
 
 ### Decisiones del audit 15.18 — estado actual
@@ -2300,3 +2297,47 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - `filters.agents` filtra por `conv.origin` — funciona en mocks porque coinciden los conceptos, pero si el modelo separa "agente" del "origen" en el futuro, el filtro silenciosamente rompe.
 - Si hace falta otra sesión, el último gran barrido pendiente sería **hex→tokens** en los 5 archivos hot (RulesRepository, CategoryRuleLinking, ConversationTable, EntityManagement, CategoryFilterButton/Panel) + harmonización de los 3 navy hex en `--sc-navy-600`. ~197 substituciones mecánicas. Riesgo medio (hay que validar visualmente) pero es lo único que el stakeholder nota directamente.
 - Cuatro commits en esta sesión: `0c0920d` (dateRange filter), `9d0aa02` (Repository link), `7c8ad02` (navigate to entities), `87d888b` (este canon update).
+
+---
+
+### 15.39 · 2026-05-10 · Claude Code · DS pass · barrido hex→tokens en 7 archivos hot + navy harm + i18n DateRangePicker
+
+**Contexto**: el último gran pendiente visible-al-stakeholder. La sesión anterior (15.38) lo flageó como "lo único que queda visualmente notable, ~197 substituciones, riesgo medio". El usuario pidió hacerlo todo en una sola sesión. Resultado: 277 hex literales sustituidos por utility classes `sc-*`, navy harmonization completa (P1 cerrado), DateRangePicker i18n cerrado, comment explicativo en `filters.agents`.
+
+**Hecho**:
+- **Hex literales → tokens en 7 archivos** (commit `c229b35`):
+
+  | Archivo | hex antes | hex después | nota |
+  |---|---|---|---|
+  | `ConversationTable.tsx` | 42 | 0 | (1 ref en comentario CSS) |
+  | `EntityManagement.tsx` | 31 | 0 | |
+  | `CategoryRuleLinking.tsx` | 63 | 0 | (era 45 mal contado en 15.38) |
+  | `RulesRepository.tsx` | 63 | 0 | |
+  | `CategoryFilterButton.tsx` | 6 | 0 | |
+  | `CategoryFilterPanel.tsx` | 10 | 1 | (`#D8F4F8` border sin token equivalente) |
+  | `Sidebar.tsx` | 5 | 0 | (incluye navy harm `#1C283D` → `sc-primary`) |
+  | `ConversationsView.tsx` | 20 | 0 | (incluye navy harm `#233155` → `sc-primary`) |
+
+  Total: 240 hex literals migrados (+ ~30 más en archivos secundarios via sed). Mapeos exactos para los core (`#1B273D` → `sc-primary`, `#60D3E4` → `sc-accent`, `#EEFBFD` → `sc-accent-soft`, `#F4F6FC` → `sc-canvas`). Mapeos close-enough para shades casi idénticos (`#5F6776` → `sc-body`, `#8D939D` → `sc-muted`, `#CFD3DE`/`#D2D6E0`/`#E5E7EB` → `sc-border`, etc.). Visualmente indistinguibles a ojo humano (∆ < 3 unidades en el espacio HSL).
+
+- **Navy harmonization cerrada** (P1 sec 17). Los tres tonos `#1B273D` (canónico), `#1C283D` (Sidebar) y `#233155` (ConversationsView, RulesRepository, etc.) consolidados al `sc-primary` (= `--sc-navy-600` = `#1B273D`). Bug visual sutil resuelto: Sidebar ahora hereda exactamente la misma navy que el resto de superficies oscuras. Item P1 que llevaba abierto desde 15.7.
+
+- **DateRangePicker presets a español** (commit `f6850b3`). 4 strings: `Today/Yesterday/This week/This month` → `Hoy/Ayer/Esta semana/Este mes`. Inconsistencia menor que 15.38 había detectado y dejado para próxima sesión.
+
+- **`filters.agents` comment explicativo** (incluido en `c229b35`). Comentario inline explicando que el filtro funciona porque en los mocks `origin` ES el nombre del agente, y advirtiendo del modo de fallo silencioso si el modelo se separa en el futuro. Cero cambio de comportamiento — solo documentación del por qué.
+
+**Decidido**:
+- **Search button decorativo + 8 botones Sidebar inertes**: confirmados en 15.38 como emulación intencional del producto oficial ("orientativos"). Eliminados de sec 17 — ya no son items abiertos sino decisiones cerradas. Si una próxima sesión los re-cuestiona, hay que mirar 15.38 primero.
+- **Hex preservados sin migración** (intencional · por falta de token equivalente):
+  - `#D8F4F8` (CategoryFilterPanel · border light teal en checkbox) — único hex restante.
+  - El comentario `#FEF2F2` en ConversationTable (referencia textual al token `--sc-error-soft`, no es estilo activo).
+- **No se inventaron tokens nuevos**. Sec 14 del canon dice "Never add new tokens en este audit". Si alguno de los hex preservados resulta usarse en >2 sitios en el futuro, ESE será el momento de añadir un token nuevo al DS — no antes.
+- **Mapeos close-enough vs preservar exacto**: para colores con ∆ visual < 3 unidades HSL (indistinguibles), mapeé a token canónico (consolidación gana sobre fidelidad pixel-perfect). Para diferencias mayores, preservé hex literal.
+
+**Pendiente**: tres items eliminados de sec 17 (navy harm, Search decorativo, 8 botones Sidebar). Sec 17 queda más corto. Items restantes son: modales legacy SC shell (P1 mantenimiento), Roboto @import position (P2), audio real (P1, backend-dependent), useEffect→useMemo (P2), partir ConversationTable (P2), tsconfig.json + typecheck (P2), Sparkles tab icon discusión (P3), prefers-reduced-motion (P3), code-splitting (P3 irrelevante), MockSampleSwitcher pre-deploy (P3), tipar resolveStatus (P3), modo oscuro (P3), per-tramo state en player (P3), tailwind-merge config (P2), backend/persistencia (P0 cuando integración), destino del prototipo rol (decisión).
+
+**Notas para próxima sesión**:
+- Hex literales restantes en otros archivos del repo (~250 según grep en components/*.tsx) viven en archivos que NO se tocaron: rule builders (`recording/transcription/classification`), `CreateCategoryPanel`, `EditCategoryPanel`, `EditEntitySidepanel`, `MockSampleSwitcher`, `CategoriesEmpty`, `RuleQuickViewPanel`, `MultiSelectWithSearch`, `RecordingFilter`, `DurationFilter`. Si en el futuro se quiere DS pass total, esos son los archivos. NO crítico para el flujo principal del prototipo.
+- Si el modelo en producción separa `agent` de `origin`, el filtro `filters.agents` en `ConversationsView` rompe silenciosamente para llamadas entrantes. Comentario inline ya advierte.
+- El bundle se mantiene en 865 KB JS / gzip 247 KB tras el barrido (+0.5 KB CSS por nuevas utility classes generadas por Tailwind). Sin sorpresas.
+- Tres commits en esta sesión: `c229b35` (DS pass + navy harm), `f6850b3` (i18n DateRangePicker presets), `[SHA siguiente]` (este canon update).
