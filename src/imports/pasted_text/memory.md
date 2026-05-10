@@ -2414,4 +2414,4 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 **Notas para próxima sesión**:
 - `docs/decisiones.md` está cargado con todas las decisiones de las últimas sesiones. La próxima vez que se cierre una decisión nueva, el paso 6 del protocolo (sec 19) obliga a actualizar también este archivo. La regla es nueva — si se nota olvido en futuras sesiones, ese es el lugar donde mirar.
 - El popover del HelpCircle tiene 3 items hoy. Si se añaden más docs canónicos al repo (ej. `docs/api.md` o `docs/glosario.md`), el patrón ya está. Add item al popover.
-- Tres commits en esta sesión: `e9bd75f` (docs · renames + decisiones.md + actualización logica-de-conteo), `b4ceca7` (UI · popover + GDPR visual + hint redundancy), `[SHA siguiente]` (este canon update).
+- Tres commits en esta sesión: `e9bd75f` (docs · renames + decisiones.md + actualización logica-de-conteo), `b4ceca7` (UI · popover + GDPR visual + hint redundancy), `be94a51` (este canon update).
