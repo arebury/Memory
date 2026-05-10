@@ -265,30 +265,58 @@ export function ConversationsView({
 
   /* ── Transcription: moves IDs through processing → newlyTranscribed.
         On completion, also generates a random transcription so the
-        single-conversation player has content to render. ──────────── */
+        single-conversation player has content to render.
+
+        Multi-rec rule (sec 13.13): bulk transcribe acts on the WHOLE
+        conversation — every leg flips to transcribed. The aggregate
+        `hasTranscription` is "all legs transcribed", so single-rec
+        and multi-rec converge to the same shape on the conversation
+        record. The toast counter uses tramos (not conversations) so
+        the user sees the real cost. ──────────────────────────────── */
   const handleRequestTranscription = (ids: string | string[]) => {
     const idArray = Array.isArray(ids) ? ids : [ids];
     setProcessingIds(prev => [...new Set([...prev, ...idArray])]);
+    let tramoCount = 0;
     setTimeout(() => {
       setProcessingIds(prev => prev.filter(id => !idArray.includes(id)));
       setNewlyTranscribedIds(prev => [...new Set([...prev, ...idArray])]);
       setConversations(prev =>
         prev.map(c => {
           if (!idArray.includes(c.id)) return c;
+          // Multi-rec: flip every UNTRANSCRIBED leg (skip already done) and
+          // recompute the aggregate. Counts only the legs we actually
+          // touched so the toast doesn't lie when some legs were already
+          // transcribed before the bulk run.
+          if (c.recordings && c.recordings.length > 1) {
+            const flipped = c.recordings.map(r =>
+              r.hasTranscription ? r : { ...r, hasTranscription: true },
+            );
+            const newlyTranscribed = c.recordings.filter(r => !r.hasTranscription).length;
+            tramoCount += newlyTranscribed;
+            return {
+              ...c,
+              hasTranscription: true,
+              recordings: flipped,
+              transcription: c.transcription ?? generateTranscriptionFor(c),
+            };
+          }
+          tramoCount += 1;
           return {
             ...c,
             hasTranscription: true,
-            // Only seed lines for entries that don't already have them.
             transcription: c.transcription ?? generateTranscriptionFor(c),
           };
         }),
       );
       const n = idArray.length;
+      const multiRec = tramoCount > n;
       scToast.success({
         title: n === 1 ? "Transcripción lista" : `${n} transcripciones listas`,
-        message: n === 1
-          ? "Ya puedes consultarla en el reproductor."
-          : "Ya están disponibles en la tabla.",
+        message: multiRec
+          ? `Incluye ${tramoCount} audios en total (algunas llamadas tienen varios tramos).`
+          : n === 1
+            ? "Ya puedes consultarla en el reproductor."
+            : "Ya están disponibles en la tabla.",
       });
     }, 6000);
   };
@@ -541,6 +569,7 @@ export function ConversationsView({
                     disabled={!hasSelection}
                     variant="ghost"
                     size="icon"
+                    aria-label={hasSelection ? `Transcribir selección (${selectedIds.length})` : "Transcribir selección"}
                     className={`h-9 w-9 relative transition-all ${
                       !hasSelection
                         ? 'text-[#9CA3AF] cursor-not-allowed hover:bg-transparent'
