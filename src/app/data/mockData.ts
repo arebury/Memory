@@ -132,7 +132,6 @@ export interface Conversation {
   deleted?: boolean;
   hasRecording?: boolean;
   hasTranscription?: boolean;
-  hasDiarization?: boolean;
   hasAnalysis?: boolean;
   /** Mock-only: marks a conversation whose transcription attempt failed. The
    *  table paints the row red and surfaces a "Ver fallidas" toast action.
@@ -165,7 +164,7 @@ export const mockConversations: Conversation[] = [
     duration: "03:45",
     hasRecording: true,
     hasTranscription: true,
-    hasDiarization: false,
+
     hasAnalysis: true,
     hasRecordingRule: true,
     hasTranscriptionRule: true,
@@ -245,7 +244,7 @@ export const mockConversations: Conversation[] = [
     duration: "05:45",
     hasRecording: true,
     hasTranscription: true,
-    hasDiarization: true,
+
     hasAnalysis: false,
     hasRecordingRule: true,
     hasTranscriptionRule: false,
@@ -288,7 +287,7 @@ export const mockConversations: Conversation[] = [
     duration: "05:20",
     hasRecording: true,
     hasTranscription: true,
-    hasDiarization: false,
+
     hasAnalysis: true,
     hasRecordingRule: true,
     hasTranscriptionRule: true,
@@ -1533,7 +1532,7 @@ export const mockConversations: Conversation[] = [
     group: "ACD Demo C2CB", destination: "-", id: "CHAT0001A1",
     waiting: "00:10", duration: "04:30",
     hasRecording: false, hasTranscription: false, hasAnalysis: true,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
     type: "externa", channel: "chat", direction: "entrante"
   },
   {
@@ -1542,7 +1541,7 @@ export const mockConversations: Conversation[] = [
     group: "Soporte Nivel 1", destination: "-", id: "CHAT0002B2",
     waiting: "00:05", duration: "07:15",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
     type: "externa", channel: "chat", direction: "entrante"
   },
   {
@@ -1551,7 +1550,7 @@ export const mockConversations: Conversation[] = [
     group: "Campaigns", destination: "-", id: "CHAT0003C3",
     waiting: "00:02", duration: "02:45",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: true,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: true,
     aiCategories: ["Consulta de precio"],
     type: "externa", channel: "chat", direction: "saliente"
   },
@@ -1561,7 +1560,7 @@ export const mockConversations: Conversation[] = [
     group: "Clientes vip (Queue)", destination: "-", id: "CHAT0004D4",
     waiting: "00:08", duration: "05:50",
     hasRecording: false, hasTranscription: false, hasAnalysis: true,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: true,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: true,
     aiCategories: ["Seguimiento"],
     type: "interna", channel: "chat", direction: "entrante"
   },
@@ -1571,7 +1570,7 @@ export const mockConversations: Conversation[] = [
     group: "Soporte Nivel 2", destination: "-", id: "CHAT0005E5",
     waiting: "00:15", duration: "03:20",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
     type: "externa", channel: "chat", direction: "entrante"
   },
   {
@@ -1580,7 +1579,7 @@ export const mockConversations: Conversation[] = [
     group: "ACD outbound", destination: "-", id: "CHAT0006F6",
     waiting: "00:03", duration: "06:40",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
     type: "interna", channel: "chat", direction: "saliente"
   },
   {
@@ -1589,7 +1588,7 @@ export const mockConversations: Conversation[] = [
     group: "Soporte Nivel 1", destination: "-", id: "CHAT0007G7",
     waiting: "00:07", duration: "08:00",
     hasRecording: false, hasTranscription: false, hasAnalysis: true,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: true,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: true,
     aiCategories: ["Problema técnico"],
     type: "externa", channel: "chat", direction: "entrante"
   },
@@ -1599,7 +1598,7 @@ export const mockConversations: Conversation[] = [
     group: "ACD Demo C2CB", destination: "-", id: "CHAT0008H8",
     waiting: "00:12", duration: "04:10",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
     type: "externa", channel: "chat", direction: "entrante"
   },
   {
@@ -1608,7 +1607,7 @@ export const mockConversations: Conversation[] = [
     group: "Campaigns", destination: "-", id: "CHAT0009I9",
     waiting: "00:04", duration: "02:55",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: false, hasClassificationRule: false,
     type: "interna", channel: "chat", direction: "saliente"
   },
   {
@@ -1617,7 +1616,7 @@ export const mockConversations: Conversation[] = [
     group: "Clientes vip (Queue)", destination: "-", id: "CHAT0010J0",
     waiting: "00:06", duration: "05:25",
     hasRecording: false, hasTranscription: false, hasAnalysis: false,
-    hasDiarization: false, hasRecordingRule: false, hasTranscriptionRule: true, hasClassificationRule: false,
+    hasRecordingRule: false, hasTranscriptionRule: true, hasClassificationRule: false,
     type: "externa", channel: "chat", direction: "entrante"
   }
 ];

@@ -81,7 +81,7 @@ export const mockSamples: MockSample[] = [
             ...c,
             hasTranscription: false,
             hasAnalysis: false,
-            hasDiarization: false,
+
             transcription: undefined,
             aiCategories: undefined,
           };
@@ -217,7 +217,7 @@ export const mockSamples: MockSample[] = [
           hasRecording: true,
           hasTranscription: false,
           hasAnalysis: false,
-          hasDiarization: false,
+
           transcription: undefined,
           aiCategories: undefined,
         };
