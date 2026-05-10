@@ -35,7 +35,6 @@
 | Iconos | lucide-react | 0.487.0 |
 | Animaciones | motion (ex-Framer Motion) | 12.23.24 |
 | Notificaciones | sonner | 2.0.3 |
-| Markdown render | react-markdown + remark-gfm | 10.1 / 4.0 (DocumentationModal) |
 | Fechas | date-fns | 3.6.0 (DateRangePicker) |
 | Calendarios | react-day-picker | 8.10.1 (DateRangePicker via Calendar primitive) |
 | Tema | next-themes | 0.4.6 (sonner Toaster lee modo) |
@@ -1138,7 +1137,7 @@ pnpm preview
 
 6. **BulkTranscriptionModal v25**: La versión actual sustituyó la taxonomía v11 de 3 destinos por un layout más simple de 2 columnas (hero number + análisis toggle) con 6 casos derivados (C1–C6). Versiones anteriores (v1–v24) están como referencia en los archivos de spec en `src/app/imports/pasted_text/`. La pieza es ahora consumidora del shell oficial `<Modal>` del SC design system: si el shell cambia, los demás modales lo heredan automáticamente.
 
-7. **Diarización · DEPRECADA en 15.23**. Históricamente era checkbox dentro de `TranscriptionRequestModal` y existía un `DiarizationRequestModal` separado para añadirla a posteriori. **Eliminada del producto entero** — solo existen "Transcripción" y "Análisis" (resumen + sentimiento). `DiarizationRequestModal` borrado en 15.23 (deprecado como concepto), `TranscriptionRequestModal` borrado en 15.28 (modal innecesario, sec 20.14). Cualquier modal/checkbox/copy con "diarización" en el repo hoy es bug. El campo `Conversation.hasDiarization` sigue en el modelo de datos pendiente de schema cleanup (sec 17 P3).
+7. **Diarización · DEPRECADA en 15.23**. Históricamente era checkbox dentro de `TranscriptionRequestModal` y existía un `DiarizationRequestModal` separado para añadirla a posteriori. **Eliminada del producto entero** — solo existen "Transcripción" y "Análisis" (resumen + sentimiento). `DiarizationRequestModal` borrado en 15.23 (deprecado como concepto), `TranscriptionRequestModal` borrado en 15.28 (modal innecesario, sec 20.14). Cualquier modal/checkbox/copy con "diarización" en el repo hoy es bug. El campo `Conversation.hasDiarization` también borrado del schema en 15.36 (mockData + mockSamples + interfaz) — concepto cero refs en el repo.
 
 ### Workarounds / Hacks
 
@@ -1429,18 +1428,16 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Modo oscuro: tokens definidos en `default_theme.css` con `.dark`, falta toggle UI y variantes dark de los `--sc-*`. (P3)
 - Dividir `ConversationTable.tsx` en subcomponentes (es muy grande). (P2)
 - Migrar `useEffect` de sincronización `typeFilters`/`ruleFilters` en `ConversationsView` a `useMemo` (actualmente estado derivado vía effect). (P2)
-- Code-splitting del bundle: tras la purga 15.35 el chunk JS sigue en 1095 KB (gzip 319 KB). Candidatos para `manualChunks`: `motion`, `react-day-picker` + `date-fns`, `react-markdown` + `remark-gfm`, `@radix-ui/*`. (P3)
+- Code-splitting del bundle: tras la reversión 15.36 el chunk JS está en 860 KB (gzip 246 KB). Si se quisiera bajar más, candidatos para `manualChunks`: `motion`, `react-day-picker` + `date-fns`, `@radix-ui/*`. (P3 — irrelevante en demo local, solo importa si el deploy tiene mucho tráfico)
 - Decisión pendiente sobre el destino del prototipo (rol 1/2/3) cuando el DS del cliente esté maduro — ver sección 16.
 - `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
 - Wire del link "Cómo funcionan las reglas" en `Repository.tsx:299` — hoy `window.open("#", ...)`. Apuntar a docs reales o reusar la URL de Figma site del help button. (P2)
 - Wire o eliminar el botón Search decorativo en `ConversationFilters.tsx:91-95` — los filtros se aplican en `onChange` así que el botón no hace nada. (P3)
-- Eliminar `Conversation.hasDiarization` del modelo y de los presets (`mockData.ts`, `mockSamples.ts`) — la diarización es concepto deprecado (15.23) pero el campo persiste. Pasada de schema cleanup. (P3)
 - Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
 - Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
 - 8 botones de navegación inertes en `Sidebar.tsx` (Grid/Search/BarChart3/Phone/Users/Wrench/Settings/Clock) — decidir si esconder o promover a roadmap visible (hoy son visualmente decorativos pero introducen 8 tab-stops disabled aun con aria-label "Próximamente: …"). (P3)
-- **Decidir destino de la integración `DocumentationModal` + popover en `ConversationsView`** (15.31): los docs externos pasan a distribuirse como `.docx` generados desde los `.md` de `docs/` con Claude Desktop. La integración del prototipo sigue funcional pero ya no es el canal canónico. Decisiones posibles: (a) revertir todo (volver al simple `<HelpCircle>` con link a Figma site, borrar `DocumentationModal.tsx` y deps `react-markdown`/`remark-gfm`), (b) mantener la integración porque sincroniza con los `.md` automáticamente y ofrece "ver online" además de "descargar PDF", (c) simplificar a solo links de descarga (que el popover apunte a las URLs raw de GitHub o a `.docx` pre-generados servidos desde `public/`). (P2)
 - **Implementar regla "bulk transcribe TODAS las grabaciones de cada conversación seleccionada"** (sec 13 decisiones de producto items 13 + 14, cerradas en 15.31). Cambios:
   1. Modelo: añadir estado `hasTranscription` por grabación dentro de `Conversation.recordings[]`. Computar `Conversation.hasTranscription` agregado en `normalizeChats` (TRUE solo si todas).
   2. `BulkTranscriptionModal`: `nTrans` cuenta tramos pendientes (no conversaciones) en presencia de multi-rec. Subtítulo o caption muestra desglose explícito `X conversaciones · Y multi-grabación → Z transcripciones totales`.
@@ -2235,3 +2232,27 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Si llega un día con tiempo, el siguiente nivel de simplificación sería: barrido hex → tokens en RulesRepository (63 hex) + CategoryRuleLinking (45). Total 108 substituciones mecánicas. Hacerlo en una pasada con el canon `--sc-*` mapping cargado. Riesgo controlado si se valida visualmente cada vista tras el cambio.
 - El audit `audit/2026-05-04.md` queda como snapshot histórico — esta sesión NO lo regenera. La próxima auditoría hará uno nuevo cuando haga falta otra foto fechada.
 - Cuatro commits separados (deps purge, spec docs move, UX feedback fixes, canon update) en lugar de un commit monolítico — más fácil de revertir cualquiera selectivamente. SHAs: `650f414` (purga primitives + 18 deps), `b286c97` (specs → docs/specs/), `d25136f` (UX scToast fixes), `5a8ef46` (este canon update).
+
+---
+
+### 15.36 · 2026-05-10 · Claude Code · revert DocumentationModal + eliminar hasDiarization · cierre de dos pendientes
+
+**Contexto**: tras el audit 15.35, conversación con el usuario sobre lo que queda. El usuario confirma que el prototipo no irá a backend nunca (es para comunicar ideas), así que la mitad del roadmap deja de aplicar. De lo que sigue siendo crítico, abordamos las dos decisiones más limpias: el destino del `DocumentationModal` (decisión, no implementación) y la eliminación del campo `hasDiarization` residual. Ambas validadas en runtime con Playwright + chromium headless tras los cambios.
+
+**Hecho**:
+- **`DocumentationModal` revertido** (commit `68fa765`). El popover de 3 items en `ConversationsView` se reduce al `<HelpCircle>` con `<Tooltip>` simple que abre `https://group-image-51851861.figma.site` (Figma site con flujos de validación UX). Borrados: `src/app/components/DocumentationModal.tsx` (componente completo), bloque `.doc-prose` (lns 256-403) + `@media print` (411-523) en `src/styles/globals.css` (267 lns CSS), deps `react-markdown` + `remark-gfm` en `package.json`. Imports limpiados en `ConversationsView`: `Popover`, `BookOpen`, `ExternalLink`, `Calculator`, `DocumentationModal`, `DocSlug`. State `docModalSlug` + `docPopoverOpen` eliminados. Bundle tras la reversión: 860 KB JS / gzip 246 KB (−234/−74 KB vs 15.35), 2982 módulos (−255). pnpm install: −97 paquetes transitivos por la cascada de `react-markdown`.
+- **`Conversation.hasDiarization` eliminado del schema** (commit `a77641e`). 16 ocurrencias borradas: campo `?: boolean` en la interfaz, 13 en `mockData.ts` (3 objects sueltos + 10 multi-prop one-liners), 2 en `mockSamples.ts`. Cero refs en componentes/UI (verificado con grep). Hecho con `sed -E 's/hasDiarization: (true|false), //g; ...'` en una pasada + `awk` para colapsar líneas vacías colaterales. Concepto deprecado en 15.23, campo finalmente fuera del modelo en 15.36.
+- **Validación playwright** post-cambios: chromium headless carga la app, abre el modal del player, click en download dispara el toast `"Descargando audio"` (la copy nueva que añadí en 15.35). Cero `pageerror`, cero console errors, cero requestfailed. Confirma que la reversión no rompió nada en runtime, no solo en build.
+
+**Decidido**:
+- **Revertir `DocumentationModal` (opción a) en lugar de mantener (b) o links de descarga (c)**. Razones: (1) mantener doble canal (`.docx` oficial via Claude Desktop + render inline en prototipo) garantiza drift cuando los `.md` se editan; (2) el problema original que motivó el cambio a Claude Desktop (modal que se cortaba con docs largos como `memory.md`/`decisions.md`) NO se resolvió, solo se evitó usando docs cortos — sigue a un edit de distancia de romperse; (3) el coste real de la integración (~50 KB bundle, componente con print stylesheet ya buggy en 15.31, CSS print-specific en globals.css) supera el valor de un canal que ya no es oficial; (4) `<HelpCircle>` simple con link al Figma site cubre la función de "validar UX" sin código técnico. Esta sesión es de simpleza, alinea.
+- **Eliminar `hasDiarization` AHORA, no esperar a backend real**. El argumento del audit 15.26 ("no tocar mock data structure hasta backend coordinado") asumía que el backend llegaría. Hoy el usuario confirma que el prototipo se queda como prototipo — no hay coordinación pendiente con backend. Si un stakeholder técnico abre el data model y ve un campo deprecado, es ruido. Mecánico, cero refs en UI, riesgo cero.
+- **NO migrar el bullet "code-splitting bundle" del roadmap a "cerrado"** — sigue siendo P3 abierto, solo actualizado el bundle real (860 KB vs 1095 KB). Es irrelevante en demo local pero queda como nota.
+
+**Pendiente**: dos items cerrados removidos de sec 17 (`hasDiarization` schema cleanup + decisión `DocumentationModal`). Sec 13 item 7 actualizado para reflejar que el campo ya no existe. Sec 2 actualizada (deps `react-markdown`/`remark-gfm` borradas).
+
+**Notas para próxima sesión**:
+- El siguiente item crítico del roadmap es la **regla "bulk transcribe TODAS las grabaciones de cada conversación seleccionada"** (sec 17 P1, sec 13 items 13+14, decidida en 15.31, NO implementada). Es la deuda concreta del producto que el prototipo debería estar comunicando hoy. 5 sub-pasos definidos.
+- El otro item P2 abierto es **re-habilitar el filtro de categorías IA** en `ConversationsView` (hoy `{false && showCategoryFilter && ...}`). Las categorías son parte de la idea principal — esconder el filtro envía señal de feature incompleto.
+- Después de esos dos items P1+P2, lo que queda es hygiene interno (hex→tokens, partir `ConversationTable`, tsconfig.json) que no afecta lo que el stakeholder ve. El usuario fue claro: prototipo = comunicar ideas, no app de producción.
+- Tres commits en esta sesión: `68fa765` (revert DocumentationModal), `a77641e` (eliminar hasDiarization), [SHA siguiente] (este canon update).
