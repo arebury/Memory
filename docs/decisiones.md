@@ -6,7 +6,7 @@
 
 ## Sobre este documento
 
-Memory tiene muchas piezas pequeñas y, detrás de cada una, una decisión. Algunas de esas decisiones se tomaron rápido y se quedaron; otras vinieron tras varias iteraciones, descartes y vuelta atrás. Este documento recoge **las decisiones de producto y UX que se han cerrado a lo largo del desarrollo, por qué se tomaron, y qué descartamos a propósito**.
+Memory tiene muchas piezas pequeñas y, detrás de cada una, una decisión. Cada decisión tiene varias iteraciones, y es una suma incontable y constante de factores a tener en cuenta. Este documento recoge **las decisiones de producto y UX que se han cerrado a lo largo del desarrollo, por qué se tomaron, y qué descartamos a propósito**.
 
 No es el manual de usuario ni la referencia técnica. Es el *por qué* del producto, en lenguaje natural. Sirve para que cualquiera que llegue al proyecto entienda no solo qué hace Memory sino también qué decidimos NO hacer, y la razón.
 
