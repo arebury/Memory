@@ -262,7 +262,9 @@ export function ConversationsView({
   }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed]);
 
   const handleDownload = () => {
-    alert(`Descargando ${selectedIds.length} conversación(es)`);
+    scToast.info({
+      title: `Descargando ${selectedIds.length} conversación(es)`,
+    });
   };
 
   /* ── Transcription: moves IDs through processing → newlyTranscribed.

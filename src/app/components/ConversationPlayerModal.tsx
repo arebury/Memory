@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 
 import { Modal } from "./ui/modal";
+import { scToast } from "./ui/sc-toast";
 import { cn } from "./ui/utils";
 import { FOCUS_RING } from "./ui/focus";
 import { RetranscriptionConfirmModal } from "./RetranscriptionConfirmModal";
@@ -424,10 +425,9 @@ export function ConversationPlayerModal({
                   FOCUS_RING,
                 )}
                 onClick={() => {
-                  // Mock — wired by the parent in production. Keeping
-                  // local until the real export endpoint exists.
-                  // eslint-disable-next-line no-console
-                  console.log("download", conversation.id);
+                  scToast.info({
+                    title: isChat ? "Descargando conversación" : "Descargando audio",
+                  });
                 }}
               >
                 <Download size={15} />
