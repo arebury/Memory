@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" shape-rendering="geometricPrecision">
+  <!-- Yellow background -->
+  <rect width="64" height="64" rx="8" fill="#F5C518"/>
+  <!-- M+ logo · stroked zigzag M with separate + sign · rounded caps -->
+  <g fill="none" stroke="#0F0F12" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+    <!-- M zigzag · 4 vertices forming the M silhouette -->
+    <polyline points="12,42 22,18 32,38 42,18"/>
+    <!-- Plus sign · centered horizontally and vertically at lower-right -->
+    <line x1="48" y1="32" x2="48" y2="46"/>
+    <line x1="41" y1="39" x2="55" y2="39"/>
+  </g>
+</svg>
