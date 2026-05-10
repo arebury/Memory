@@ -1420,7 +1420,6 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Consolidar los tres tonos de navy en circulación (`#1B273D` / `#1C283D` / `#233155`) en el token canónico `--sc-navy-600`. (P1)
 - Mover el `@import` de Roboto al inicio de `src/styles/index.css` para silenciar el warning `@import must precede all other statements` de PostCSS. (P2)
 - Audio real en `ConversationPlayerModal` (hoy reproducción simulada con `setInterval`). El `PlayerModal` legacy queda muerto en el repo — borrar cuando todos los callers se hayan movido al nuevo. (P1)
-- Implementar `onNavigateToEntities` en `ClassificationRuleBuilder` (actualmente lanza un toast "TBI"). (P2)
 - Paginación real en `ConversationTable`. (P2)
 - Exportación / importación real en `DataExportImport.tsx`. (P2)
 - Backend / persistencia real (hoy todo es mock + `localStorage`). (P0 cuando empiece la integración)
@@ -1432,7 +1431,6 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - `MockSampleSwitcher` y `mockSamples.ts` son código exclusivo de prototipo. Marcarlos para purga antes de cualquier deploy a stakeholders externos no técnicos. (P3)
 - Tipar el retorno de `resolveStatus` en `StatusIcons.tsx` con `React.ReactElement` en vez de `JSX.Element` por si se desactiva el global JSX namespace al añadir `tsconfig.json`. (P3)
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
-- Wire del link "Cómo funcionan las reglas" en `Repository.tsx:299` — hoy `window.open("#", ...)`. Apuntar a docs reales o reusar la URL de Figma site del help button. (P2)
 - Wire o eliminar el botón Search decorativo en `ConversationFilters.tsx:91-95` — los filtros se aplican en `onChange` así que el botón no hace nada. (P3)
 - Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
 - Añadir `@media (prefers-reduced-motion: reduce)` para los keyframes `sc-delta-fly`, `sc-bump`, `sc-pulse`, `sc-shake` en `sc-design-system.css`. (P3)
@@ -2276,3 +2274,29 @@ Solo (4) sobrevive como duplicación con propósito. (1), (2), (3) son ornamento
 - Tema NO abordado pero discutido: **chats con custodia GDPR vencida** no tienen transcripción recuperable (modelo real). Hoy `normalizeChats` fuerza `hasTranscription: true` para todo chat (invariante simplificada de la sec 13.7). Tres opciones manejadas: (1) dejarlo, (2) sample dedicado "Chats con custodia vencida" en `mockSamples`, (3) levantar la invariante general. Decisión del usuario: NO meter más complejidad en el modal — "tengo 3 chats, 2 llamadas, 4 multi grabación, 2 con custodia compartida... es mucho ruido". El multi-rec changes NO se ven afectados (son call-only · `if (next.recordings && next.recordings.length > 1)` ni se ejecuta para chats). Tema queda parqueado para conversación, no para implementación inmediata.
 - Hex literals `CategoryFilterButton`/`CategoryFilterPanel` siguen pre-DS-pass. Cuando llegue el barrido hex→tokens (los 4 archivos hot: RulesRepository 63, CategoryRuleLinking 45, ConversationTable 42, EntityManagement 31), añadir estos dos al sweep.
 - Cinco commits en esta sesión: `e2a9f94` (re-habilitar filtro categorías IA), `151b90e` (modelo Recording.hasTranscription), `e22eb74` (BulkTranscriptionModal contador honesto), `80447d5` (handler multi-rec + aria-label), `69a9f33` (este canon update).
+
+---
+
+### 15.38 · 2026-05-10 · Claude Code · auditar phantom UX · cierre de tres gaps de cableado
+
+**Contexto**: a petición del usuario, audit del codebase para distinguir entre **emulación intencional** del producto oficial (orientativos, intocables — confirmados: botón Search decorativo, 8 botones inertes en Sidebar, audio simulado con `setInterval`, 8 menu items abstraídos del manual) vs **gaps reales** donde algo se ve, parece funcional, y no lo es. Tres encontrados, los tres cerrados en esta sesión.
+
+**Hecho**:
+- **`filters.dateRange` cableado al pipeline** (commit `0c0920d`). El `<DateRangePicker>` actualizaba el state pero el filtro nunca lo consultaba. Bug invisible: el supervisor seleccionaba un rango, la tabla no respondía. Implementación: parseo de `DD/MM/YYYY` (mismo formato en filters y en `Conversation.date`), compare por epoch ms, soporta tanto rango como fecha única. Validado con playwright: rango "This week" reduce 75 → 1 fila.
+- **Link "Cómo funcionan las reglas" cableado** (commit `9d0aa02`). `Repository.tsx:299` cambió de `window.open("#", ...)` a la URL del Figma site (`group-image-51851861.figma.site`), mismo destino que el `<HelpCircle>` del toolbar de Conversations. Coherente con la decisión 15.36 de canal único de docs.
+- **`onNavigateToEntities` cableado a la vista real** (commit `7c8ad02`). El stub `toast.info("Navegar a entidades (TBI)")` en `RulesRepository.tsx:342` se reemplaza con la navegación real a `'repository-entities'`. Cadena completa: `App.tsx` pasa el callback a `RulesRepository`, que lo pasa a `ClassificationRuleBuilder`. La vista `EntityManagement` ya existía — solo faltaba el cable.
+
+**Decidido**:
+- **Filtros del manual oficial sec 11 que el prototipo NO tiene** (Tipificación, Custom Code, Comment, Result) **se quedan fuera intencionadamente** — usuario confirmó: *"Es sólo para cohibir la cantidad de cosas que puede hacer el prototipo y centrarnos en el flujo de transcripciones masivas, unitarias y creación de reglas."* No se añaden, no se documentan como pendiente.
+- **Search button decorativo + 8 botones Sidebar inertes** = emulación del producto oficial, intocables. Usuario: *"Son orientativos."* No entran en este audit.
+- **`filters.agents` filtra por `conv.origin`** — deuda conceptual menor (en mocks origen=agente, así que funciona por casualidad). NO se toca: si un día el modelo separa los conceptos, se aborda allí. Flagged en este log para que la próxima sesión lo encuentre.
+- **`DataExportImport` no es phantom**: exporta/importa rules+entities+categories en JSON real desde/hacia localStorage. La nota del roadmap "exportación real pendiente" solo aplica si quisiéramos exportar conversations también. NO está en el flujo principal (transcripciones+reglas), no se cierra como pendiente real.
+- **Presets en `DateRangePicker` están en inglés** ("Today / Yesterday / This week / This month") mientras el resto de la app es español. Inconsistencia menor de copy. NO se toca aquí — fuera del scope acordado, queda para roadmap si se quiere uniformar.
+
+**Pendiente**: dos items eliminados de sec 17 (link "Cómo funcionan las reglas", `onNavigateToEntities` TBI). El bug `filters.dateRange` no estaba listado en el roadmap (no se había detectado hasta este audit) — se cierra silenciosamente.
+
+**Notas para próxima sesión**:
+- `DateRangePicker` presets en inglés (`Today/Yesterday/This week/This month`) — si se uniforma a español, son 4 strings en `src/app/components/DateRangePicker.tsx`. NO bloqueante.
+- `filters.agents` filtra por `conv.origin` — funciona en mocks porque coinciden los conceptos, pero si el modelo separa "agente" del "origen" en el futuro, el filtro silenciosamente rompe.
+- Si hace falta otra sesión, el último gran barrido pendiente sería **hex→tokens** en los 5 archivos hot (RulesRepository, CategoryRuleLinking, ConversationTable, EntityManagement, CategoryFilterButton/Panel) + harmonización de los 3 navy hex en `--sc-navy-600`. ~197 substituciones mecánicas. Riesgo medio (hay que validar visualmente) pero es lo único que el stakeholder nota directamente.
+- Cuatro commits en esta sesión: `0c0920d` (dateRange filter), `9d0aa02` (Repository link), `7c8ad02` (navigate to entities), + 1 follow-up con SHAs reales (este canon update).
