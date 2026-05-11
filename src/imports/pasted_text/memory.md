@@ -2816,13 +2816,17 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 **Validación**:
 
 - Build OK: 2982 mods · 877 KB JS / gzip 248 KB (+2 KB sobre baseline 15.45 por handler + botón).
-- Strings nuevos verificados en bundle: "Marcar como le…", "Nada que marcar", "marcadas como le…", `readIds` no porque está minificado.
-- No verificado interactivamente con puppeteer · cableado mecánico verificado por code review; el supervisor verá: botón visible cuando hay selección, deshabilitado cuando nada marcable, action limpia amarillo + excluye de Solo fallidas + toast.
+- Strings nuevos verificados en bundle: "Marcar como le…", "Nada que marcar", "marcadas como le…".
+- **Verificación interactiva pasada con puppeteer-core + Chrome del sistema** (sample "Errores de transcripción" cargado · 14 fallidas):
+  1. Click "Ver fallidas" del toast → filtro activo · "Resultados: 14" · chip rojo visible.
+  2. Select-all en header → 14 checkboxes activos · botón "Marcar como leídas (14)" habilitado con aria-label correcto.
+  3. Click Marcar como leídas → "Resultados: 0" · empty state "No se encontraron conversaciones" · toast "14 marcadas como leídas" visible · chip de filtro sigue activo (correcto · es el supervisor quien decide cuándo limpiarlo).
+  4. Limpiar filtro → 75 conversaciones visibles · 31 iconos rojos preservados (estado real del backend, no se altera).
+  0 page errors · 0 console errors durante todo el flujo.
 
 **Notas para próxima sesión**:
 
-- Push Figma del bot ón de "Marcar como leídas" en la toolbar (no se ha hecho · puede ser polish si el equipo de diseño quiere verlo en el board).
-- Verificación interactiva del flujo completo con puppeteer (cargar sample "Errores de transcripción" + Solo fallidas + select-all + Marcar como leídas + verificar que el contador del chip rojo baja a 0 o que el filtro deja de mostrar resultados).
 - En producción, definir el endpoint exacto del backend para `read_states` per-usuario. Documentación de COA ya lo lista como dependencia.
+- El usuario explícitamente descartó push Figma del botón de "Marcar como leídas" en la toolbar (la verificación interactiva sí se quería · está hecha).
 
 **Mirror obligatorio · regla 15.41 paso 6**: `docs/decisiones.md` ya actualizado en este commit con la entrada narrativa "Marcar como leídas · cómo el supervisor limpia el ruido post-batch".
