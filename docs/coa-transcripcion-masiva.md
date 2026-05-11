@@ -28,13 +28,9 @@ Tres enlaces que acompañan a este documento. Cada uno cubre una capa distinta d
 
 - **Coste.** Cada transcripción y cada análisis con IA generan coste. El producto **no desglosa euros por operación** — eso vive en la capa de facturación. Sí muestra volumen en el modal masivo y una estimación de tiempo aproximada en las unitarias ("genera coste · ~30 s").
 - **Chats.** Son texto por definición; no se "transcriben". Llevan el atributo `transcrito` para que filtros y tabla traten ambos canales con la misma forma.
-- **Multi-tramo.** Una llamada puede tener uno o varios audios. El coste real lo carga el número de audios, no el de conversaciones. El producto cuenta audios cuando hace falta.
-- **Custodia GDPR.** Las conversaciones con custodia vencida no se transcriben aunque estén seleccionadas. Se filtran sin avisar.
+- **Multi-tramo.** Una llamada con transferencias entre grupos genera varios audios (uno por tramo), pero el listado la muestra como una única fila. A la hora de procesar, lo que se cobra son los audios, no las filas seleccionadas. Si el supervisor selecciona 10 filas y algunas son multi-tramo, el lote real puede ser de 25 transcripciones. El número grande del modal masivo refleja la cuenta real de audios.
+- **Retención de contenido.** Algunas conversaciones tienen restricciones legales de retención y dejan de ser recuperables tras un tiempo (por ejemplo, chats con custodia GDPR vencida · la normativa puede establecer límites para otros casos también). Esas conversaciones se filtran del lote sin avisar, no se transcriben aunque estén seleccionadas.
 - **Sin cancelación.** Una vez lanzada una operación masiva, no se puede cancelar a mitad. El backend no expone API de cancelación parcial. El producto no promete "Cancelar" en ningún sitio del flujo masivo.
-- **"Cancelar" vs "Cerrar".** "Cancelar" se usa solo en confirmaciones destructivas (re-transcribir, eliminar). El resto de modales usan "Cerrar" porque pre-submit no hay nada que cancelar.
-- **Confirmación solo para destructivo.** No hay modal intermedio de "¿seguro?" para operaciones que solo generan coste. El aviso del coste va inline en el modal masivo, y la unitaria se lanza directo desde el CTA.
-
-[NOTA: la regla "confirmación solo para destructivo" se cerró tras quitar el modal intermedio que aparecía antes de transcribir/analizar por primera vez. El supervisor ya ve el volumen en el modal masivo y la etiqueta "genera coste" en el CTA unitario; un "¿seguro?" extra era ruido cognitivo sobre información que ya tenía a la vista.]
 
 ---
 
@@ -172,17 +168,18 @@ Parte del reproductor legacy de Smart Contact y le aplica unos ajustes mínimos.
 - Diarización quitada del producto entero.
 - Confirmaciones previas para transcribir/analizar por primera vez quitadas. Cost cue inline en el CTA.
 
-**A la derecha de la fila de tabs, tres iconos de acción:**
+**A la derecha de la fila de tabs, dos iconos de acción:**
 
 | Icono | Cuándo aparece | Click |
 |---|---|---|
-| **Re-transcribir** | Solo si ya hay transcripción. | Abre modal destructivo (escribir "CONFIRMAR" + caja roja). |
 | **Análisis** (nuevo) | Siempre. Deshabilitado si no hay transcripción o si ya se analizó. | Lanza el análisis directamente, sin modal de confirmación intermedio. |
 | **Descargar** | Siempre. | Audio + transcripción si los hay; solo texto si es chat. |
 
-[imagen: reproductor unitario v1 · audio bar simple del legacy · tabs y fila de acciones a la derecha con Re-transcribir, Análisis (nuevo) y Descargar]
+[imagen: reproductor unitario v1 · audio bar simple del legacy · tabs y fila de acciones a la derecha con Análisis (nuevo) y Descargar]
 
 [NOTA: el botón "Análisis" en el header es nuevo en v1. Antes había que entrar en la pestaña Análisis para descubrir que se podía generar. Ahora se descubre desde la vista por defecto. Tooltip "Análisis" si habilitado · "Requiere transcripción" o "Análisis ya realizado" si deshabilitado.]
+
+[NOTA: la **re-transcripción** (sobrescribir una transcripción existente) no entra en v1 — el supuesto operativo del primer rollout es que el supervisor convive con la primera transcripción aunque tenga ruido, y en casos puntuales solicita reproceso por canales internos. Se aborda en una fase posterior · ver sección "Re-transcripción · post-v1" más abajo.]
 
 ### Modal reproductor · v2 (a dónde queremos llegar a medio plazo)
 
@@ -228,10 +225,13 @@ Para chats, el estado "Lista para analizar" se cumple siempre aunque no haya tra
 
 [imagen: pestaña "Análisis" en empty state · CTA "Transcribir y analizar"]
 
-### Re-transcripción
+### Re-transcripción · post-v1
 
-Modal de confirmación destructivo dedicado.
+La re-transcripción (sobrescribir una transcripción existente) **no entra en v1**. En el primer rollout no hay botón Re-transcribir en el reproductor ni modal de confirmación destructivo para ese caso. Si una transcripción tiene calidad pobre, el supervisor convive con ella o solicita reproceso por canales internos.
 
+Cuando se aborde en una fase posterior, la solución de referencia (visible en el prototipo de Memory) es la siguiente:
+
+- Modal de confirmación destructivo dedicado.
 - Icono de alerta + caja roja con texto explicativo.
 - Input para escribir "CONFIRMAR" en mayúsculas. El botón primario solo se habilita al matchear exacto.
 - Footer:
@@ -239,9 +239,9 @@ Modal de confirmación destructivo dedicado.
   - Derecha: "Re-transcribir" en color de error (rojo del DS).
 - Al confirmar: reemplaza la transcripción actual y borra el análisis derivado.
 
-[NOTA: el footer SÍ usa "Cancelar" en lugar de "Cerrar" — excepción para confirmaciones destructivas, donde "Cancelar" expresa mejor que el supervisor está abortando una acción consciente.]
+[NOTA: el footer del modal de re-transcripción usa "Cancelar" en lugar de "Cerrar" — excepción para confirmaciones destructivas, donde "Cancelar" expresa mejor que el supervisor está abortando una acción consciente. La misma regla aplicaría a futuros confirms destructivos del flujo (por ejemplo, borrar una transcripción).]
 
-[imagen: modal "Re-transcribir" · icono de alerta · caja roja · input "CONFIRMAR" · botón primario en rojo]
+[imagen: modal "Re-transcribir" · icono de alerta · caja roja · input "CONFIRMAR" · botón primario en rojo · referencia para la fase posterior, no parte de v1]
 
 ---
 
@@ -373,4 +373,4 @@ Cualquiera de estos filtros activos aparece como chip cerrable en la toolbar, co
 
 ---
 
-[NOTA FINAL: este documento describe v1 — la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con ajustes mínimos (botón "Análisis" en header, pluralización, "Cancelar" en destructive, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast, filtro multi-grabación, hint de tramos ya iniciados). v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]
+[NOTA FINAL: este documento describe v1 — la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con ajustes mínimos (botón "Análisis" en header, pluralización, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast, filtro multi-grabación, hint de tramos ya iniciados). La re-transcripción (modal destructivo con "Cancelar") queda fuera de v1 y se aborda en una fase posterior. v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]

@@ -213,8 +213,9 @@ Detalle técnico de la animación del fill: usa `transform: scaleX()` con origen
 
 A la derecha de las dos tabs viven las acciones globales del modal:
 
-- **Re-transcribir** (icono `RotateCcw`, low-key): aparece solo si la conversación ya tiene transcripción. Es destructivo (sobrescribe lo que hay), así que va con un modal de confirmación adicional al pulsarlo.
+- **Analizar** (icono `Sparkles`): visible siempre. Deshabilitado si no hay transcripción o si ya se analizó. Click lanza el análisis directamente, sin modal de confirmación intermedio. Tooltip dinámico: "Análisis" si está habilitado, "Requiere transcripción" o "Análisis ya realizado" si está deshabilitado.
 - **Descargar** (icono `Download`): visible siempre, paridad chat/llamada. El tooltip cambia: "Descargar audio" para llamadas, "Descargar conversación" para chats.
+- **Re-transcribir** (icono `RotateCcw`, low-key) · *post-v1, no entra en el primer rollout.* En el prototipo aparece a la izquierda de Analizar cuando ya hay transcripción y abre un modal de confirmación destructivo al pulsarlo. En v1 no se expone — el supervisor convive con la primera transcripción o solicita reproceso por canales internos.
 
 **Empty states de la pestaña Transcripción**
 
@@ -282,7 +283,8 @@ El speaker label y el timestamp aparecen pequeños encima del bubble. Los bubble
 - [ ] Para chats, el audio bar no se renderiza en absoluto.
 - [ ] La tab por defecto es Transcripción si la hay; Análisis si solo hay análisis.
 - [ ] Los empty states siguen el state machine descrito (ver el documento *Lógica de conteo*).
-- [ ] Re-transcribir abre el modal de confirmación destructivo.
+- [ ] Analizar lanza el análisis directo (sin modal intermedio) cuando está habilitado.
+- [ ] Re-transcribir abre el modal de confirmación destructivo (post-v1 · solo visible en el prototipo, no entra en el primer rollout).
 - [ ] Descargar es accesible para chat y llamada (paridad).
 - [ ] Bubbles: agente a la derecha (accent-soft), cliente a la izquierda (border-soft).
 - [ ] Search filtra intervenciones en vivo.

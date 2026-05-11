@@ -27,12 +27,12 @@ Antes de entrar en componentes, hay un puñado de reglas que aplican a todo el m
 
 Aplican a todo. Viven centralizadas en `normalizeChats(list)` dentro de `mockSamples.ts`.
 
-**Invariante 1 — Los chats siempre están transcritos, salvo cuando su custodia GDPR venció.**
+**Invariante 1 — Los chats siempre están transcritos, salvo cuando han perdido su derecho a retener el contenido.**
 Un chat es texto; no requiere procesamiento. Cuando se carga una conversación con `channel === "chat"`, el sistema fuerza `hasTranscription === true` y rellena `transcription[]` si estaba vacío.
 
-Excepción GDPR: si el chat tiene `deleted: true` (la custodia del proveedor venció y el texto ya no es recuperable), el sistema respeta ese estado y no seedea transcripción. La conversación se ve en el listado en estado "no recuperable" pero se queda fuera del bulk silenciosamente — el filtrado lo aplica `BulkTranscriptionModal` antes de calcular contadores.
+Excepción · retención vencida: algunas conversaciones tienen restricciones legales de retención y dejan de ser recuperables tras un tiempo. El ejemplo canónico es la custodia GDPR (vencida = el proveedor ya no tiene obligación de retener el texto), pero pueden existir otros casos según normativa aplicable. En esos casos el chat lleva `deleted: true`, el sistema respeta ese estado y no seedea transcripción. La conversación se ve en el listado en estado "no recuperable" pero se queda fuera del bulk silenciosamente — el filtrado lo aplica `BulkTranscriptionModal` antes de calcular contadores.
 
-En la tabla, las filas `deleted` se renderizan con opacidad reducida (~60%), checkbox deshabilitado y tooltip *"Custodia GDPR vencida · datos no recuperables"*. El supervisor las ve pero no puede operar sobre ellas: el icono de estado no abre el reproductor, la fila no es seleccionable, el bulk modal las excluye del cálculo. Comparten el mismo `isLocked` que las conversaciones "en proceso" — no hay UX nueva para este caso, se reutiliza el patrón existente.
+En la tabla, las filas `deleted` se renderizan con opacidad reducida (~60%), checkbox deshabilitado y tooltip explicativo del motivo (por defecto *"Custodia GDPR vencida · datos no recuperables"* — el copy puede variar según el motivo concreto de la restricción). El supervisor las ve pero no puede operar sobre ellas: el icono de estado no abre el reproductor, la fila no es seleccionable, el bulk modal las excluye del cálculo. Comparten el mismo `isLocked` que las conversaciones "en proceso" — no hay UX nueva para este caso, se reutiliza el patrón existente.
 
 **Invariante 2 — No hay análisis sin transcripción.**
 El análisis (resumen + sentimiento) se deriva del texto. Una conversación no puede tener `hasAnalysis === true` sin `hasTranscription === true`. Si llega un dato contradictorio, el sistema baja `hasAnalysis` a `false` y limpia las categorías IA asociadas.
@@ -256,15 +256,15 @@ Un modal por conversación. Se abre al hacer clic en el icono de estado de una f
 - Lanzar la transcripción si la conversación todavía no la tiene.
 - Lanzar el análisis si la transcripción está pero el análisis no.
 
-Las invariantes globales del modelo (chats siempre transcritos salvo GDPR, no análisis sin transcripción, agregación multi-rec) viven al inicio de este documento. El reproductor las asume siempre; el handler `handleRequestAnalysis` añade un filtro defensivo: ignora targets sin transcripción antes de actuar.
+Las invariantes globales del modelo (chats siempre transcritos salvo retención vencida, no análisis sin transcripción, agregación multi-rec) viven al inicio de este documento. El reproductor las asume siempre; el handler `handleRequestAnalysis` añade un filtro defensivo: ignora targets sin transcripción antes de actuar.
 
 ### Acciones en el header del player
 
-A la derecha de la fila de tabs hay tres iconos de acción:
+A la derecha de la fila de tabs hay iconos de acción:
 
-- **Re-transcribir** — aparece solo si ya hay transcripción. Click abre `RetranscriptionConfirmModal` (caja roja + input "CONFIRMAR"). Es destructivo: reemplaza la transcripción y borra el análisis derivado.
 - **Analizar** — visible siempre. Deshabilitado si no hay transcripción (`!hasTranscription`) o si ya se analizó (`hasAnalysis === true`). Click dispatcha `handleAnalysisRequest` directo, sin modal intermedio. El sticky toast "Generando análisis..." cubre el feedback.
 - **Descargar** — descarga audio + transcripción si los hay; solo texto si es chat.
+- **Re-transcribir** — *post-v1, no entra en el primer rollout.* En el prototipo aparece a la izquierda de Analizar cuando ya hay transcripción, y abre `RetranscriptionConfirmModal` (caja roja + input "CONFIRMAR"). Es destructivo: reemplaza la transcripción y borra el análisis derivado. En v1 no se expone — el supervisor convive con la primera transcripción o solicita reproceso por canales internos.
 
 El botón Analizar en el header existe para discoverability. Antes, la única forma de descubrir que se podía generar análisis era cambiar a la pestaña Análisis y ver el CTA dentro. Ahora se descubre desde la vista por defecto. El tooltip explica el estado: "Análisis" si está habilitado, "Requiere transcripción" o "Análisis ya realizado" si está deshabilitado.
 
@@ -329,7 +329,7 @@ Decisión cerrada del producto: **el modal de confirmación adicional se reserva
 - **Operaciones que solo generan coste** (transcribir por primera vez, analizar por primera vez, exportar): se dispatchan directamente desde el CTA. La advertencia de coste vive inline ("Genera coste · ~30 s") justo debajo del botón. Es consentimiento suficiente; el toast de éxito al terminar cierra el loop.
 - **Operaciones destructivas** (sobrescribir datos existentes, borrar): sí van con un modal de confirmación explícito y, cuando aplica, una caja roja avisando del impacto.
 
-Único modal de confirmación que sobrevive en el reproductor: `RetranscriptionConfirmModal`. Re-transcribir sobrescribe la transcripción existente y, en consecuencia, invalida el análisis derivado. El supervisor lo confirma escribiendo "CONFIRMAR" en mayúsculas.
+Único modal de confirmación que sobrevive en el reproductor (en el prototipo): `RetranscriptionConfirmModal`. Re-transcribir sobrescribe la transcripción existente y, en consecuencia, invalida el análisis derivado. El supervisor lo confirma escribiendo "CONFIRMAR" en mayúsculas. *En v1 esta acción no está expuesta — se aborda en una fase posterior; ver "Acciones en el header del player" más arriba.*
 
 Esta regla evita el patrón "¿estás seguro?" antes de cada acción billable, que el supervisor interpreta como fricción muerta y termina ignorando.
 
@@ -499,7 +499,7 @@ Una fila puede estar en uno de varios estados visibles. Las combinaciones más c
 - **Normal.** Todo en blanco. Checkbox seleccionable. Click en el icono de estado abre el reproductor.
 - **Recientemente cambiada (amarilla).** Transcrita o analizada hace poco. Se reinicia al estilo normal cuando el supervisor abre su reproductor (click). El amarillo no significa "recién transcrita" estrictamente — también aparece cuando se acaba de generar análisis sobre una conversación ya transcrita.
 - **Procesándose (spinner).** Transcripción o análisis en curso. Checkbox deshabilitado. Si el supervisor selecciona otras filas y pulsa Procesar, las que están procesándose simplemente no entran en el lote nuevo.
-- **Custodia GDPR vencida.** Fila atenuada (opacidad ~60%), tooltip "Custodia GDPR vencida" al hover. Checkbox activo y seleccionable, pero al procesar caen del lote sin aviso. Comparte `isLocked` con las filas en proceso.
+- **Retención vencida** (ejemplo canónico: custodia GDPR). Fila atenuada (opacidad ~60%), tooltip explicando el motivo de la restricción al hover. Checkbox activo y seleccionable, pero al procesar cae del lote sin aviso. Comparte `isLocked` con las filas en proceso. El ejemplo de la columna es GDPR, pero la regla se aplica a cualquier restricción legal de retención que afecte al chat.
 - **Transcripción fallida.** Icono de estado en rojo. Click abre el reproductor con la pestaña Transcripción en estado terminal + CTA "Reintentar". El supervisor puede llegar a estas filas vía el filtro "Solo fallidas" del panel o vía la acción "Ver fallidas" del toast de error.
 
 La combinación que más confunde es "amarilla + procesándose". No ocurre — el amarillo aparece después de que la operación termina, no durante. Mientras está en curso es "spinner", y al acabar pasa a "amarilla" hasta que el supervisor la inspecciona.
@@ -526,14 +526,14 @@ La combinación que más confunde es "amarilla + procesándose". No ocurre — e
 
 - **El bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo concreto vive solo en el modo individual. El modal muestra el desglose explícito antes de confirmar.
 - **`Conversation.hasTranscription` para multi-grabación es TRUE solo si todas las grabaciones lo están.** Una conversación parcialmente transcrita es funcionalmente "pendiente". Implementado: `Recording.hasTranscription` por tramo + agregado computado en `normalizeChats`.
-- **El modal de confirmación adicional se reserva para operaciones destructivas.** Las operaciones que solo generan coste se dispatchan directo, con la advertencia inline en el CTA. Único superviviente: `RetranscriptionConfirmModal`.
+- **El modal de confirmación adicional se reserva para operaciones destructivas.** Las operaciones que solo generan coste se dispatchan directo, con la advertencia inline en el CTA. Único superviviente en el prototipo: `RetranscriptionConfirmModal` (post-v1 · la re-transcripción no entra en el primer rollout).
 - **El bulk no decide por el supervisor.** Los items en proceso se filtran antes de llegar al modal (selección masiva los deselecciona silenciosamente; en vista individual no son seleccionables). El modal nunca recibe items en vuelo.
-- **Chats con custodia GDPR vencida se excluyen silenciosamente.** Los chats con `deleted: true` quedan fuera del bulk (no se cuentan en `nTrans` / `nAnBase`), pero siguen visibles en el listado en estado "no recuperable". La fila lo comunica visualmente; el modal no añade líneas explicativas.
+- **Chats con retención vencida se excluyen silenciosamente.** Los chats con `deleted: true` (custodia GDPR vencida es el ejemplo canónico; aplican otros casos según normativa) quedan fuera del bulk · no se cuentan en `nTrans` / `nAnBase`, pero siguen visibles en el listado en estado "no recuperable". La fila lo comunica visualmente; el modal no añade líneas explicativas.
 - **No hay cancelación de batch a mitad de proceso.** Una vez disparada la acción, el coste se genera completo. La copia del modal lo refleja: no se promete "cancelar" en ningún sitio.
 - **Errores se notifican solo al inicio y al final del batch.** El backend no notifica errores granulares durante el proceso. La UI no diseña feedback fino tipo "fallo en la 27 de 50".
 - **Sticky toast con id estable durante operaciones billables.** Un único toast persistente (`id: "progress-toast"`) cubre todo el ciclo: kickoff con `info` + `duration: Infinity`, reemplazo in-place al terminar con `success` o `error` con el mismo id. En el chain transcribir → analizar, la fase 1 suprime su success para que el toast pase de "Generando transcripción..." a "Generando análisis..." sin flash intermedio.
 - **Botón "Analizar" en el header del reproductor.** Visible siempre, disabled si no procede. Tooltips dinámicos explican el motivo del estado. Click → dispatch directo, sin modal de confirmación intermedio.
-- **"Cancelar" en confirmaciones destructivas.** Excepción a la regla general "Cerrar". Aplica a `DeleteCategoryDialog` y `RetranscriptionConfirmModal`. El resto de modales sigue usando "Cerrar".
+- **"Cancelar" en confirmaciones destructivas.** Excepción a la regla general "Cerrar". Aplica a `DeleteCategoryDialog` y a `RetranscriptionConfirmModal` (este último post-v1). El resto de modales sigue usando "Cerrar".
 - **Filtros multi-grabación en `TypeFilterPanel`.** Sección "Multi-grabación" con dos toggles: "solo con varios tramos" (recordings.length > 1) y "solo con tramos parcialmente transcritos" (mezcla de transcritos y pendientes en una misma conversación). El segundo es la protección directa contra el footgun de select-all reprocesando tramos pendientes de conversaciones que el supervisor tocó en unitario. Single source of truth en `unifiedTypeFilters.multirec`; chips neutros en la toolbar siguen el patrón del chip rojo de "solo fallidas".
 - **Aviso de tramos ya iniciados en el bulk modal.** Cuando la selección incluye llamadas multi-rec con al menos un tramo ya transcrito manualmente, el hint del hero compone la pieza "M con tramos ya iniciados" junto a la pieza existente "N llamadas con varios tramos". El supervisor lo ve antes de pulsar Procesar.
 - **Diarización retirada del producto entero.** El campo `Conversation.hasDiarization` se borró del schema. Cualquier referencia residual en código o copy es un bug.

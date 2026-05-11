@@ -30,7 +30,7 @@ Un chat es texto por definición. No tiene audio. Sin embargo, en el flujo del p
 
 **Decisión**: para que el modelo sea coherente, los chats se cargan siempre como `hasTranscription = true`. La columna Estado del listado pinta el icono de "transcrito" desde el primer momento. El supervisor no tiene que entender la sutileza de "los chats no necesitan transcripción"; simplemente nunca aparecen como pendientes en esa dimensión.
 
-**Excepción · custodia GDPR vencida**: hay un caso real donde un chat sí queda "no transcrito": cuando el periodo de retención de los datos venció y el texto ya no es recuperable. En ese caso el chat aparece con un estado especial ("no recuperable") y queda fuera de cualquier operación bulk.
+**Excepción · retención vencida**: hay un caso real donde un chat sí queda "no transcrito": cuando ha perdido su derecho a retener el contenido (por ejemplo, custodia GDPR vencida — el periodo de retención del proveedor ha terminado y el texto ya no es recuperable). La regla aplica a cualquier restricción legal de retención según la normativa que corresponda; GDPR es el caso canónico. En esos casos el chat aparece con un estado especial ("no recuperable") y queda fuera de cualquier operación bulk.
 
 ### Una llamada con varias grabaciones está "transcrita" solo si TODAS lo están
 
@@ -82,7 +82,7 @@ El producto trabaja con muchas acciones billables: transcribir, analizar, re-tra
 
 **Decisión**: el modal de confirmación se reserva para acciones *destructivas* (sobrescribir datos existentes, borrar). Para acciones que solo "generan coste" basta con la advertencia inline en el CTA ("Genera coste · ~30 s") y el toast de éxito al terminar. El consentimiento se da con el click del botón y la advertencia visible.
 
-Único modal de confirmación que sobrevive: re-transcribir. Re-transcribir sobrescribe la transcripción existente e invalida el análisis derivado; eso sí requiere consentimiento explícito.
+Único modal de confirmación que sobrevive en el prototipo: re-transcribir. Re-transcribir sobrescribe la transcripción existente e invalida el análisis derivado; eso sí requiere consentimiento explícito. *En el primer rollout (v1) la re-transcripción no se expone al supervisor — convive con la primera transcripción aunque tenga ruido, y en casos puntuales solicita reproceso por canales internos. El modal destructivo se aborda en una fase posterior.*
 
 ### El bulk no decide por el supervisor
 
@@ -93,7 +93,7 @@ Si una conversación está "en proceso" (transcribiéndose o analizándose ahora
 
 **Por qué silenciar**: la fila ya tiene su indicador visual de "en proceso" (spinner, badge). Añadir una línea en el modal lo recuerda dos veces.
 
-Misma lógica con chats de custodia GDPR vencida: el listado los pinta como "no recuperable", el bulk los excluye. El modal no añade explicación porque la fila ya la dio.
+Misma lógica con chats que han perdido su derecho a retener el contenido (custodia GDPR vencida es el ejemplo canónico, aplican otras restricciones de retención según normativa): el listado los pinta como "no recuperable", el bulk los excluye. El modal no añade explicación porque la fila ya la dio.
 
 ### No hay cancelación de batch a mitad de proceso
 
@@ -178,15 +178,17 @@ Este patrón viene heredado del Figma original donde estaba bien resuelto. El pr
 
 ### Botón "Analizar" en el header del reproductor
 
-El reproductor de conversaciones tiene un botón "Analizar" visible en su header, al lado de Re-transcribir y Descargar. No hace falta entrar en la pestaña Análisis para descubrir que se puede analizar — el botón está ahí siempre, deshabilitado cuando no procede (sin transcripción aún, o ya analizado) y habilitado cuando hay algo que hacer.
+El reproductor de conversaciones tiene un botón "Analizar" visible en su header, al lado de Descargar (y de Re-transcribir cuando esa función esté disponible · ver nota más abajo). No hace falta entrar en la pestaña Análisis para descubrir que se puede analizar — el botón está ahí siempre, deshabilitado cuando no procede (sin transcripción aún, o ya analizado) y habilitado cuando hay algo que hacer.
 
 **Por qué**: si la única forma de descubrir que puedes analizar una conversación es cambiar a la pestaña Análisis y ver el CTA dentro, el supervisor que esté leyendo la transcripción tiene que dar un paso extra para enterarse de la siguiente acción. Discoverability en el header significa cero saltos.
 
 Click en el botón → dispatch directo, sin modal de confirmación intermedio (sigue la regla general "confirmación solo para destructivo"). La advertencia de coste vive como tooltip del botón.
 
+[Nota: la **re-transcripción** que aparece dibujada en el prototipo a la izquierda del botón Analizar es la solución de referencia para una fase posterior. En el primer rollout (v1) no se expone — el supervisor convive con la primera transcripción aunque tenga ruido, o solicita reproceso por canales internos. La razón es de scope: priorizar el flujo principal antes que un caso de excepción que requiere modal destructivo dedicado.]
+
 ### "Cancelar" como excepción a "Cerrar" en confirms destructivos
 
-La regla general es: el footer-cancel de los modales dice "Cerrar" (porque pre-submit no hay nada que cancelar — el modal solo se cierra). Para confirms **destructivos** específicamente — el de eliminar una categoría, el de re-transcribir una conversación — el copy es "Cancelar".
+La regla general es: el footer-cancel de los modales dice "Cerrar" (porque pre-submit no hay nada que cancelar — el modal solo se cierra). Para confirms **destructivos** específicamente — el de eliminar una categoría hoy, el de re-transcribir una conversación cuando se incorpore en una fase posterior — el copy es "Cancelar".
 
 **Por qué**: en confirms destructivos, el supervisor inició explícitamente una acción (Eliminar, Re-transcribir) y el modal es el gate antes de ejecutarla. "Cancelar" representa cancelar esa acción consciente; "Cerrar" sería menos preciso porque el modal no se está limitando a abrirse y cerrarse, está mediando entre un click consciente y la ejecución real.
 
