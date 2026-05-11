@@ -2666,3 +2666,58 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 - `DeleteCategoryDialog` ya tenía "Cancelar" desde 15.40 — el mini-prompt de 15.42 lo listaba como cambio pendiente por error. Solo `RetranscriptionConfirmModal` necesitó la edición real. Documentado para evitar dudas si alguien re-lee el plan.
 
 **Mirror obligatorio · regla 15.41 paso 6**: las decisiones nuevas (sticky toast, botón Analizar header, Cancelar destructive) ya estaban canonizadas en sec 13 items 16/17/18 desde 15.42. `docs/decisiones.md` se actualiza en este commit para reflejar la implementación.
+
+---
+
+### 15.44 · 2026-05-11 · Claude Code · iteraciones post-cierre 15.43 · honesty pass coste→volumen · COA v1/v2 split + rewrite digerible · multi-grabación filter (caveat parcial + 2 toggles + chips + hint del modal)
+
+**Contexto**: tras cerrar 15.43 con commits y push limpios, el usuario continuó la conversación con varias rondas de feedback que abrieron iteraciones substantivas sobre los docs externos y reveló un caveat de producto no documentado (multi-tramo parcial). El alcance creció lo bastante como para abrir 15.44 en lugar de extender 15.43 — los 8 commits acumulados merecen su propio resumen y la regla del session log lo justifica.
+
+**Hecho** (commits en orden cronológico):
+
+- **logica-de-conteo · casos del prototipo + tono humano** (`5a4299e`): el doc lo describía bien técnicamente pero le faltaban casos visibles del prototipo (fallos de transcripción, filas en proceso re-seleccionadas, estados visuales de fila) y arrastraba lenguaje formal-pomposo. Reescrito con frases cortas, voz activa, "deja revisar" en vez de "permite revisar". Secciones nuevas: "Cuando una transcripción falla", "Sticky toast durante el batch", "Acciones en el header del player", "Estados visuales de una fila en la tabla", "Patrón sticky con update in-place" en scToast. Estado #6 nuevo en pestaña Transcripción para `hasFailedTranscription`.
+
+- **COA · v1/v2 split del reproductor** (`7d151b6`): la sección "Modal reproductor" describía la solución del prototipo y le ponía una NOTA suelta "este es v2". Confuso · el COA es lo que se construye AHORA, y AHORA es v1 (legacy + parches). Reestructurada en dos subsecciones: "v1 (versión que entra en producción)" describe legacy + parches baratos · "v2 (a dónde queremos llegar)" describe el prototipo de Memory como target eventual. NOTA FINAL alineada con la división.
+
+- **Honesty pass coste→volumen** (`d900889`): los docs prometían "hacer visible el coste antes de incurrirlo" o "transparente sobre el coste". Falso: el producto muestra volumen (contadores) y estimación de tiempo aproximada ("genera coste · ~30 s"), nunca euros por operación. Reescritas tres líneas en COA + logica-de-conteo + decisiones que sobreprometían. Honesty principle: el desglose en euros vive en la capa de facturación, no en Memory.
+
+- **TypeFilterPanel · sección "Multi-grabación"** (`ca52bee`): dos toggles nuevos en el panel · "solo con varios tramos" y "solo con tramos parcialmente transcritos". Extiende `TypeFilterPanelFilters` con `multirec`. Patrón flat (mismos `FilterGroup`/`FilterCheckbox` subcomponents de 15.34) — descartado submenu/flyout pattern (hover-to-open con animación lateral) porque añadía interacción nueva por solo dos items, mal en touch, y el panel actual es consistentemente plano.
+
+- **Pipeline + chips para multirec** (`271174e`): estado inicial `multirec: { onlyMulti: false, onlyPartial: false }` en `unifiedTypeFilters`. Filter pipeline aplica los dos flags (onlyMulti requiere `recordings.length > 1`, onlyPartial además exige mezcla de transcritos y pendientes). Reset en sample switcher. Has-active check del botón Tipo extendido. Chips en la toolbar siguen el patrón del chip "Solo fallidas" pero con estilo neutro (`border-sc-border` + `bg-sc-surface-50`) en lugar de rojo error — estos filtros son informacionales, no alarmas.
+
+- **BulkTranscriptionModal · hint "tramos ya iniciados"** (`7db4619`): nuevo contador `nPartialMultiRec` (multi-rec en readyToTranscribe con al menos un tramo ya transcrito). `heroDeltaHint` pasa de string simple a composición de hasta dos piezas con " · ": "N llamadas con varios tramos" + "M con tramos ya iniciados". Cuando ambas aplican: "Incluye 2 llamadas con varios tramos · 1 con tramos ya iniciados". Standalone si solo una aplica.
+
+- **logica-de-conteo · caveat multi-tramo parcial + filtros** (`ce74c7e`): documenta el footgun de select-all (transcribir un tramo en unitario → select-all → bulk transcribe los pendientes restantes · cost-wise idempotente pero rompe intent). Dos mitigaciones canonizadas: hint del modal + filtro del panel. Sección de decisiones cerradas amplía con dos entradas: filtros multi-grabación y aviso de tramos ya iniciados.
+
+- **COA · rewrite digerible + items imprescindibles para publicar** (`19fbf50`): reescrito completo para Jira con foco en escaneabilidad. Bloque "Resumen" al inicio · cada sección abre con línea de anclaje · bullets cortos (max 2 líneas) · tablas para listas de estados/variantes · NOTAs al final de su sección. Items nuevos imprescindibles: bullet "Sin cancelación" en consideraciones generales · subsección "Multi-tramo parcial · caveat conocido" en bulk · enumeración tabular de los 6 estados de Transcripción + 4 de Análisis · sección consolidada "Estados visuales de una fila en la tabla" · sección nueva "Filtros relevantes" · NOTA sobre iconografía v1 vs v2 (refactor de tabla a columnas explícitas es la solución ideal en v2 · fuera de scope rollout v1). Traducciones ampliadas con strings nuevos (filtros, hint compuesto, estados sin transcripción, etc.). Todos los `[imagen: ...]` placeholders preservados.
+
+**Decidido**:
+
+- **Multi-grabación filter como mitigación canónica del footgun, NO cambio del aggregate rule.** El comportamiento del bulk (agregado `hasTranscription = false` → procesa pendientes) se mantiene porque es idempotente y consistente con el resto del modelo (analysis depends on full transcription). La protección viene de informar al supervisor (hint del modal) y darle una forma proactiva de encontrar los casos (filtro del panel). Cambiar el aggregate o excluir parciales del select-all rompía expectations más amplias del modelo.
+
+- **Chips informational en color neutro, no rojo.** El chip rojo de "Solo fallidas" comunica una alarma (errores). Los chips de multi-grabación son filtros informacionales · pintarlos en rojo crearía falsa urgencia. Pattern canonizado: rojo = atención/error · neutro = filtro activo sin connotación.
+
+- **Iconografía v1 = legacy del SC, v2 ideal = columnas explícitas en la tabla.** Cierre de discusión en la NOTA del COA: en v1 toleramos los iconos del legacy porque son los que el supervisor ya conoce; en v2 la solución apropiada es refactorizar la columna "Estado" en columnas independientes por cada tipo (con grabación / con transcripción / con clasificación / fallida) con check binario. Refactor de la tabla queda fuera del scope del rollout v1.
+
+- **COA es spec de v1, no del prototipo.** El documento describe lo que se construye AHORA. El prototipo de Memory que el usuario tiene a mano es la materialización de v2 — sirve como referencia visual pero no es el target inmediato del rollout.
+
+- **Honesty principle en docs externos.** Cualquier claim "transparente sobre el coste" se reescribe a "transparente sobre el volumen". El desglose monetario vive en la capa de facturación, no en Memory. Estimaciones de tiempo en CTAs unitarios sí son legítimas (las hace el producto).
+
+- **Submenu/flyout descartado para 2 items.** Discusión abierta por el usuario sobre si la sección "Multi-grabación" debería abrirse en submenu lateral en lugar de checkboxes inline. Razones para flat: panel consistentemente plano (5 secciones todas con checkboxes inline) · hover no funciona en touch (panel debe servir en tablet) · 2 items no pagan el coste de añadir un patrón de interacción nuevo · si en futuro crecemos a 5+ sub-filtros multi-rec, ahí sí pagaría.
+
+**Validación**:
+
+- Build OK: 2982 mods estable · 873 KB JS / gzip 248 KB (+2 KB sobre baseline 15.43 por el pipeline + chips).
+- Interactivo con puppeteer-core + Chrome del sistema (sin descargas pesadas): 0 page errors · 0 console errors. Panel de filtros: sección "Multi-grabación" presente con sus dos toggles. Toggle "solo con varios tramos" se activa, dispara el chip neutro `"Solo varios tramos · Limpiar filtro"` y el pipeline reduce resultados correctamente (el sample por defecto no tiene multi-rec → 0 resultados, comportamiento esperado). Reproductor: botón "Análisis" (Sparkles) presente entre Re-transcribir y Descargar con aria-label `Generar análisis`.
+- Screenshots en `/tmp/memory-shots/` durante verificación, después limpiados. Script puppeteer-core también limpiado tras uso.
+
+**No verificado interactivamente** (cableado en código y verificado en bundle, falta confirmación visual):
+
+- Hint compuesto del bulk modal con sample multi-rec parcial cargado. `nPartialMultiRec` está cableado y el string compone correctamente vía lógica derivada, pero no se ha visto en pantalla con un sample apropiado. Si el copy del hint no es claro en producción, abrir un sample y screenshot.
+
+**Notas para próxima sesión**:
+
+- El push Figma de 15.43 cubre los 3 modales del prototipo (BulkTranscription, DeleteCategoryDialog, ConversationPlayer v2) pero NO el panel de filtros con la nueva sección "Multi-grabación". Quedaría como follow-up si el equipo de diseño quiere verlo en el board · coste ~5 min con el mismo MCP que se usó en 15.43.
+- El COA está listo para Jira. El usuario lo va a transcribir directamente · todas las notas `[NOTA: ...]` y placeholders `[imagen: ...]` están pensados para que las quite/rellene al copiar.
+- Si el supervisor en producción flaggea que el caveat multi-tramo parcial sigue siendo confuso pese al hint + filtro, la mitigación nuclear (cambiar el aggregate rule o excluir parciales de select-all) queda como decisión pendiente. Hoy se prefiere preservar el aggregate rule porque es consistente con el resto del modelo.
+- 8 commits en esta sesión: `5a4299e` (logica casos+tono) · `7d151b6` (COA v1/v2) · `d900889` (honesty coste→volumen) · `ca52bee` (filter panel) · `271174e` (pipeline+chips) · `7db4619` (bulk hint) · `ce74c7e` (logica caveat+filtros) · `19fbf50` (COA digerible).

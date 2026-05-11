@@ -62,6 +62,20 @@ Cuando una conversación tiene varias grabaciones y entra en una selección masi
 
 El bulk es para volumen; el single es para precisión. La separación es deliberada.
 
+### Multi-tramo parcial · cuando el supervisor toca un tramo en unitario y luego el bulk procesa el resto
+
+Imagina este caso: el supervisor abre una llamada con tres tramos, transcribe solo el del agente de retención desde el reproductor unitario y deja los otros dos pendientes a propósito. Más tarde hace "select all" en la tabla. ¿Qué pasa con esa llamada?
+
+La respuesta del producto: entra en el lote y el bulk transcribe los dos tramos restantes. Cost-wise no hay doble cobro (los tramos ya transcritos se respetan), pero el supervisor procesa cosas que conscientemente había dejado fuera.
+
+**Por qué no se cambia el comportamiento**: la regla "una llamada está transcrita solo si TODAS sus grabaciones lo están" es consistente con el resto del modelo (el análisis requiere el texto completo, los filtros tratan parcial como pendiente). Cambiar el agregado o excluir parciales del select-all rompería expectations más amplias del producto.
+
+**Mitigación: avisar al supervisor antes de que confirme**. El modal masivo muestra una línea adicional cuando hay parciales en la selección — "Incluye M con tramos ya iniciados" — junto al hint existente del multi-grabación. El supervisor lo lee antes de pulsar Procesar y decide si sigue o vuelve atrás.
+
+**Y darle una forma proactiva de encontrarlos**: el panel de filtros tiene una sección "Multi-grabación" con un toggle "solo con tramos parcialmente transcritos". Activándolo el supervisor ve exactamente las llamadas en estado parcial — puede revisarlas, deseleccionarlas, o tomar otra decisión antes de operar en bloque.
+
+El compromiso es preservar la coherencia interna del modelo y proteger al supervisor con información, no con bloqueos.
+
 ### Confirmación adicional solo para operaciones destructivas
 
 El producto trabaja con muchas acciones billables: transcribir, analizar, re-transcribir, exportar. Si todas requirieran un modal "¿estás seguro?" el supervisor lo cerraría sin leer al tercer click.
@@ -177,6 +191,16 @@ La regla general es: el footer-cancel de los modales dice "Cerrar" (porque pre-s
 **Por qué**: en confirms destructivos, el supervisor inició explícitamente una acción (Eliminar, Re-transcribir) y el modal es el gate antes de ejecutarla. "Cancelar" representa cancelar esa acción consciente; "Cerrar" sería menos preciso porque el modal no se está limitando a abrirse y cerrarse, está mediando entre un click consciente y la ejecución real.
 
 La excepción es estrecha: solo confirms destructivos. El resto de modales (procesar, crear, editar, ver) siguen usando "Cerrar".
+
+### Iconografía de la columna "Estado" · heredada en v1, refactorizada en v2
+
+Cada fila de la tabla muestra su estado (con grabación, con transcripción, con clasificación, fallida) mediante un icono en la columna "Estado". Es la forma del legacy de Smart Contact y, en v1, Memory la conserva.
+
+**Por qué se mantiene en v1**: son los iconos que el supervisor ya conoce de otras partes del producto. Reaprovecharlos evita tener que aprender un sistema nuevo cuando aún hay piezas más importantes en las que enfocar el rediseño (sticky toast, botón Análisis, multi-grabación, etc.). Aceptable como punto de partida.
+
+**Por qué no es la solución a la que apuntamos a medio plazo**: descifrar un icono cada vez que se mira una fila tiene una carga cognitiva pequeña pero acumulativa, y depende de memoria. En el v2 idóneo, la columna "Estado" se convierte en varias columnas explícitas — una por cada tipo de estado relevante (con grabación · con transcripción · con clasificación · fallida) — con una pista visual binaria simple por columna (check / vacío). El supervisor escanea sin descifrar.
+
+**Por qué no se aborda ahora**: convertir una columna en varias requiere atacar el refactor general de la tabla (anchuras, prioridades de visibilidad responsiva, qué se oculta primero en pantallas pequeñas). Es trabajo sustancial y queda fuera del scope del rollout v1. Decisión consciente, no diferida.
 
 ---
 
