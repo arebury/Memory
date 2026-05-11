@@ -255,6 +255,71 @@ export const mockSamples: MockSample[] = [
     },
   },
   {
+    id: "multi-recording-partial",
+    label: "Multi-grabación · tramos parciales",
+    description:
+      "Llamadas multi-tramo donde el supervisor ya transcribió un tramo concreto desde el reproductor unitario y dejó los otros pendientes. Demuestra el hint del bulk modal 'M con tramos ya iniciados' y el filtro 'solo con tramos parcialmente transcritos'.",
+    build: () => {
+      // Same shape as the multi-recording sample, but flip the first
+      // tramo of each multi-rec call to hasTranscription: true so the
+      // partial state surfaces in the filter + the bulk hint.
+      const list = cloneAll();
+      const calls = list.filter((c) => c.channel === "llamada");
+      const seedSegments: Array<{ count: number; legs: { startTime: string; duration: string; label: string }[] }> = [
+        {
+          count: 4,
+          legs: [
+            { startTime: "12:50", duration: "00:42", label: "IVR menú principal" },
+            { startTime: "12:51", duration: "02:18", label: "Soporte Taller" },
+            { startTime: "12:53", duration: "00:35", label: "IVR retorno" },
+            { startTime: "12:54", duration: "01:30", label: "Atención al cliente" },
+          ],
+        },
+        {
+          count: 3,
+          legs: [
+            { startTime: "10:14", duration: "01:05", label: "IVR menú principal" },
+            { startTime: "10:15", duration: "03:22", label: "Comercial" },
+            { startTime: "10:18", duration: "00:48", label: "Retención" },
+          ],
+        },
+        {
+          count: 2,
+          legs: [
+            { startTime: "09:32", duration: "00:18", label: "IVR menú principal" },
+            { startTime: "09:33", duration: "04:12", label: "Soporte Técnico" },
+          ],
+        },
+      ];
+      const segmentTargets = new Set(calls.slice(0, seedSegments.length).map((c) => c.id));
+      let seedIdx = 0;
+      const out = list.map((c) => {
+        if (!segmentTargets.has(c.id)) return c;
+        const seed = seedSegments[seedIdx++];
+        // One tramo (the second, typically the "real conversation" leg
+        // after IVR) is pre-transcribed manually. Rest stay pending.
+        const transcribedLegIdx = 1;
+        const recordings = seed.legs.slice(0, seed.count).map((leg, i) => ({
+          id: `${c.id}-rec-${i + 1}`,
+          startTime: leg.startTime,
+          duration: leg.duration,
+          label: leg.label,
+          hasTranscription: i === transcribedLegIdx,
+        }));
+        return {
+          ...c,
+          hasRecording: true,
+          // Aggregate stays false because not ALL tramos are transcribed.
+          hasTranscription: false,
+          hasAnalysis: false,
+          transcription: undefined,
+          recordings,
+        };
+      });
+      return normalizeChats(out);
+    },
+  },
+  {
     id: "gdpr-expired",
     label: "Custodia GDPR vencida",
     description:
