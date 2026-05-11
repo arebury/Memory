@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
-import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle, Calculator, Palette, BookOpen, ExternalLink } from "lucide-react";
+import { Home, ChevronRight, Download, Columns3, AlignLeft, HelpCircle, Calculator, Palette, BookOpen, ExternalLink, CheckCheck } from "lucide-react";
 import { Button } from "./ui/button";
 import {
   Tooltip,
@@ -71,6 +71,19 @@ export function ConversationsView({
   const [newlyTranscribedIds, setNewlyTranscribedIds] = useState<string[]>([]);
   const [isTranscriptionModalOpen, setIsTranscriptionModalOpen] = useState(false);
 
+  /* Acknowledged read state (15.46). `readIds` agrupa IDs que el
+     supervisor ha marcado como "ya lo he visto" tras un batch. En
+     producción esto sería persistente per-supervisor en el backend;
+     en el prototipo es useState y se reinicia al cambiar de sample.
+     Uso actual:
+       · Excluye los fallos de la lista "Solo fallidas" (limpia el
+         queue de acción cuando el supervisor ya los ha procesado
+         mentalmente, sin tener que reintentar uno a uno).
+       · No afecta al amarillo de "recientemente procesado" · ese se
+         limpia removiendo de newlyTranscribedIds, lo hace el mismo
+         handleMarkAsRead. */
+  const [readIds, setReadIds] = useState<string[]>([]);
+
   /* Mock-data sample switching ──────────────────────────────────────
      `currentSampleId` is the active preset; `conversations` is the
      working copy that local mutations (transcribe / analyze a row)
@@ -89,6 +102,7 @@ export function ConversationsView({
     setProcessingIds([]);
     setAnalyzingIds([]);
     setNewlyTranscribedIds([]);
+    setReadIds([]);
 
     // Reset state-dependent filters al cambiar de sample — diferente
     // sample, distinto set de fallidas y de multi-rec parciales.
@@ -245,7 +259,10 @@ export function ConversationsView({
     return conversations.filter(conv => {
       // "Ver fallidas" filter — applied first so an error-ridden batch
       // can be reviewed without losing other column filters.
-      if (showOnlyFailed && !conv.hasFailedTranscription) return false;
+      // 15.46: excluye conversaciones marcadas como leídas. El icono rojo
+      // sigue mostrándose en la fila (el estado fallido es real), pero
+      // el supervisor ya las "atendió" y no quiere verlas en este queue.
+      if (showOnlyFailed && (!conv.hasFailedTranscription || readIds.includes(conv.id))) return false;
       // Multi-grabación filters (15.43+).
       const recs = conv.recordings ?? [];
       const isMulti = recs.length > 1;
@@ -316,13 +333,45 @@ export function ConversationsView({
       if (columnFilters.id && !conv.id.toLowerCase().includes(columnFilters.id.toLowerCase())) return false;
       return true;
     });
-  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed, showOnlyMultiRec, showOnlyPartialMulti, dateBounds]);
+  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed, showOnlyMultiRec, showOnlyPartialMulti, readIds, dateBounds]);
 
   const handleDownload = () => {
     const n = selectedIds.length;
     scToast.info({
       title: n === 1 ? "Descargando 1 conversación" : `Descargando ${n} conversaciones`,
     });
+  };
+
+  /* ── Mark as read (15.46) — limpia el ruido visual post-batch.
+        Para cada id seleccionado:
+          · Lo quita de newlyTranscribedIds (la fila deja de pintarse
+            amarilla).
+          · Lo añade a readIds (queda fuera del filtro "Solo fallidas"
+            si era una fila fallida).
+        Idempotente: si nada en la selección era marcable, igual se
+        ejecuta sin error · el toast solo aparece si HAY algo que
+        marcar (`markableInSelection > 0`). */
+  const markableInSelection = useMemo(() => {
+    return selectedIds.filter((id) => {
+      const conv = conversations.find((c) => c.id === id);
+      const isYellow = newlyTranscribedIds.includes(id);
+      const isFailed = !!conv?.hasFailedTranscription && !readIds.includes(id);
+      return isYellow || isFailed;
+    }).length;
+  }, [selectedIds, conversations, newlyTranscribedIds, readIds]);
+
+  const handleMarkAsRead = () => {
+    const ids = [...selectedIds];
+    if (ids.length === 0) return;
+    setNewlyTranscribedIds((prev) => prev.filter((id) => !ids.includes(id)));
+    setReadIds((prev) => [...new Set([...prev, ...ids])]);
+    setSelectedIds([]);
+    const n = markableInSelection;
+    if (n > 0) {
+      scToast.info({
+        title: n === 1 ? "Marcada como leída" : `${n} marcadas como leídas`,
+      });
+    }
   };
 
   /* ── Transcription: moves IDs through processing → newlyTranscribed.
@@ -699,6 +748,46 @@ export function ConversationsView({
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>Descargar ({selectedIds.length})</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
+            {/* Marcar como leídas (15.46) · limpia el ruido visual
+                post-batch. Visible cuando hay selección. Deshabilitado si
+                ninguna fila seleccionada es marcable (no amarillas y no
+                fallidas-no-leídas) · idempotente sería pero el supervisor
+                merece feedback claro de que la acción NO hace nada en
+                ese caso. */}
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    onClick={handleMarkAsRead}
+                    disabled={!hasSelection || markableInSelection === 0}
+                    variant="ghost"
+                    size="icon"
+                    aria-label={
+                      hasSelection
+                        ? `Marcar como leídas (${markableInSelection})`
+                        : "Marcar como leídas"
+                    }
+                    className={`h-9 w-9 transition-all ${
+                      !hasSelection || markableInSelection === 0
+                        ? 'text-sc-muted cursor-not-allowed hover:bg-transparent'
+                        : 'text-sc-accent hover:text-sc-accent-strong hover:bg-sc-accent-soft'
+                    }`}
+                  >
+                    <CheckCheck size={18} strokeWidth={1.75} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>
+                    {!hasSelection
+                      ? "Marcar como leídas"
+                      : markableInSelection === 0
+                      ? "Nada que marcar en la selección"
+                      : `Marcar como leídas (${markableInSelection})`}
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
