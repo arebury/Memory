@@ -351,12 +351,17 @@ function SCToastView({
 
 function show(severity: Severity, options: SCToastOptions = {}) {
   const { duration = 3000, id, ...rest } = options;
+  // Sonner 2.x soporta `Infinity` nativamente como toast sticky. Antes
+  // se convertía a Number.MAX_SAFE_INTEGER por compatibilidad, pero esa
+  // ruta hace que sonner marque el toast como `data-removed=true` casi
+  // al instante (visible <1s) — bug verificado en 16.x. Pasamos Infinity
+  // directo.
   return sonnerToast.custom(
     (toastId) => (
       <SCToastView id={toastId} severity={severity} {...rest} />
     ),
     {
-      duration: duration === Infinity ? Number.MAX_SAFE_INTEGER : duration,
+      duration,
       id,
     },
   );
