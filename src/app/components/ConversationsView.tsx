@@ -283,8 +283,9 @@ export function ConversationsView({
   }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed, dateBounds]);
 
   const handleDownload = () => {
+    const n = selectedIds.length;
     scToast.info({
-      title: `Descargando ${selectedIds.length} conversación(es)`,
+      title: n === 1 ? "Descargando 1 conversación" : `Descargando ${n} conversaciones`,
     });
   };
 
@@ -298,7 +299,7 @@ export function ConversationsView({
         and multi-rec converge to the same shape on the conversation
         record. The toast counter uses tramos (not conversations) so
         the user sees the real cost. ──────────────────────────────── */
-  const handleRequestTranscription = (ids: string | string[]) => {
+  const handleRequestTranscription = (ids: string | string[], inChain = false) => {
     const idArrayRaw = Array.isArray(ids) ? ids : [ids];
     // GDPR custody (15.40): conversaciones deleted no se transcriben
     // — la custodia ya venció. Filtro defensivo para que llamadas
@@ -308,6 +309,20 @@ export function ConversationsView({
     );
     const idArray = idArrayRaw.filter((id) => !deletedIds.has(id));
     if (idArray.length === 0) return;
+
+    // Sticky kickoff toast (15.43 · Figma parity · sec 13.16). Persiste
+    // mientras dura la operación para que el supervisor vea estado aun
+    // si cambia de vista. Mismo id que la success final → sonner hace
+    // update in-place. En chain (transcribir + analizar) suprimimos la
+    // success de la fase 1 para que el toast pase a "Generando análisis..."
+    // sin un flash intermedio de "Transcripción lista".
+    scToast.info({
+      title: "Generando transcripción...",
+      duration: Infinity,
+      dismiss: true,
+      id: "progress-toast",
+    });
+
     setProcessingIds(prev => [...new Set([...prev, ...idArray])]);
     let tramoCount = 0;
     setTimeout(() => {
@@ -341,9 +356,11 @@ export function ConversationsView({
           };
         }),
       );
+      if (inChain) return;
       const n = idArray.length;
       const multiRec = tramoCount > n;
       scToast.success({
+        id: "progress-toast",
         title: n === 1 ? "Transcripción lista" : `${n} transcripciones listas`,
         message: multiRec
           ? `Incluye ${tramoCount} audios en total (algunas llamadas tienen varios tramos).`
@@ -365,6 +382,17 @@ export function ConversationsView({
         conversations from click-time. */
   const handleRequestAnalysis = (ids: string | string[]) => {
     const idArray = Array.isArray(ids) ? ids : [ids];
+
+    // Sticky kickoff toast (15.43 · sec 13.16). Reusa `progress-toast`:
+    // si la fase anterior fue "Generando transcripción..." (chain), sonner
+    // hace update in-place al cambiar el copy.
+    scToast.info({
+      title: "Generando análisis...",
+      duration: Infinity,
+      dismiss: true,
+      id: "progress-toast",
+    });
+
     setAnalyzingIds(prev => [...new Set([...prev, ...idArray])]);
     setTimeout(() => {
       setAnalyzingIds(prev => prev.filter(id => !idArray.includes(id)));
@@ -393,10 +421,9 @@ export function ConversationsView({
       );
       const n = idArray.length;
       scToast.success({
+        id: "progress-toast",
         title: n === 1 ? "Análisis listo" : `${n} análisis listos`,
-        message: n === 1
-          ? "Resumen y sentimiento ya disponibles."
-          : "Resumen y sentimiento ya disponibles.",
+        message: "Resumen y sentimiento ya disponibles.",
       });
     }, 4000);
   };
@@ -426,7 +453,9 @@ export function ConversationsView({
   const handleRequestTranscriptionAndAnalysis = (ids: string | string[]) => {
     const idArray = Array.isArray(ids) ? ids : [ids];
     setChainAnalysisIds(prev => [...new Set([...prev, ...idArray])]);
-    handleRequestTranscription(idArray);
+    // inChain=true → suprime el success intermedio; el sticky pasa de
+    // "Generando transcripción..." a "Generando análisis..." sin flash.
+    handleRequestTranscription(idArray, true);
   };
 
   const handleClearNewlyTranscribed = (id: string) => {
@@ -467,19 +496,8 @@ export function ConversationsView({
       // sends only `readyToTranscribe` when toggle is off), but guard.
       if (needsTranscription.length > 0) handleRequestTranscription(needsTranscription);
     }
-
-    // Kickoff acknowledgement — the modal closes silently otherwise.
-    const total = eligibleIds.length;
-    if (total > 0) {
-      scToast.info({
-        title: opts.includeAnalysis
-          ? `${total} conversación(es) en proceso`
-          : `${total} transcripción(es) en proceso`,
-        message: opts.includeAnalysis
-          ? "Te avisaremos cuando terminen transcripción y análisis."
-          : "Te avisaremos cuando terminen.",
-      });
-    }
+    // Kickoff acknowledgement vive ahora dentro de los handlers como
+    // sticky toast `progress-toast` (15.43 · sec 13.16).
   };
 
   const showCategoryFilter = availableCategories.length > 0;
