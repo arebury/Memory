@@ -101,25 +101,40 @@
 - Clic en el icono de estado de una fila abre el reproductor de esa conversación en un modal.
 - También se puede abrir el reproductor desde el menú contextual de la fila.
 
-### Modal reproductor
+### Modal reproductor · v1 (versión que entra en producción)
+
+El reproductor unitario que se construye ahora parte del **reproductor legacy de Smart Contact** y le aplica unos cuantos parches baratos. La estructura visual es la del Figma v1 que conoce el equipo:
 
 - Cabecera del modal: título de la conversación + metadatos (canal, fecha, duración, agente).
-- Debajo de la cabecera, en una zona sticky:
-  - Para conversaciones de un solo tramo: barra de audio simple (play/pause, scrubber, tiempo).
-  - Para conversaciones multi-tramo: reproductor unificado con tres filas — transport + tiempo, barra segmentada con anchura proporcional a la duración real de cada tramo, etiquetas alineadas con flechas para navegar entre tramos.
-- Bajo la zona sticky, tabs: "Transcripción" y "Análisis".
-- En el extremo derecho de la zona de tabs, fila de acciones:
-  - "Re-transcribir" — solo aparece si ya hay transcripción. Abre un modal de confirmación con caja roja y obliga a escribir "CONFIRMAR" para proceder (operación destructiva, reemplaza la transcripción existente y borra el análisis derivado).
-  - "Análisis" — siempre visible, deshabilitado si no hay transcripción o si ya se analizó. Clic genera el análisis (toast sticky "Generando análisis..." + actualización in-place del estado).
+- Debajo de la cabecera, barra de audio simple para llamadas (play/pause, scrubber, tiempo). El layout sigue la maqueta legacy.
+- Multi-tramo: si la llamada tiene varias grabaciones, se gestiona con el patrón actual del legacy (selector aparte para elegir tramo). v1 NO trae el reproductor unificado del prototipo.
+- Tabs: "Transcripción" y "Análisis" (renombradas respecto al copy del legacy original).
+- A la derecha de la fila de tabs, fila de acciones con tres iconos:
+  - "Re-transcribir" — solo aparece si ya hay transcripción. Abre un modal de confirmación con caja roja y obliga a escribir "CONFIRMAR" para proceder. Operación destructiva: reemplaza la transcripción y borra el análisis derivado.
+  - "Análisis" — **botón nuevo añadido en v1 para discoverability**. Visible siempre, deshabilitado si no hay transcripción o si ya se analizó. Clic genera el análisis directamente, sin modal de confirmación intermedio.
   - "Descargar" — descarga audio + transcripción si hay, solo texto si es chat.
+- Diarización quitada del producto entero (ya no aparece como concepto en pestañas, copy ni componentes).
+- Confirmaciones para transcribir/analizar por primera vez quitadas. Cost cue inline en el CTA, igual que el modal masivo.
 
-[imagen: reproductor unitario con conversación de un solo tramo · barra de audio, tabs "Transcripción" y "Análisis", fila de acciones a la derecha mostrando los tres iconos]
+[imagen: reproductor unitario v1 · audio bar simple del legacy · tabs "Transcripción" y "Análisis" · fila de acciones a la derecha con Re-transcribir, Análisis (nuevo) y Descargar]
 
-[imagen: reproductor unitario con conversación multi-tramo · tres filas del player unificado · barra segmentada visible con tramos de distinta anchura · etiquetas con flechas]
+[NOTA: el botón "Análisis" en la fila de acciones del header es nuevo en v1. Antes, para descubrir que se podía generar análisis había que entrar en la pestaña "Análisis" y leer su empty state. Ahora se descubre desde la vista por defecto. Tooltip "Análisis" si está habilitado · "Requiere transcripción" o "Análisis ya realizado" si está deshabilitado.]
 
-[NOTA: el botón "Análisis" en la fila de acciones del header es nuevo. Antes, para descubrir que se podía generar análisis había que ir a la tab "Análisis" y leer su empty state. Ahora se descubre directamente desde la vista por defecto. Tooltip "Análisis" si está habilitado · "Requiere transcripción" o "Análisis ya realizado" si está deshabilitado.]
+### Modal reproductor · v2 (a dónde queremos llegar a medio plazo)
 
-[NOTA: este reproductor corresponde a v2 del rollout phased. La versión inicial del rollout en producción puede reusar el reproductor legacy con parches (quitar diarización, renombrar tabs, añadir botón Análisis en header, quitar modal de confirmación intermedio). El refactor profundo hacia este patrón se valida en una segunda fase si el feedback de supervisores lo justifica.]
+v2 es el reproductor que ya vive en el prototipo de Memory. Es el target eventual, no parte del rollout inicial. Se valida y se ejecuta en una segunda fase si el feedback real de los supervisores justifica la inversión.
+
+Lo que v2 trae que v1 no tiene:
+
+- **Sticky head**: la barra de audio y la fila de tabs quedan pinned arriba del cuerpo del modal. Al hacer scroll dentro de la transcripción, el transporte y los tabs siguen visibles.
+- **Tab body con altura flexible**: el cuerpo de la pestaña ocupa el espacio que queda; los empty states centran sobre el área visible real, no sobre una caja de altura fija que empuja CTAs fuera de pantalla.
+- **Reproductor multi-tramo unificado**: para conversaciones con varias grabaciones, un solo componente de tres filas — transport + tiempo, barra segmentada con anchura proporcional a la duración real de cada tramo, etiquetas alineadas con flechas para moverse entre tramos. Sustituye al selector aparte del legacy.
+- **Per-tramo Check icon**: cada tramo transcrito muestra un check pequeño junto a la duración. Asimetría presente vs ausente para los pendientes (no verde/gris).
+- **Empty states refinados**: tres variantes consistentes para los cinco estados de Transcripción y los cuatro de Análisis — con CTA, procesando con spinner, terminal sin acción. Columna única centrada.
+
+[imagen: reproductor unitario v2 (estado del prototipo de Memory) · sticky head · multi-tramo unificado con barra segmentada · empty states centrados]
+
+[NOTA: v2 NO sustituye a v1 de un día para otro. Es un upgrade que aterriza cuando el equipo decide que el feedback real lo justifica. Si los supervisores nunca piden más, v1 puede vivir indefinidamente — la decisión es consciente.]
 
 ### Tabs
 
@@ -224,4 +239,4 @@
 
 ---
 
-[NOTA FINAL: este documento describe la solución a 1:1 con el prototipo de Memory. La estrategia de implementación en producción es por fases — la primera fase (v1) reusa el reproductor legacy con parches baratos y trae solo los puntos cheap-to-migrate (sticky toast, botón Análisis en header, pluralización, "Cancelar" en destructive, quitar modal intermedio de confirmación). La segunda fase (v2) profundiza hacia el reproductor del prototipo si el feedback de supervisores lo justifica. La tercera fase (v3) aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven sobre el backend.]
+[NOTA FINAL: este documento describe v1 — la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con parches baratos (botón Análisis en header, pluralización, "Cancelar" en destructive, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast). v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven sobre eventos del backend en lugar de timers simulados. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]
