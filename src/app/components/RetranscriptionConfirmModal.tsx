@@ -145,7 +145,7 @@ export function RetranscriptionConfirmModal({
         </Modal.Body>
 
         <Modal.Footer>
-          <Modal.Cancel disabled={isLoading}>Cerrar</Modal.Cancel>
+          <Modal.Cancel disabled={isLoading}>Cancelar</Modal.Cancel>
           <Modal.Action
             onClick={handleConfirm}
             disabled={!isValid || isLoading}
