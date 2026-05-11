@@ -90,9 +90,11 @@ export function ConversationsView({
     setAnalyzingIds([]);
     setNewlyTranscribedIds([]);
 
-    // Reset the failure filter when changing samples — different
-    // samples have different failure sets (or none at all).
+    // Reset state-dependent filters al cambiar de sample — diferente
+    // sample, distinto set de fallidas y de multi-rec parciales.
     setShowOnlyFailed(false);
+    setShowOnlyMultiRec(false);
+    setShowOnlyPartialMulti(false);
 
     // Demo affordance: when the failed-transcription sample loads,
     // surface the error toast pattern with the "Ver fallidas" action
@@ -141,6 +143,7 @@ export function ConversationsView({
     directions: { entrante: true, saliente: true },
     rules: { recording: false, transcription: false, classification: false },
     status: { onlyFailed: false },
+    multirec: { onlyMulti: false, onlyPartial: false },
   });
 
   // `showOnlyFailed` is derived from `unifiedTypeFilters.status.onlyFailed`.
@@ -152,6 +155,26 @@ export function ConversationsView({
     setUnifiedTypeFilters((prev) => ({
       ...prev,
       status: { ...prev.status, onlyFailed: value },
+    }));
+
+  // Multi-grabación filters (15.43+). `onlyMulti` reduce a llamadas con
+  // varios tramos · `onlyPartial` adicionalmente exige mezcla (algunos
+  // tramos transcritos, otros pendientes). El segundo es la protección
+  // directa contra el footgun: el supervisor transcribe un tramo en
+  // unitario, luego hace select-all sin querer reprocesar los otros
+  // tramos. Activando el filtro encuentra esas conversaciones de un
+  // vistazo y las puede excluir manualmente.
+  const showOnlyMultiRec = unifiedTypeFilters.multirec.onlyMulti;
+  const showOnlyPartialMulti = unifiedTypeFilters.multirec.onlyPartial;
+  const setShowOnlyMultiRec = (value: boolean) =>
+    setUnifiedTypeFilters((prev) => ({
+      ...prev,
+      multirec: { ...prev.multirec, onlyMulti: value },
+    }));
+  const setShowOnlyPartialMulti = (value: boolean) =>
+    setUnifiedTypeFilters((prev) => ({
+      ...prev,
+      multirec: { ...prev.multirec, onlyPartial: value },
     }));
 
   const availableCategories = useMemo(() => {
@@ -220,6 +243,16 @@ export function ConversationsView({
       // "Ver fallidas" filter — applied first so an error-ridden batch
       // can be reviewed without losing other column filters.
       if (showOnlyFailed && !conv.hasFailedTranscription) return false;
+      // Multi-grabación filters (15.43+).
+      const recs = conv.recordings ?? [];
+      const isMulti = recs.length > 1;
+      if (showOnlyMultiRec && !isMulti) return false;
+      if (showOnlyPartialMulti) {
+        if (!isMulti) return false;
+        const someTrans = recs.some((r) => r.hasTranscription);
+        const allTrans = recs.every((r) => r.hasTranscription);
+        if (!someTrans || allTrans) return false; // requiere mezcla
+      }
       if (filters.services.length > 0) {
         const serviceMatch = filters.services.some(v => conv.service.toLowerCase().includes(v.toLowerCase()));
         if (!serviceMatch) return false;
@@ -280,7 +313,7 @@ export function ConversationsView({
       if (columnFilters.id && !conv.id.toLowerCase().includes(columnFilters.id.toLowerCase())) return false;
       return true;
     });
-  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed, dateBounds]);
+  }, [conversations, filters, typeFilters, ruleFilters, columnFilters, selectedCategories, showOnlyFailed, showOnlyMultiRec, showOnlyPartialMulti, dateBounds]);
 
   const handleDownload = () => {
     const n = selectedIds.length;
@@ -573,7 +606,9 @@ export function ConversationsView({
                     unifiedTypeFilters.rules.recording ||
                     unifiedTypeFilters.rules.transcription ||
                     unifiedTypeFilters.rules.classification ||
-                    unifiedTypeFilters.status.onlyFailed
+                    unifiedTypeFilters.status.onlyFailed ||
+                    unifiedTypeFilters.multirec.onlyMulti ||
+                    unifiedTypeFilters.multirec.onlyPartial
                   }
                   onClick={() => setIsTypeFilterPanelOpen(!isTypeFilterPanelOpen)}
                 />
@@ -779,6 +814,28 @@ export function ConversationsView({
                 className="flex items-center gap-1.5 rounded-full border border-sc-error-base bg-sc-error-soft px-3 py-1 text-xs text-sc-error-strong hover:bg-sc-error-soft/70 cursor-pointer transition-colors"
               >
                 <span className="font-medium">Solo fallidas</span>
+                <span aria-hidden>·</span>
+                <span>Limpiar filtro</span>
+              </button>
+            )}
+            {showOnlyMultiRec && (
+              <button
+                type="button"
+                onClick={() => setShowOnlyMultiRec(false)}
+                className="flex items-center gap-1.5 rounded-full border border-sc-border bg-sc-surface-50 px-3 py-1 text-xs text-sc-body hover:bg-sc-canvas cursor-pointer transition-colors"
+              >
+                <span className="font-medium">Solo varios tramos</span>
+                <span aria-hidden>·</span>
+                <span>Limpiar filtro</span>
+              </button>
+            )}
+            {showOnlyPartialMulti && (
+              <button
+                type="button"
+                onClick={() => setShowOnlyPartialMulti(false)}
+                className="flex items-center gap-1.5 rounded-full border border-sc-border bg-sc-surface-50 px-3 py-1 text-xs text-sc-body hover:bg-sc-canvas cursor-pointer transition-colors"
+              >
+                <span className="font-medium">Solo tramos parciales</span>
                 <span aria-hidden>·</span>
                 <span>Limpiar filtro</span>
               </button>
