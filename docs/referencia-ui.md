@@ -577,6 +577,7 @@ El producto usa iconos de la librería `lucide-react`, con estricta corresponden
 | `<Database>` / `<Tags>` | Entidades / Categorías | PrimaryCard del Repository. |
 | `<Download>` | Descargar contenido visible | Tab row del player. |
 | `<RotateCcw>` | Re-hacer (re-transcribir) | Tab row del player. |
+| `<CheckCheck>` | Marcar como leídas | Toolbar de la tabla, junto a Descargar. |
 | `<Loader2>` | Cargando (girando) | Botones submit, ProcessingState. |
 | `<X>` / `<XCircle>` | Cerrar / error | Modal close, scToast error. |
 

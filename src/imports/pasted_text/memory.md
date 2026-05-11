@@ -2782,4 +2782,47 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 **Notas para próxima sesión**:
 
 - El usuario abrió una nueva discusión de producto: "cómo marcar como leídas" muchas conversaciones (amarillas + rojas) tras un batch grande. Pendiente de definir patrón antes de implementar. Probablemente conecte con el "concepto futuro tipo 'marcar como leído' de Gmail/Teams" que ya mencionaba la limitación de logout · el patrón "mark as read" sería el upgrade que resuelve también esa limitación porque convierte el flag transitorio en estado persistente per-supervisor en el backend.
-- Commits en esta sesión: `8e7f107` (sticky toast fix) · `eff89c8` (lock procesando + bulk filter + hint Excluye) · `cefa36c` (Download legacy + logout limit) · `a641deb` (GDPR unlock) · `ad9dbd7` (audit P0 fixes).
+- Commits en esta sesión: `8e7f107` (sticky toast fix) · `eff89c8` (lock procesando + bulk filter + hint Excluye) · `cefa36c` (Download legacy + logout limit) · `a641deb` (GDPR unlock) · `ad9dbd7` (audit P0 fixes) · `cee617b` (este canon close).
+
+---
+
+### 15.46 · 2026-05-11 · Claude Code · "Marcar como leídas" en toolbar · mitigación parcial de la limitación de logout
+
+**Contexto**: tras cerrar 15.45 el usuario abrió una nueva discusión de producto · cómo gestionar centenares de filas amarillas (recién procesadas) + rojas (fallidas) tras un batch grande sin click-uno-a-uno. La discusión propuso un patrón "Marcar como leídas" inspirado en Gmail/Teams, con el bonus de que resuelve parcialmente la limitación de logout (15.45 sec 13): si el supervisor marca como leído, ese estado puede persistir per-usuario en el backend. El usuario aprobó implementación + docs.
+
+**Hecho** (commits — SHAs en cierre):
+
+- **Estado `readIds`** en `ConversationsView` (useState · placeholder del backend en producción). Reset al cambiar de sample (igual que `showOnlyFailed`).
+- **Handler `handleMarkAsRead`**: para cada id seleccionado, lo quita de `newlyTranscribedIds` (limpia el amarillo) y lo añade a `readIds` (lo excluye del filtro "Solo fallidas" sin tocar el estado real del backend). Limpia `selectedIds` al terminar. Toast `info` con count solo si hubo cosas marcables · "1 marcada como leída" / "N marcadas como leídas".
+- **Contador derivado `markableInSelection`** (useMemo · cuenta cuántas en la selección son amarillas O fallidas-no-leídas). Usado para deshabilitar el botón cuando no hay nada que marcar.
+- **Filter pipeline** en `filteredConversations`: la condición `showOnlyFailed && !conv.hasFailedTranscription` pasa a `showOnlyFailed && (!conv.hasFailedTranscription || readIds.includes(conv.id))`. Las marcadas como leídas dejan de aparecer en la lista "Solo fallidas" aunque sigan con icono rojo en la tabla (el estado del backend es real).
+- **Botón en toolbar** (`CheckCheck` icono de Lucide) entre Descargar y Help. Visible cuando hay selección. Deshabilitado con tooltip "Nada que marcar en la selección" si `markableInSelection === 0`. Habilitado con tooltip "Marcar como leídas (N)" si hay marcables.
+
+**Docs alineados**:
+
+- **COA** `docs/coa-transcripcion-masiva.md`: sección nueva "Marcar como leídas" con el patrón de uso, visibilidad del botón, persistencia entre sesiones, NOTA con la dependencia técnica de backend para v1. Bullet "Feedback entre sesiones" en Consideraciones generales actualizado · la acción "Marcar como leídas" cubre parcialmente la limitación. Traducciones añadidas (Marcar como leídas / Marcada como leída / N marcadas como leídas / Nada que marcar en la selección).
+- **logica-de-conteo** `docs/logica-de-conteo.md`: sección "Mitigación parcial · marcar como leídas" en Estados visuales de una fila · explica el mecanismo de `readIds` y los efectos del flag (filtro Solo fallidas + amarillo). Nueva entrada en Decisiones de producto cerradas.
+- **decisiones.md**: entrada narrativa nueva "Marcar como leídas · cómo el supervisor limpia el ruido post-batch" · explica el problema (cientos de filas amarillas/rojas tras batches grandes), el patrón elegido (filtrar + seleccionar + acción), por qué se descartaron otros patrones (auto-clear con tiempo · botón "todas" sin selección · click derecho en fila), la conexión con la limitación de logout y la naturaleza per-supervisor.
+- **referencia-ui** `docs/referencia-ui.md`: añadida entrada `<CheckCheck>` en la tabla de iconografía.
+
+**Decidido**:
+
+- **Patrón canónico "filtrar + seleccionar + acción"**. El supervisor puede filtrar primero ("Solo fallidas", "Solo varios tramos", lo que aplique), select-all sobre las visibles, y la acción aplica solo a esa selección. Reutiliza la mecánica de selección que ya entiende; es composable con todos los filtros existentes.
+- **Per-supervisor, no per-equipo**. Cada supervisor tiene su propio set de "marcadas". Refleja que el concepto de "leído" es subjetivo; evita conflictos en equipos.
+- **El estado del backend NO cambia** cuando se marca como leída. El icono rojo de fallida sigue mostrándose en la fila (el estado real es real). Solo se quita del queue de acción del supervisor (filtro Solo fallidas). Igual con el amarillo: la conversación sigue transcrita, solo deja de destacarse.
+- **Mitigación parcial, no solución total** a la limitación de logout. Las marcadas persisten entre sesiones (el backend guarda); el resto sigue siendo transitorio. Es un primer paso hacia el "concepto futuro tipo 'marcar como leído'" que mencionaba la limitación. El siguiente paso sería persistir todos los flags transitorios, pero es trabajo mayor.
+- **Dependencia técnica explícita en el COA**: la feature necesita endpoint del backend tipo `POST /conversations/mark-read` + tabla per-usuario `conversation_reads`. Si el backend no lo tiene en día 1 del rollout, la feature se puede ocultar con un feature flag y activar cuando esté listo. Documentado para que el equipo de ingeniería sepa qué pieza pedir.
+
+**Validación**:
+
+- Build OK: 2982 mods · 877 KB JS / gzip 248 KB (+2 KB sobre baseline 15.45 por handler + botón).
+- Strings nuevos verificados en bundle: "Marcar como le…", "Nada que marcar", "marcadas como le…", `readIds` no porque está minificado.
+- No verificado interactivamente con puppeteer · cableado mecánico verificado por code review; el supervisor verá: botón visible cuando hay selección, deshabilitado cuando nada marcable, action limpia amarillo + excluye de Solo fallidas + toast.
+
+**Notas para próxima sesión**:
+
+- Push Figma del bot ón de "Marcar como leídas" en la toolbar (no se ha hecho · puede ser polish si el equipo de diseño quiere verlo en el board).
+- Verificación interactiva del flujo completo con puppeteer (cargar sample "Errores de transcripción" + Solo fallidas + select-all + Marcar como leídas + verificar que el contador del chip rojo baja a 0 o que el filtro deja de mostrar resultados).
+- En producción, definir el endpoint exacto del backend para `read_states` per-usuario. Documentación de COA ya lo lista como dependencia.
+
+**Mirror obligatorio · regla 15.41 paso 6**: `docs/decisiones.md` ya actualizado en este commit con la entrada narrativa "Marcar como leídas · cómo el supervisor limpia el ruido post-batch".

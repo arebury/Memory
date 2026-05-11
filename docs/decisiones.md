@@ -225,6 +225,23 @@ La conclusión del PM: prohibir la selección era una protección excesiva. El p
 
 **Dónde queda el aviso de "no es procesable"**: para retención vencida, la fila atenuada + el tooltip ya lo dicen. Para procesando, el spinner + el toast sticky abajo a la derecha lo dicen. El modal masivo no añade líneas de explicación para retención vencida (la fila ya la dio) pero sí avisa de "Excluye N en proceso" para el caso en proceso, porque el supervisor podría haberlas seleccionado por descuido (ya no están bloqueadas en la tabla).
 
+### Marcar como leídas · cómo el supervisor limpia el ruido post-batch
+
+Cuando el supervisor lanza un batch grande (200, 500, 2.000 conversaciones), la tabla se llena de filas amarillas (recién procesadas) y rojas (fallidas) que se acumulan hasta haberlas inspeccionado una a una. El click-uno-a-uno no escala: con cientos de filas se vuelve tedioso y se pierden las que importan entre el ruido.
+
+**Decisión nueva (15.46)**: existe una acción "Marcar como leídas" en la toolbar de la tabla, junto a Procesar y Descargar. El supervisor selecciona las filas que quiere limpiar (apoyándose en los filtros existentes si quiere acotar — por ejemplo "Solo fallidas" o select-all del lote recién procesado) y la acción reinicia esas filas al estilo normal. Las amarillas vuelven a blanco, las fallidas dejan de aparecer en "Solo fallidas" aunque su icono rojo siga visible (el estado del backend es real, solo se quita del queue de acción del supervisor).
+
+**Por qué este patrón** (y no otros):
+
+- *Auto-clear con tiempo* (las amarillas decaen solas a las X horas): descartado por arbitrario. No resuelve el "10 minutos después tengo 200 amarillas" si el supervisor está atento.
+- *Botón "Marcar todas como leídas"* sin selección: descartado por peligroso. Demasiado scope; el supervisor podría perder cambios que querría revisar.
+- *Click derecho en la fila*: descartado por no escalar. Un click por fila es lo que ya tenemos hoy.
+- *Filtrar + seleccionar + acción*: elegido. Reutiliza la mecánica de selección y filtros que el supervisor ya entiende, es granular pero también permite "todas las visibles" si filtra antes.
+
+**Conexión con la limitación de logout**: esta acción cubre parcialmente el problema descrito en "El feedback transitorio no se conserva entre sesiones". Las conversaciones marcadas como leídas SÍ persisten entre sesiones (el backend guarda el estado per-supervisor). El resto sigue siendo transitorio. Es un primer paso hacia el "concepto futuro tipo 'marcar como leído' de Gmail/Teams" que mencionaba la limitación; el siguiente paso completo sería que el backend persista todos los flags transitorios, pero eso es trabajo mayor.
+
+**Per-supervisor, no per-equipo**: cada supervisor tiene su propio set de "marcadas como leídas". Si una conversación está marcada para A, sigue siendo "nueva" para B. Esto evita conflictos en equipos y refleja que el concepto de "leído" es subjetivo (lo que A ya revisó B puede no haber visto).
+
 ### Iconografía de la columna "Estado" · heredada en v1, refactorizada en v2
 
 Cada fila de la tabla muestra su estado (con grabación, con transcripción, con clasificación, fallida) mediante un icono en la columna "Estado". Es la forma del legacy de Smart Contact y, en v1, Memory la conserva.

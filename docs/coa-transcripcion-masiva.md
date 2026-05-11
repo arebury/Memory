@@ -31,7 +31,7 @@ Tres enlaces que acompañan a este documento. Cada uno cubre una capa distinta d
 - **Multi-tramo.** Una llamada con transferencias entre grupos genera varios audios (uno por tramo), pero el listado la muestra como una única fila. A la hora de procesar, lo que se cobra son los audios, no las filas seleccionadas. Si el supervisor selecciona 10 filas y algunas son multi-tramo, el lote real puede ser de 25 transcripciones. El número grande del modal masivo refleja la cuenta real de audios.
 - **Retención de contenido.** Algunas conversaciones tienen restricciones legales de retención y dejan de ser recuperables tras un tiempo (por ejemplo, chats con custodia GDPR vencida · la normativa puede establecer límites para otros casos también). Esas conversaciones se filtran del lote sin avisar, no se transcriben aunque estén seleccionadas.
 - **Sin cancelación.** Una vez lanzada una operación masiva, no se puede cancelar a mitad. El backend no expone API de cancelación parcial. El producto no promete "Cancelar" en ningún sitio del flujo masivo.
-- **Feedback entre sesiones.** Cuando el supervisor cierra la sesión, el feedback transitorio anterior no se conserva: la fila amarilla de "recientemente procesada", el indicador de "transcripción fallida" y el filtro "Solo fallidas" del panel se pierden al volver a entrar. Solo las conversaciones que estén ACTIVAMENTE en curso muestran su indicador, porque se deriva del estado vivo del backend. De momento, esto responde a una limitación técnica que aún no tiene solución disponible.
+- **Feedback entre sesiones.** Cuando el supervisor cierra la sesión, el feedback transitorio anterior no se conserva: la fila amarilla de "recientemente procesada", el indicador de "transcripción fallida" y el filtro "Solo fallidas" del panel se pierden al volver a entrar. Solo las conversaciones que estén ACTIVAMENTE en curso muestran su indicador, porque se deriva del estado vivo del backend. La acción "Marcar como leídas" (ver sección dedicada más abajo) cubre el subconjunto que el supervisor decide acknowledgear — esas sí persisten entre sesiones. El resto sigue siendo transitorio · limitación técnica que solo se elimina del todo cuando el backend persista los flags transitorios de UI.
 
 ---
 
@@ -143,6 +143,32 @@ Caso: el supervisor abre una conversación multi-tramo, transcribe un tramo conc
 - El toast persistente se reemplaza por un toast de éxito breve ("X transcripciones listas" o "X análisis listos"). Auto-cierra a los pocos segundos.
 
 [imagen: tabla tras el batch · filas amarillas · iconos de estado actualizados]
+
+### Marcar como leídas
+
+Tras un batch grande, la tabla puede quedar llena de filas amarillas (recién procesadas) y rojas (fallidas). El click-uno-a-uno para limpiarlas no escala. La acción "Marcar como leídas" cubre la limpieza masiva.
+
+**Patrón de uso:**
+
+1. El supervisor selecciona filas (filtrando primero si quiere acotar — por ejemplo "Solo fallidas" para limpiar el queue de errores ya gestionados, o select-all para todo el lote recién procesado).
+2. Pulsa el icono "Marcar como leídas" (✓✓) en la toolbar, junto a Procesar y Descargar.
+3. La acción aplica a las filas marcables de la selección: amarillas se reinician al estilo normal, las fallidas dejan de aparecer en "Solo fallidas" aunque el icono rojo del estado siga visible (el estado es real, solo se quita del queue de acción).
+
+**Visibilidad del botón:**
+
+- Visible cuando hay selección.
+- Habilitado cuando al menos una fila seleccionada es marcable (amarilla o fallida no leída).
+- Si la selección no tiene nada marcable, queda deshabilitado con tooltip "Nada que marcar en la selección".
+
+**Persistencia entre sesiones:**
+
+Esta acción guarda el estado "leída" per-supervisor en el backend. Cada supervisor tiene su propio set de conversaciones marcadas como leídas. Tras cerrar sesión y volver, las marcadas siguen marcadas — esto resuelve parcialmente la limitación documentada en "Feedback entre sesiones" arriba, para el subconjunto que el supervisor ha acknowledgeado.
+
+Lo que NO se cubre: las filas que el supervisor todavía no marcó. Si no las marca antes de cerrar sesión, vuelven al estado por defecto en el siguiente login (amarillo se pierde por ser transitorio; el rojo de fallida sigue ahí porque es estado real del backend, pero vuelve a aparecer en "Solo fallidas").
+
+[imagen: toolbar con el icono "Marcar como leídas" (✓✓) entre Descargar y Help · tooltip "Marcar como leídas (N)" visible al hover]
+
+[NOTA: dependencia técnica para v1 · necesita endpoint del backend tipo `POST /conversations/mark-read` con body `{ conversation_ids: string[] }` y un campo en el modelo de read-state per-usuario. En el prototipo se simula con `useState` (estado en memoria, se pierde al recargar). Si el backend no lo tiene en el día 1 del rollout, la feature se puede ocultar con un feature flag y activar cuando esté listo.]
 
 ### Cuando algo falla
 
@@ -322,6 +348,10 @@ Cualquiera de estos filtros activos aparece como chip cerrable en la toolbar, co
 | Limpiar filtro | Effacer le filtre | Clear filter |
 | Estado | État | Status |
 | Multi-grabación | Multi-enregistrement | Multi-recording |
+| Marcar como leídas | Marquer comme lues | Mark as read |
+| Marcada como leída | Marquée comme lue | Marked as read |
+| {N} marcadas como leídas | {N} marquées comme lues | {N} marked as read |
+| Nada que marcar en la selección | Rien à marquer dans la sélection | Nothing to mark in selection |
 
 ### Strings del sticky toast
 

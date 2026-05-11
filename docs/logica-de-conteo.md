@@ -515,7 +515,16 @@ Una fila puede estar en uno de varios estados visibles. Las combinaciones más c
 
 La combinación que más confunde es "amarilla + procesándose". No ocurre — el amarillo aparece después de que la operación termina, no durante. Mientras está en curso es "spinner", y al acabar pasa a "amarilla" hasta que el supervisor la inspecciona.
 
-**Persistencia entre sesiones**: el feedback transitorio (fila amarilla, marca de fallida) NO se conserva al cerrar sesión y volver. Solo las conversaciones que están activamente en proceso retienen su indicador (se deriva del estado vivo del backend). El filtro "Solo fallidas" del panel deja de mostrar resultados tras logout porque depende del flag transitorio. Limitación técnica conocida sin solución actual; ver `decisiones.md` · "El feedback transitorio no se conserva entre sesiones".
+**Persistencia entre sesiones**: el feedback transitorio (fila amarilla, marca de fallida) NO se conserva al cerrar sesión y volver. Solo las conversaciones que están activamente en proceso retienen su indicador (se deriva del estado vivo del backend). El filtro "Solo fallidas" del panel deja de mostrar resultados tras logout porque depende del flag transitorio. Limitación técnica conocida sin solución actual completa; ver `decisiones.md` · "El feedback transitorio no se conserva entre sesiones".
+
+**Mitigación parcial · marcar como leídas** (15.46): la acción "Marcar como leídas" en la toolbar guarda un set per-supervisor de IDs acknowledgeados. En `ConversationsView`, el estado `readIds: string[]` agrupa los marcados. En producción esto vive en backend como tabla `conversation_reads(user_id, conversation_id, marked_at)` y se consulta por usuario. Efectos del flag:
+
+- Una conversación con `id ∈ readIds`:
+  - NO aparece en el filtro "Solo fallidas" aunque tenga `hasFailedTranscription === true` (sale del queue de acción del supervisor).
+  - El icono rojo de estado fallido SÍ sigue mostrándose en la fila (el estado del backend no cambia · solo cambia el queue per-supervisor).
+- El amarillo de "recientemente procesada" se limpia removiendo el id de `newlyTranscribedIds` (mismo mecanismo que `handleClearNewlyTranscribed` cuando el supervisor abre el reproductor). `handleMarkAsRead` hace ambas cosas en una sola llamada.
+
+Esto resuelve el problema para los IDs que el supervisor decide acknowledgear, pero no elimina la limitación raíz · si el supervisor no marca, sigue perdiendo el feedback transitorio al cerrar sesión.
 
 ---
 
@@ -549,6 +558,7 @@ La combinación que más confunde es "amarilla + procesándose". No ocurre — e
 - **"Cancelar" en confirmaciones destructivas.** Excepción a la regla general "Cerrar". Aplica a `DeleteCategoryDialog` y a `RetranscriptionConfirmModal` (este último post-v1). El resto de modales sigue usando "Cerrar".
 - **Filtros multi-grabación en `TypeFilterPanel`.** Sección "Multi-grabación" con dos toggles: "solo con varios tramos" (recordings.length > 1) y "solo con tramos parcialmente transcritos" (mezcla de transcritos y pendientes en una misma conversación). El segundo es la protección directa contra el footgun de select-all reprocesando tramos pendientes de conversaciones que el supervisor tocó en unitario. Single source of truth en `unifiedTypeFilters.multirec`; chips neutros en la toolbar siguen el patrón del chip rojo de "solo fallidas".
 - **Aviso de tramos ya iniciados en el bulk modal.** Cuando la selección incluye llamadas multi-rec con al menos un tramo ya transcrito manualmente, el hint del hero compone la pieza "M con tramos ya iniciados" junto a la pieza existente "N llamadas con varios tramos". El supervisor lo ve antes de pulsar Procesar.
+- **Marcar como leídas (15.46).** Acción en la toolbar (icono `CheckCheck`) que limpia el ruido visual post-batch. Para cada id seleccionado: lo quita de `newlyTranscribedIds` (limpia el amarillo) y lo añade a `readIds` (lo excluye del filtro "Solo fallidas" sin tocar el estado real del backend). Visible cuando hay selección; habilitado cuando al menos una fila seleccionada es marcable; deshabilitado con tooltip "Nada que marcar en la selección" en caso contrario. En el prototipo `readIds` es `useState`; en producción requiere persistencia per-usuario en backend (tabla `conversation_reads`).
 - **Diarización retirada del producto entero.** El campo `Conversation.hasDiarization` se borró del schema. Cualquier referencia residual en código o copy es un bug.
 
 ## Pendiente de decidir
