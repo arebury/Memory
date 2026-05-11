@@ -80,6 +80,18 @@ export function BulkTranscriptionModal({
     const multiRecCalls = readyToTranscribe.filter(
       (c) => c.recordings && c.recordings.length > 1,
     );
+    // Multi-rec parciales: el supervisor transcribió un tramo en
+    // unitario, los otros quedan pendientes. El agregado sigue siendo
+    // !hasTranscription, así que entran en readyToTranscribe. Avisamos
+    // en el hint para que el supervisor sepa que esa selección incluye
+    // conversaciones donde ya hizo trabajo manual sobre tramos
+    // concretos · footgun documentado en 15.44.
+    const partialMultiRecCalls = readyToTranscribe.filter(
+      (c) =>
+        c.recordings &&
+        c.recordings.length > 1 &&
+        c.recordings.some((r) => r.hasTranscription),
+    );
 
     const callsTranscribed = calls.filter((c) => c.hasTranscription);
     const callEa = callsTranscribed.filter((c) => !c.hasAnalysis);
@@ -92,12 +104,13 @@ export function BulkTranscriptionModal({
       nTrans: nTramos,
       nConvTrans: readyToTranscribe.length,
       nMultiRec: multiRecCalls.length,
+      nPartialMultiRec: partialMultiRecCalls.length,
       nAnBase: callEa.length + chatEa.length,
       nSel: selectedConversations.length,
     };
   }, [selectedConversations]);
 
-  const { readyToTranscribe, callEa, chatEa, nTrans, nConvTrans, nMultiRec, nAnBase, nSel } = counters;
+  const { readyToTranscribe, callEa, chatEa, nTrans, nConvTrans, nMultiRec, nPartialMultiRec, nAnBase, nSel } = counters;
 
   /* ── Toggle state ─────────────────────────────────────────────── */
   // Default ON only when transcription is impossible (nTrans=0) and there
@@ -245,10 +258,23 @@ export function BulkTranscriptionModal({
      room intencional, no pixel perdido. */
   const heroDeltaHint = (() => {
     if (isAllProcessed) return null;
+    const bits: string[] = [];
     if (nMultiRec > 0 && !toggleOn) {
-      return `Incluye ${nMultiRec} ${nMultiRec === 1 ? "llamada con varios tramos" : "llamadas con varios tramos"}`;
+      bits.push(
+        `${nMultiRec} ${nMultiRec === 1 ? "llamada" : "llamadas"} con varios tramos`,
+      );
     }
-    return null;
+    if (nPartialMultiRec > 0) {
+      // Cuando el hint ya menciona "llamadas", elidimos el sustantivo
+      // en el segundo bit para no repetirlo · si es el único bit,
+      // forma completa para que se entienda sin contexto previo.
+      bits.push(
+        bits.length > 0
+          ? `${nPartialMultiRec} con tramos ya iniciados`
+          : `${nPartialMultiRec} ${nPartialMultiRec === 1 ? "llamada" : "llamadas"} con tramos ya iniciados`,
+      );
+    }
+    return bits.length > 0 ? `Incluye ${bits.join(" · ")}` : null;
   })();
 
   return (
