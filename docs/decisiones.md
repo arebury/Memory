@@ -208,6 +208,23 @@ La regla general es: el footer-cancel de los modales dice "Cerrar" (porque pre-s
 
 La excepción es estrecha: solo confirms destructivos. El resto de modales (procesar, crear, editar, ver) siguen usando "Cerrar".
 
+### Ninguna fila se bloquea en la tabla · flexibilidad sobre cue visual
+
+En versiones anteriores del prototipo, las filas que estaban procesándose (transcripción o análisis en curso) y las que tenían retención vencida (custodia GDPR) llevaban su checkbox deshabilitado · el supervisor no podía seleccionarlas. La idea era proteger contra acciones duplicadas y comunicar visualmente "esta fila no se puede tocar".
+
+**Decisión nueva (15.45, con product manager)**: ninguna fila se bloquea. Las filas en proceso son seleccionables. Las filas con retención vencida son seleccionables. El checkbox responde igual que en cualquier otra fila.
+
+**Por qué**: el lock penalizaba operaciones legítimas. Ejemplos concretos:
+
+- El supervisor lanza una transcripción de N conversaciones y, mientras se procesa, quiere descargar el audio (Record) o el detalle (CDR) de una de ellas. Con el lock no podía seleccionarla para descargar.
+- El supervisor encuentra una conversación con custodia vencida y quiere abrir el reproductor para revisar lo que SÍ sigue disponible y descargar formatos compatibles. Con el lock no podía interactuar con la fila.
+
+La conclusión del PM: prohibir la selección era una protección excesiva. El producto pierde el cue visual "no se puede tocar" pero gana control y flexibilidad del supervisor. Los avisos del estado siguen estando — la fila procesándose lleva un spinner pulsando en su icono, la fila con retención vencida lleva opacidad reducida + tooltip — pero no se restringe la interacción.
+
+**Dónde queda la protección contra acciones duplicadas**: en el bulk modal y en los handlers. El `BulkTranscriptionModal` filtra silenciosamente las filas en proceso y las de retención vencida antes de calcular su contador grande. Si el supervisor selecciona 10 filas y 2 están en proceso, el modal muestra "Incluye 8. Excluye 2 en proceso." y solo procesa esas 8. Si el supervisor lanza desde el reproductor unitario, el handler tiene un filtro defensivo equivalente. Cero riesgo de doble procesamiento, cero ruido visual extra en la tabla.
+
+**Dónde queda el aviso de "no es procesable"**: para retención vencida, la fila atenuada + el tooltip ya lo dicen. Para procesando, el spinner + el toast sticky abajo a la derecha lo dicen. El modal masivo no añade líneas de explicación para retención vencida (la fila ya la dio) pero sí avisa de "Excluye N en proceso" para el caso en proceso, porque el supervisor podría haberlas seleccionado por descuido (ya no están bloqueadas en la tabla).
+
 ### Iconografía de la columna "Estado" · heredada en v1, refactorizada en v2
 
 Cada fila de la tabla muestra su estado (con grabación, con transcripción, con clasificación, fallida) mediante un icono en la columna "Estado". Es la forma del legacy de Smart Contact y, en v1, Memory la conserva.

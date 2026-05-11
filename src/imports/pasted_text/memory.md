@@ -2738,3 +2738,48 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 - **Push Figma de un cuarto frame** (sin commit · MCP action sobre `EKXnAv7FND5VO6EcpKq3ZH`): añadido `TypeFilterPanel · Multi-grabación` (id `408:8`) a la derecha del player en la section `Adaptaciones · 15.43`. Section renombrada a "Adaptaciones · 15.43 + 15.44"; subtítulo extendido. Nota explicativa debajo del frame con el caveat del select-all y por qué el filtro es la mitigación proactiva.
 
 **Verificación visual completada del hint compuesto** (era el item "no verificado" de la versión inicial del cierre 15.44). El caveat + las dos mitigaciones funcionan end-to-end y se demuestran en el prototipo cargando el sample dedicado. El cierre de 15.44 queda redondo.
+
+---
+
+### 15.45 · 2026-05-11 · Claude Code · revisión PM · quitar locks · sticky toast fix · Download legacy · logout limit extendida · audit P0 fixes
+
+**Contexto**: el usuario reportó dos bugs visibles tras la publicación parcial del COA: (1) el checkbox no se deshabilitaba al procesar; (2) no veía el sticky toast "Generando…". Tras investigar con puppeteer, encontré que el sticky toast estaba auto-dismissándose por un bug en el wrapper scToast (conversión `Infinity` → `Number.MAX_SAFE_INTEGER` que sonner trataba mal). Mientras se arreglaba, el PM dejó nueva guidance que cambió el approach del lock: en vez de bloquear el checkbox durante procesado, dejar la fila seleccionable y mover el aviso al modal. Razón: el lock penalizaba operaciones legítimas (descargar el Record o CDR de una fila que se está transcribiendo). Aplicado el mismo razonamiento a GDPR — el supervisor puede querer abrir el reproductor de una conversación con retención vencida y descargar lo que SÍ esté disponible. El modal Download del legacy gestiona internamente el caso "no descargable" con su propio aviso, así que el control queda en el supervisor.
+
+**Hecho** (commits):
+
+- `8e7f107` **fix · scToast sticky toast persiste** · el wrapper convertía `Infinity` a `Number.MAX_SAFE_INTEGER` antes de pasarlo a sonner; sonner 2.x marcaba el toast como `data-removed=true` casi al instante (visible <1s). Fix: pasar `Infinity` directo, soportado nativamente por sonner 2.x. Verificado con puppeteer: toast persiste durante todo el batch · `data-removed: false` estable en t+1.7s, +2.5s, +4.0s, +5.5s, +7.0s. Bug afectaba sticky toast del progreso, chain transcribir→analizar y reemplazo in-place por id compartido.
+
+- `eff89c8` **feat · quitar lock procesando/analizando del checkbox + bulk filter + hint "Excluye"** · `ConversationTable.isLocked()` reducido a solo `deleted` GDPR. Tooltip "En proceso · no se puede seleccionar" eliminado. `BulkTranscriptionModal` recibe `processingIds`/`analyzingIds` como props · counters filtran in-progress para evitar doble dispatch en producción. Hint del hero reestructurado en dos cláusulas separadas por punto: "Incluye [multi-rec · partial]. Excluye [in-progress]." Razón del split: una sola línea con "Incluye N · 3 en proceso · no se incluyen" leía contradictorio. Bonus: toast de fallidas pasa a `duration: Infinity` (el supervisor decide cuándo cerrar via X; el filtro "Solo fallidas" sigue accesible desde el panel si lo cierra y necesita volver).
+
+- `cefa36c` **docs · Download legacy real + logout limit cubre fallidas** · el COA describía Download como un toast simplificado · corregido para reflejar el modal "Download" real del legacy de Smart Contact (unitario: 2 checkboxes "Records" + "Recordings/Chats" marcados por defecto + aviso "Deleted or empty conversations won't download"; bulk: 3 checkboxes "Record" + "CDR" + "Recordings/Chats" vacíos por defecto, botón deshabilitado hasta marcar uno). Nuevos placeholders `[imagen]` + sección de traducciones legacy añadida. Limitación de logout extendida en canon sec 13 + decisiones.md + logica-de-conteo + COA: cubre amarillo "recientemente procesado" Y indicador rojo de fallida Y filtro "Solo fallidas" del panel Y toasts previos. Solo lo activamente en proceso persiste (estado vivo del backend).
+
+- `a641deb` **feat · GDPR también seleccionable · sin lock en ninguna fila** · `ConversationTable.isLocked()` reducido a `_id => false`. Razón: el supervisor puede querer abrir el reproductor de una fila con retención vencida y descargar el Record o CDR (lo que SÍ esté disponible) desde el modal Download del legacy. Bloquear el checkbox impedía el flujo unitario legítimo. Mantenemos opacity-60 + tooltip en filas deleted como cue visual del estado, pero NO restringimos interacción. Bulk transcripción/análisis sigue excluyendo silenciosamente las filas deleted (defensive filter en `handleRequestTranscription` + filtro de counters en `BulkTranscriptionModal`). COA + logica-de-conteo actualizados: "checkbox seleccionable" sustituye a "no es seleccionable".
+
+- `ad9dbd7` **docs · audit fixes P0** · auditoría de inconsistencias delegada a Explore agent encontró dos hallazgos P0 reales: (a) hint compose en docs describía solo la versión vieja (sin cláusula "Excluye") · actualizado en COA + logica-de-conteo con la estructura nueva de dos cláusulas + ejemplos concretos. (b) `RecordingTimeline` referenciado en docs cuando el componente se renombró a `MultiRecordingPlayer` en 15.32 (unificación con audio bar) · 7 referencias reemplazadas en logica + referencia-ui; dos menciones residuales preservadas como nota histórica al inicio de las secciones renombradas.
+
+**Decidido**:
+
+- **Flexibilidad sobre cue visual.** Ninguna fila se bloquea visualmente en el checkbox · ni procesando/analizando ni GDPR. Razón: el lock penalizaba flujos legítimos (Download de Record/CDR, abrir reproductor para revisar lo disponible). Trade-off: pierde el cue visual "no se puede" pero gana control y flexibilidad. El feedback del estado se da por otras vías: opacidad-60 + tooltip para GDPR · icono pulsando + spinner para procesando.
+- **Bulk como gate de protección contra doble dispatch.** Como las filas son seleccionables aunque estén en proceso o sean GDPR, el `BulkTranscriptionModal` se vuelve el punto donde se filtra silenciosamente lo no-procesable. Counter excluye `deleted + processingIds + analyzingIds` antes de calcular el hero. Hint compose: "Incluye … Excluye N en proceso." (GDPR se omite del hint porque la fila ya está visualmente marcada · evitar señales duplicadas, canon 20.16).
+- **Toast de fallidas sticky.** `duration: Infinity` en el toast de "X transcripciones fallaron". Razón: el auto-cierre a 8s no daba tiempo al supervisor a decidir si actuar. Cerrar manualmente no pierde la acción · el filtro "Solo fallidas" sigue accesible desde el panel.
+- **Honesty principle aplicado a logout limit.** La limitación del feedback transitorio cubre amarillo + fallida + filtro + toasts (todo lo que es flag de UI, no estado persistente del backend). Documentado como "limitación técnica que aún no tiene solución disponible" sin endulzar.
+- **Sonner 2.x soporta `Infinity` nativamente.** El wrapper scToast NO debe convertirlo a `Number.MAX_SAFE_INTEGER` · ese path lo trata como expirado casi al instante. Lección aprendida.
+
+**Audit P0 hallazgos arreglados** (commit `ad9dbd7`):
+
+- Hint compose en COA + logica-de-conteo: actualizado con la cláusula "Excluye" (estaba describiendo solo la composición vieja sin "Excluye").
+- `RecordingTimeline` reemplazado por `MultiRecordingPlayer` en logica-de-conteo + referencia-ui (7 ocurrencias). Componente renombrado en 15.32, docs nunca se sincronizaron.
+
+**P2 / falsos positivos del audit** (registrados pero no requieren cambio):
+
+- COA tiene sección "Re-transcripción · post-v1" con el modal destructivo descrito · el agent lo flagueó como inconsistencia pero ES correcto · la sección está intencionalmente ahí como referencia de cómo se hará en una fase posterior, marcada explícitamente como fuera de v1.
+- Las menciones a "checkbox deshabilitado" en session logs históricos del canon (sec 15.25, 15.37, 15.40) NO son inconsistencias · son snapshots del pasado.
+
+**No verificado interactivamente** (cableado y verificado en bundle, falta confirmación en pantalla):
+
+- Hint del bulk modal con cláusula "Excluye N en proceso" mostrándose con un sample que tenga in-progress reales seleccionados. El path está cableado en el código y el string ship en el bundle, pero no he visto la cláusula renderizada en pantalla con una selección que la dispare.
+
+**Notas para próxima sesión**:
+
+- El usuario abrió una nueva discusión de producto: "cómo marcar como leídas" muchas conversaciones (amarillas + rojas) tras un batch grande. Pendiente de definir patrón antes de implementar. Probablemente conecte con el "concepto futuro tipo 'marcar como leído' de Gmail/Teams" que ya mencionaba la limitación de logout · el patrón "mark as read" sería el upgrade que resuelve también esa limitación porque convierte el flag transitorio en estado persistente per-supervisor en el backend.
+- Commits en esta sesión: `8e7f107` (sticky toast fix) · `eff89c8` (lock procesando + bulk filter + hint Excluye) · `cefa36c` (Download legacy + logout limit) · `a641deb` (GDPR unlock) · `ad9dbd7` (audit P0 fixes).
