@@ -18,15 +18,15 @@ Cómo leerlo: cada sección abre con una línea de orientación. Las que enumera
 
 Tres enlaces que acompañan a este documento. Cada uno cubre una capa distinta de la solución:
 
-- **Lógica de conteo y reglas de negocio** · [https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md](https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md) — la referencia técnica de qué datos necesita cada componente, qué deriva y qué reglas aplica antes de lanzar acciones. Léelo cuando aparezca una duda concreta sobre contadores, estados, agregados o filtros.
-- **Prototipo · entender el flujo** · [https://memoryplus3.netlify.app/](https://memoryplus3.netlify.app/) — la versión navegable de Memory para entender cómo se mueven las piezas (selección → modal masivo → procesado → resultado, o click en fila → reproductor unitario). No es Hi-Fi pixel-perfect: sirve para validar el flujo y descubrir los estados.
-- **Figma · Hi-Fi de los componentes** · [https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?m=dev](https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?m=dev) — el board en Dev Mode con los componentes a 1:1, medidas, tokens y specs listos para implementar. Es la fuente para anchuras, paddings, colores y tipografías exactas.
+- **Lógica de conteo y reglas de negocio** · [https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md](https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md). Es la referencia técnica de qué datos necesita cada componente, qué deriva y qué reglas aplica antes de lanzar acciones. Léelo cuando aparezca una duda concreta sobre contadores, estados, agregados o filtros.
+- **Prototipo · entender el flujo** · [https://memoryplus3.netlify.app/](https://memoryplus3.netlify.app/). Es la versión navegable de Memory para entender cómo se mueven las piezas (selección, modal masivo, procesado, resultado, o click en fila para abrir el reproductor unitario). No es Hi-Fi pixel perfect: sirve para validar el flujo y descubrir los estados.
+- **Figma · Hi-Fi de los componentes** · [https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?m=dev](https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?m=dev). El board en Dev Mode con los componentes a 1:1, medidas, tokens y specs listos para implementar. Es la fuente para anchuras, paddings, colores y tipografías exactas.
 
 ---
 
 ## Consideraciones generales
 
-- **Coste.** Cada transcripción y cada análisis con IA generan coste. El producto **no desglosa euros por operación** — eso vive en la capa de facturación. Sí muestra volumen en el modal masivo y una estimación de tiempo aproximada en las unitarias ("genera coste · ~30 s").
+- **Coste.** Cada transcripción y cada análisis con IA generan coste. El producto **no desglosa euros por operación**. Esa parte vive en la capa de facturación. Sí muestra volumen en el modal masivo y una estimación de tiempo aproximada en las unitarias ("genera coste · ~30 s").
 - **Chats.** Son texto por definición; no se "transcriben". Llevan el atributo `transcrito` para que filtros y tabla traten ambos canales con la misma forma.
 - **Multi-tramo.** Una llamada con transferencias entre grupos genera varios audios (uno por tramo), pero el listado la muestra como una única fila. A la hora de procesar, lo que se cobra son los audios, no las filas seleccionadas. Si el supervisor selecciona 10 filas y algunas son multi-tramo, el lote real puede ser de 25 transcripciones. El número grande del modal masivo refleja la cuenta real de audios.
 - **Retención de contenido.** Algunas conversaciones tienen restricciones legales de retención y dejan de ser recuperables tras un tiempo (por ejemplo, chats con custodia GDPR vencida · la normativa puede establecer límites para otros casos también). Esas conversaciones se filtran del lote sin avisar, no se transcriben aunque estén seleccionadas.
@@ -72,8 +72,8 @@ Estructura: cabecera (título + subtítulo) · cuerpo (dos celdas separadas por 
 
 **Footer**
 
-- Izquierda: "Cerrar" — cierra el modal sin hacer nada.
-- Derecha: "Procesar" — lanza la operación.
+- Izquierda: "Cerrar". Cierra el modal sin hacer nada.
+- Derecha: "Procesar". Lanza la operación.
 - Si la validación falla, una banda de error inline aparece bajo el cuerpo. El modal no cambia de tamaño.
 
 **Hint del hero**
@@ -129,7 +129,7 @@ Caso: el supervisor abre una conversación multi-tramo, transcribe un tramo conc
 ### Cuando termina
 
 - Las filas afectadas se pintan en amarillo suave como "recientemente cambiada".
-- Siguen amarillas hasta que el supervisor las inspecciona — click las reinicia al estilo normal.
+- Siguen amarillas hasta que el supervisor las inspecciona. Click las reinicia al estilo normal.
 - El spinner desaparece; el icono de estado pasa al estado correcto.
 - El toast persistente se reemplaza por un toast de éxito breve ("X transcripciones listas" o "X análisis listos"). Auto-cierra a los pocos segundos.
 
@@ -146,7 +146,7 @@ Caso: el supervisor abre una conversación multi-tramo, transcribe un tramo conc
 
 [imagen: tabla filtrada por "solo fallidas" · chip rojo en la toolbar · filas con icono de error · toast de error con acción "Ver fallidas"]
 
-[NOTA: el backend no notifica errores granulares durante el proceso, solo al inicio y al final del batch. La UI no diseña feedback fino tipo "X de Y completadas con error" — el evento de error llega como uno único al terminar.]
+[NOTA: el backend no notifica errores granulares durante el proceso, solo al inicio y al final del batch. La UI no diseña feedback fino tipo "X de Y completadas con error". El evento de error llega como uno único al terminar.]
 
 ---
 
@@ -179,7 +179,7 @@ Parte del reproductor legacy de Smart Contact y le aplica unos ajustes mínimos.
 
 [NOTA: el botón "Análisis" en el header es nuevo en v1. Antes había que entrar en la pestaña Análisis para descubrir que se podía generar. Ahora se descubre desde la vista por defecto. Tooltip "Análisis" si habilitado · "Requiere transcripción" o "Análisis ya realizado" si deshabilitado.]
 
-[NOTA: la **re-transcripción** (sobrescribir una transcripción existente) no entra en v1 — el supuesto operativo del primer rollout es que el supervisor convive con la primera transcripción aunque tenga ruido, y en casos puntuales solicita reproceso por canales internos. Se aborda en una fase posterior · ver sección "Re-transcripción · post-v1" más abajo.]
+[NOTA: la **re-transcripción** (sobrescribir una transcripción existente) no entra en v1. El supuesto operativo del primer rollout es que el supervisor convive con la primera transcripción aunque tenga ruido, y en casos puntuales solicita reproceso por canales internos. Se aborda en una fase posterior · ver sección "Re-transcripción · post-v1" más abajo.]
 
 ### Modal reproductor · v2 (a dónde queremos llegar a medio plazo)
 
@@ -189,7 +189,7 @@ Lo que v2 trae que v1 no tiene:
 
 - **Sticky head**: audio bar + tabs pinned arriba. Al hacer scroll dentro del cuerpo, el transporte y los tabs siguen visibles.
 - **Tab body con altura flexible**: empty states centran sobre el área visible real, no sobre una caja fija que empuja CTAs fuera de pantalla.
-- **Reproductor multi-tramo unificado**: un solo componente de tres filas — transport + tiempo, barra segmentada con anchura proporcional a la duración de cada tramo, etiquetas con flechas para navegar.
+- **Reproductor multi-tramo unificado**: un solo componente de tres filas. Transport con tiempo, barra segmentada con anchura proporcional a la duración de cada tramo, etiquetas con flechas para navegar.
 - **Per-tramo Check icon**: cada tramo transcrito muestra un check pequeño. Asimetría presente/ausente para los pendientes (no verde/gris).
 - **Empty states refinados**: tres variantes consistentes para los estados de Transcripción y Análisis.
 
@@ -221,7 +221,7 @@ Se evalúan en orden; el primer match gana.
 | 3 | **Lista para analizar** | Empty state + CTA "Solicitar análisis" + aviso de coste ("genera coste · ~10 s"). |
 | 4 | **Activo** | Resumen + sentimiento + categorías IA. |
 
-Para chats, el estado "Lista para analizar" se cumple siempre aunque no haya transcripción explícita — el chat es texto y el análisis trabaja sobre él directamente.
+Para chats, el estado "Lista para analizar" se cumple siempre aunque no haya transcripción explícita. El chat es texto y el análisis trabaja sobre él directamente.
 
 [imagen: pestaña "Análisis" en empty state · CTA "Transcribir y analizar"]
 
@@ -235,11 +235,11 @@ Cuando se aborde en una fase posterior, la solución de referencia (visible en e
 - Icono de alerta + caja roja con texto explicativo.
 - Input para escribir "CONFIRMAR" en mayúsculas. El botón primario solo se habilita al matchear exacto.
 - Footer:
-  - Izquierda: **"Cancelar"** — cierra sin hacer nada.
+  - Izquierda: **"Cancelar"**. Cierra sin hacer nada.
   - Derecha: "Re-transcribir" en color de error (rojo del DS).
 - Al confirmar: reemplaza la transcripción actual y borra el análisis derivado.
 
-[NOTA: el footer del modal de re-transcripción usa "Cancelar" en lugar de "Cerrar" — excepción para confirmaciones destructivas, donde "Cancelar" expresa mejor que el supervisor está abortando una acción consciente. La misma regla aplicaría a futuros confirms destructivos del flujo (por ejemplo, borrar una transcripción).]
+[NOTA: el footer del modal de re-transcripción usa "Cancelar" en lugar de "Cerrar". Es una excepción para confirmaciones destructivas, donde "Cancelar" expresa mejor que el supervisor está abortando una acción consciente. La misma regla aplicaría a futuros confirms destructivos del flujo (por ejemplo, borrar una transcripción).]
 
 [imagen: modal "Re-transcribir" · icono de alerta · caja roja · input "CONFIRMAR" · botón primario en rojo · referencia para la fase posterior, no parte de v1]
 
@@ -252,7 +252,7 @@ Una fila puede estar en uno de varios estados visibles. Combinaciones más comun
 | Estado | Cómo se ve | Comportamiento |
 |---|---|---|
 | **Normal** | Todo blanco. | Checkbox seleccionable. Click en icono de estado abre el reproductor. |
-| **Recientemente cambiada** | Fondo amarillo suave. | Se reinicia al estilo normal cuando el supervisor abre el reproductor (click). Aparece tras transcribir O analizar — no solo transcribir. |
+| **Recientemente cambiada** | Fondo amarillo suave. | Se reinicia al estilo normal cuando el supervisor abre el reproductor (click). Aparece tras transcribir o analizar, no solo tras transcribir. |
 | **Procesándose** | Spinner en columna Estado. Checkbox deshabilitado. | Si el supervisor selecciona otras filas y pulsa Procesar, las que están procesándose no entran en el nuevo lote. |
 | **Custodia GDPR vencida** | Fila atenuada (~60%). Tooltip "Custodia GDPR vencida" al hover. | Checkbox activo, se puede seleccionar, pero al procesar cae del lote sin aviso. |
 | **Transcripción fallida** | Icono de estado en rojo. | Click abre el reproductor con la pestaña Transcripción en estado terminal + CTA "Reintentar". |
@@ -260,7 +260,7 @@ Una fila puede estar en uno de varios estados visibles. Combinaciones más comun
 
 [NOTA: la combinación "amarilla + procesándose" no ocurre. Mientras está en curso es "spinner"; al acabar pasa a "amarilla" hasta que se inspecciona.]
 
-[NOTA sobre iconografía: v1 tira de los iconos heredados del legacy de Smart Contact para comunicar el estado de la fila (con grabación, con transcripción, con clasificación, fallida, etc.). Es aceptable como punto de partida — son los iconos que el supervisor ya conoce de otras partes del producto. Pero idealmente el supervisor no debería tener que aprender iconografía nueva para entender el estado. La solución apropiada vive en v2: convertir la columna "Estado" en varias columnas explícitas — una columna por cada tipo de estado relevante (con grabación · con transcripción · con clasificación · fallida) — con un cue visual binario simple (check / vacío) por columna. Eso elimina la carga cognitiva de descifrar el icono pero requiere atacar el refactor de la tabla, fuera del scope del rollout v1.]
+[NOTA sobre iconografía: v1 tira de los iconos heredados del legacy de Smart Contact para comunicar el estado de la fila (con grabación, con transcripción, con clasificación, fallida, etc.). Es aceptable como punto de partida, ya que son los iconos que el supervisor ya conoce de otras partes del producto. Pero idealmente el supervisor no debería tener que aprender iconografía nueva para entender el estado. La solución apropiada vive en v2: convertir la columna "Estado" en varias columnas explícitas, una columna por cada tipo de estado relevante (con grabación · con transcripción · con clasificación · fallida), con un cue visual binario simple (check / vacío) por columna. Eso elimina la carga cognitiva de descifrar el icono pero requiere atacar el refactor de la tabla, fuera del scope del rollout v1.]
 
 ---
 
@@ -373,4 +373,4 @@ Cualquiera de estos filtros activos aparece como chip cerrable en la toolbar, co
 
 ---
 
-[NOTA FINAL: este documento describe v1 — la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con ajustes mínimos (botón "Análisis" en header, pluralización, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast, filtro multi-grabación, hint de tramos ya iniciados). La re-transcripción (modal destructivo con "Cancelar") queda fuera de v1 y se aborda en una fase posterior. v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]
+[NOTA FINAL: este documento describe v1, la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con ajustes mínimos (botón "Análisis" en header, pluralización, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast, filtro multi-grabación, hint de tramos ya iniciados). La re-transcripción (modal destructivo con "Cancelar") queda fuera de v1 y se aborda en una fase posterior. v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]
