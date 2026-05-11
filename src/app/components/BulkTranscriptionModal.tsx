@@ -10,6 +10,12 @@ interface BulkTranscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   selectedConversations: Conversation[];
+  /** IDs en proceso de transcripción. Si una conversación seleccionada
+   *  está aquí, se excluye silenciosamente del lote y se cuenta en el
+   *  hint "N en proceso · no se incluyen". */
+  processingIds?: string[];
+  /** IDs en proceso de análisis. Mismo tratamiento que processingIds. */
+  analyzingIds?: string[];
   onConfirm: (
     options: { includeAnalysis: boolean },
     eligibleIds: string[],
@@ -48,6 +54,8 @@ export function BulkTranscriptionModal({
   isOpen,
   onClose,
   selectedConversations,
+  processingIds = [],
+  analyzingIds = [],
   onConfirm,
 }: BulkTranscriptionModalProps) {
   /* ── Counters derived from selection ────────────────────────────
@@ -61,10 +69,21 @@ export function BulkTranscriptionModal({
        recursos no recuperables (custodia vencida) — quedan FUERA del
        bulk silenciosamente, sin línea explicativa en el modal. La fila
        de la tabla ya muestra el estado deleted, no hace falta repetirlo
-       aquí (canon principio 20.16 · evitar señales duplicadas). */
-    const eligible = selectedConversations.filter((c) => !c.deleted);
+       aquí (canon principio 20.16 · evitar señales duplicadas).
+
+       En-proceso (15.45 · decisión PM): las conversaciones que están
+       transcribiéndose o analizándose en este momento también quedan
+       fuera del lote nuevo (evita doble dispatch · doble coste). A
+       diferencia del caso GDPR, sí avisamos en el hint del hero porque
+       el supervisor podría haberlas seleccionado por descuido (ya no
+       están bloqueadas en la tabla desde 15.45). */
+    const inProgressSet = new Set([...processingIds, ...analyzingIds]);
+    const eligible = selectedConversations.filter(
+      (c) => !c.deleted && !inProgressSet.has(c.id),
+    );
     const calls = eligible.filter((c) => c.channel === "llamada");
     const chats = eligible.filter((c) => c.channel === "chat");
+    const nInProgress = selectedConversations.filter((c) => inProgressSet.has(c.id)).length;
 
     const readyToTranscribe = calls.filter(
       (c) => c.hasRecording && !c.hasTranscription,
@@ -105,12 +124,13 @@ export function BulkTranscriptionModal({
       nConvTrans: readyToTranscribe.length,
       nMultiRec: multiRecCalls.length,
       nPartialMultiRec: partialMultiRecCalls.length,
+      nInProgress,
       nAnBase: callEa.length + chatEa.length,
       nSel: selectedConversations.length,
     };
-  }, [selectedConversations]);
+  }, [selectedConversations, processingIds, analyzingIds]);
 
-  const { readyToTranscribe, callEa, chatEa, nTrans, nConvTrans, nMultiRec, nPartialMultiRec, nAnBase, nSel } = counters;
+  const { readyToTranscribe, callEa, chatEa, nTrans, nConvTrans, nMultiRec, nPartialMultiRec, nInProgress, nAnBase, nSel } = counters;
 
   /* ── Toggle state ─────────────────────────────────────────────── */
   // Default ON only when transcription is impossible (nTrans=0) and there
@@ -258,23 +278,36 @@ export function BulkTranscriptionModal({
      room intencional, no pixel perdido. */
   const heroDeltaHint = (() => {
     if (isAllProcessed) return null;
-    const bits: string[] = [];
+    // Hint compuesto en dos cláusulas independientes:
+    //   "Incluye [bits de contenido]. Excluye [bits de exclusión]."
+    // Cada cláusula aparece solo si su sub-lista tiene contenido.
+    const includes: string[] = [];
     if (nMultiRec > 0 && !toggleOn) {
-      bits.push(
+      includes.push(
         `${nMultiRec} ${nMultiRec === 1 ? "llamada" : "llamadas"} con varios tramos`,
       );
     }
     if (nPartialMultiRec > 0) {
-      // Cuando el hint ya menciona "llamadas", elidimos el sustantivo
-      // en el segundo bit para no repetirlo · si es el único bit,
-      // forma completa para que se entienda sin contexto previo.
-      bits.push(
-        bits.length > 0
+      includes.push(
+        includes.length > 0
           ? `${nPartialMultiRec} con tramos ya iniciados`
           : `${nPartialMultiRec} ${nPartialMultiRec === 1 ? "llamada" : "llamadas"} con tramos ya iniciados`,
       );
     }
-    return bits.length > 0 ? `Incluye ${bits.join(" · ")}` : null;
+    const excludes: string[] = [];
+    if (nInProgress > 0) {
+      // 15.45 · cuando hay filas en proceso seleccionadas, el bulk las
+      // excluye silenciosamente para evitar doble dispatch. Avisamos
+      // aquí porque desde 15.45 esas filas SÍ son seleccionables (el
+      // checkbox ya no se bloquea).
+      excludes.push(
+        `${nInProgress} en proceso`,
+      );
+    }
+    const parts: string[] = [];
+    if (includes.length > 0) parts.push(`Incluye ${includes.join(" · ")}`);
+    if (excludes.length > 0) parts.push(`Excluye ${excludes.join(" · ")}`);
+    return parts.length > 0 ? parts.join(". ") + "." : null;
   })();
 
   return (

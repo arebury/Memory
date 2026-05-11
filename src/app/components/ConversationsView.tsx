@@ -102,6 +102,9 @@ export function ConversationsView({
     // ended with failures.
     const failedCount = next.filter((c) => c.hasFailedTranscription).length;
     if (failedCount > 0) {
+      // Sticky (15.45 · decisión PM): el supervisor decide cuándo
+      // cerrar el toast. Si lo descarta, no pierde la acción · el
+      // filtro "Solo fallidas" sigue accesible desde el panel.
       scToast.error({
         title: `${failedCount} transcripciones fallaron`,
         message: "Audio en silencio o formato no soportado en algunas conversaciones.",
@@ -109,7 +112,7 @@ export function ConversationsView({
           label: "Ver fallidas",
           onClick: () => setShowOnlyFailed(true),
         },
-        duration: 8000,
+        duration: Infinity,
       });
     }
   };
@@ -872,6 +875,8 @@ export function ConversationsView({
         isOpen={isTranscriptionModalOpen}
         onClose={() => setIsTranscriptionModalOpen(false)}
         selectedConversations={selectedConversations}
+        processingIds={processingIds}
+        analyzingIds={analyzingIds}
         onConfirm={handleBulkConfirm}
       />
 

@@ -82,14 +82,16 @@ export function ConversationTable({
   // Audit A4: rows currently being processed cannot be selected — they
   // can't be acted on (no parallel ops on the same conversation) and
   // selecting them would leak into bulk counters as ineligible noise.
-  // GDPR custody (15.41): conversaciones con `deleted: true` tampoco
-  // son seleccionables — el periodo de retención venció y el contenido
-  // no es recuperable. Comparten el lock para que el bulk modal y la UI
-  // las traten igual: no checkbox, cursor-not-allowed, sin click.
+  // Selección bloqueada solo para conversaciones con retención vencida
+  // (`deleted: true` · ejemplo canónico GDPR). Las que están en proceso
+  // de transcripción/análisis siguen siendo seleccionables — el lock
+  // anterior penalizaba operaciones legítimas como descargar el audio
+  // o el CDR mientras la transcripción se completa (decisión 15.45 con
+  // PM). El bulk modal filtra las en-proceso de sus contadores y avisa
+  // con un hint, así no hay riesgo de doble dispatch ni doble coste.
   const isLocked = (id: string) => {
     const c = conversations.find((x) => x.id === id);
-    if (c?.deleted) return true;
-    return processingIds.includes(id) || analyzingIds.includes(id);
+    return !!c?.deleted;
   };
 
   const isDeleted = (conv: Conversation) => !!conv.deleted;
@@ -343,8 +345,6 @@ export function ConversationTable({
                       title={
                         isDeleted(conv)
                           ? "Custodia GDPR vencida · datos no recuperables"
-                          : locked
-                          ? "En proceso · no se puede seleccionar"
                           : undefined
                       }
                       className="border-sc-muted disabled:opacity-40 disabled:cursor-not-allowed"
