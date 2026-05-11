@@ -82,17 +82,20 @@ export function ConversationTable({
   // Audit A4: rows currently being processed cannot be selected — they
   // can't be acted on (no parallel ops on the same conversation) and
   // selecting them would leak into bulk counters as ineligible noise.
-  // Selección bloqueada solo para conversaciones con retención vencida
-  // (`deleted: true` · ejemplo canónico GDPR). Las que están en proceso
-  // de transcripción/análisis siguen siendo seleccionables — el lock
-  // anterior penalizaba operaciones legítimas como descargar el audio
-  // o el CDR mientras la transcripción se completa (decisión 15.45 con
-  // PM). El bulk modal filtra las en-proceso de sus contadores y avisa
-  // con un hint, así no hay riesgo de doble dispatch ni doble coste.
-  const isLocked = (id: string) => {
-    const c = conversations.find((x) => x.id === id);
-    return !!c?.deleted;
-  };
+  // Ninguna fila se bloquea visualmente (decisión PM · 15.45).
+  // Razones:
+  //   - En proceso · el supervisor puede querer descargar el audio o el
+  //     CDR mientras la transcripción se completa · bloquear penalizaba
+  //     operaciones legítimas. El bulk modal filtra las en-proceso de
+  //     sus contadores y avisa con un hint, evitando doble dispatch.
+  //   - GDPR / retención vencida · el supervisor puede querer abrir el
+  //     reproductor y descargar lo que SÍ está disponible. El modal
+  //     Download del legacy gestiona el caso "no recuperable" con su
+  //     propio aviso. Bloquear la selección impedía el flujo legítimo.
+  // Mantenemos el tratamiento visual de las filas deleted (opacity-60
+  // + tooltip) para que el supervisor identifique el estado, pero NO
+  // restringimos la interacción.
+  const isLocked = (_id: string) => false;
 
   const isDeleted = (conv: Conversation) => !!conv.deleted;
 

@@ -109,10 +109,10 @@ Caso: el supervisor abre una conversación multi-tramo, transcribe un tramo conc
 
 ### Custodia GDPR
 
-- Las conversaciones con custodia GDPR vencida se filtran del lote sin avisar.
+- Las conversaciones con custodia GDPR vencida (más en general: retención de contenido vencida) se filtran del lote sin avisar.
 - No aparecen en el número grande, ni en el desglose del subtítulo, ni disparan error.
-- En la tabla se ven atenuadas (opacidad ~60%); al pasar el cursor aparece un tooltip "Custodia GDPR vencida".
-- Su checkbox sigue activo y se pueden seleccionar, pero al procesar caen del lote silenciosamente.
+- En la tabla se ven atenuadas (opacidad ~60%); al pasar el cursor aparece un tooltip explicativo del motivo de la restricción.
+- Su checkbox está activo y son seleccionables. El supervisor puede abrir el reproductor para revisar lo que SÍ esté disponible y, desde el modal Download del legacy, descargar formato Record/CDR si aplica (el legacy gestiona el caso "no descargable" con su propio aviso). Lo único que NO se permite es procesar transcripción/análisis sobre ellas: el bulk las excluye en silencio.
 
 [imagen: tabla con filas atenuadas por custodia vencida · tooltip visible al hover]
 
@@ -259,7 +259,7 @@ Una fila puede estar en uno de varios estados visibles. Combinaciones más comun
 | **Normal** | Todo blanco. | Checkbox seleccionable. Click en icono de estado abre el reproductor. |
 | **Recientemente cambiada** | Fondo amarillo suave. | Se reinicia al estilo normal cuando el supervisor abre el reproductor (click). Aparece tras transcribir o analizar, no solo tras transcribir. |
 | **Procesándose** | Spinner en columna Estado. Checkbox deshabilitado. | Si el supervisor selecciona otras filas y pulsa Procesar, las que están procesándose no entran en el nuevo lote. |
-| **Custodia GDPR vencida** | Fila atenuada (~60%). Tooltip "Custodia GDPR vencida" al hover. | Checkbox activo, se puede seleccionar, pero al procesar cae del lote sin aviso. |
+| **Custodia GDPR vencida** | Fila atenuada (~60%). Tooltip explicativo al hover. | Checkbox seleccionable. Click en el icono de estado abre el reproductor para revisar/descargar lo disponible. En el bulk de transcripción/análisis, cae del lote sin aviso (no procesable). |
 | **Transcripción fallida** | Icono de estado en rojo. | Click abre el reproductor con la pestaña Transcripción en estado terminal + CTA "Reintentar". |
 | **Multi-tramo parcial** | Sin pista visual en la tabla (estado deducido del modelo). | Se descubre vía el filtro "Solo con tramos parcialmente transcritos" del panel o vía el hint del bulk modal. |
 
