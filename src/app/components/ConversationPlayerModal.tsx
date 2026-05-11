@@ -395,10 +395,14 @@ export function ConversationPlayerModal({
               icon={<Sparkles size={14} />}
               label="Análisis"
             />
-            {/* Right-aligned actions: Re-transcribe (when applicable) + Download.
-                Re-transcribe is destructive (replaces transcript + derived
-                analysis) — kept low-key as a neutral icon button to avoid
-                accidental clicks; the modal has the CONFIRMAR gate. */}
+            {/* Right-aligned actions: Re-transcribe (when applicable) + Analizar +
+                Download. Re-transcribe is destructive (replaces transcript +
+                derived analysis) — kept low-key as a neutral icon button to
+                avoid accidental clicks; the modal has the CONFIRMAR gate.
+                Analizar (15.43 · sec 13.17) vive aquí para discoverability:
+                el supervisor no tiene que cambiar a la tab Análisis para
+                descubrir que puede generarlo. Disabled si no hay transcripción
+                o ya se analizó. */}
             <span className="ml-auto flex items-center gap-1 pr-[var(--sc-space-300)] py-[var(--sc-space-200)]">
               {conversation.hasTranscription && (
                 <button
@@ -415,6 +419,35 @@ export function ConversationPlayerModal({
                   <RotateCcw size={15} />
                 </button>
               )}
+              {(() => {
+                const analyzeDisabled =
+                  !conversation.hasTranscription ||
+                  conversation.hasAnalysis === true ||
+                  requestingAnalysis;
+                const analyzeTitle = !conversation.hasTranscription
+                  ? "Requiere transcripción"
+                  : conversation.hasAnalysis
+                    ? "Análisis ya realizado"
+                    : "Análisis";
+                return (
+                  <button
+                    type="button"
+                    aria-label="Generar análisis"
+                    title={analyzeTitle}
+                    disabled={analyzeDisabled}
+                    className={cn(
+                      "flex size-8 items-center justify-center rounded-sc-md transition-colors",
+                      analyzeDisabled
+                        ? "cursor-not-allowed text-sc-muted/40"
+                        : "cursor-pointer text-sc-muted hover:bg-sc-border-soft hover:text-sc-heading",
+                      FOCUS_RING,
+                    )}
+                    onClick={handleAnalysisRequest}
+                  >
+                    <Sparkles size={15} />
+                  </button>
+                );
+              })()}
               <button
                 type="button"
                 aria-label={isChat ? "Descargar conversación como texto" : "Descargar audio y transcripción"}
