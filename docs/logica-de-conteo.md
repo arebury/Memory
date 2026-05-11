@@ -263,7 +263,7 @@ Las invariantes globales del modelo (chats siempre transcritos salvo retención 
 A la derecha de la fila de tabs hay iconos de acción:
 
 - **Analizar** — visible siempre. Deshabilitado si no hay transcripción (`!hasTranscription`) o si ya se analizó (`hasAnalysis === true`). Click dispatcha `handleAnalysisRequest` directo, sin modal intermedio. El sticky toast "Generando análisis..." cubre el feedback.
-- **Descargar** — descarga audio + transcripción si los hay; solo texto si es chat.
+- **Descargar** — abre el modal "Download" heredado del legacy. En unitario muestra dos checkboxes (Grabaciones + Grabaciones/Chats, marcados por defecto) con aviso "Deleted or empty conversations won't download". En bulk añade un tercer checkbox CDR (todos vacíos por defecto, botón Download deshabilitado hasta marcar uno). El prototipo simplifica esto a un toast informativo · en v1 real abre el modal del legacy.
 - **Re-transcribir** — *post-v1, no entra en el primer rollout.* En el prototipo aparece a la izquierda de Analizar cuando ya hay transcripción, y abre `RetranscriptionConfirmModal` (caja roja + input "CONFIRMAR"). Es destructivo: reemplaza la transcripción y borra el análisis derivado. En v1 no se expone — el supervisor convive con la primera transcripción o solicita reproceso por canales internos.
 
 El botón Analizar en el header existe para discoverability. Antes, la única forma de descubrir que se podía generar análisis era cambiar a la pestaña Análisis y ver el CTA dentro. Ahora se descubre desde la vista por defecto. El tooltip explica el estado: "Análisis" si está habilitado, "Requiere transcripción" o "Análisis ya realizado" si está deshabilitado.
@@ -503,6 +503,8 @@ Una fila puede estar en uno de varios estados visibles. Las combinaciones más c
 - **Transcripción fallida.** Icono de estado en rojo. Click abre el reproductor con la pestaña Transcripción en estado terminal + CTA "Reintentar". El supervisor puede llegar a estas filas vía el filtro "Solo fallidas" del panel o vía la acción "Ver fallidas" del toast de error.
 
 La combinación que más confunde es "amarilla + procesándose". No ocurre — el amarillo aparece después de que la operación termina, no durante. Mientras está en curso es "spinner", y al acabar pasa a "amarilla" hasta que el supervisor la inspecciona.
+
+**Persistencia entre sesiones**: el feedback transitorio (fila amarilla, marca de fallida) NO se conserva al cerrar sesión y volver. Solo las conversaciones que están activamente en proceso retienen su indicador (se deriva del estado vivo del backend). El filtro "Solo fallidas" del panel deja de mostrar resultados tras logout porque depende del flag transitorio. Limitación técnica conocida sin solución actual; ver `decisiones.md` · "El feedback transitorio no se conserva entre sesiones".
 
 ---
 

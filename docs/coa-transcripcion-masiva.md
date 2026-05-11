@@ -31,6 +31,7 @@ Tres enlaces que acompañan a este documento. Cada uno cubre una capa distinta d
 - **Multi-tramo.** Una llamada con transferencias entre grupos genera varios audios (uno por tramo), pero el listado la muestra como una única fila. A la hora de procesar, lo que se cobra son los audios, no las filas seleccionadas. Si el supervisor selecciona 10 filas y algunas son multi-tramo, el lote real puede ser de 25 transcripciones. El número grande del modal masivo refleja la cuenta real de audios.
 - **Retención de contenido.** Algunas conversaciones tienen restricciones legales de retención y dejan de ser recuperables tras un tiempo (por ejemplo, chats con custodia GDPR vencida · la normativa puede establecer límites para otros casos también). Esas conversaciones se filtran del lote sin avisar, no se transcriben aunque estén seleccionadas.
 - **Sin cancelación.** Una vez lanzada una operación masiva, no se puede cancelar a mitad. El backend no expone API de cancelación parcial. El producto no promete "Cancelar" en ningún sitio del flujo masivo.
+- **Feedback entre sesiones.** Cuando el supervisor cierra la sesión, el feedback transitorio anterior no se conserva: la fila amarilla de "recientemente procesada", el indicador de "transcripción fallida" y el filtro "Solo fallidas" del panel se pierden al volver a entrar. Solo las conversaciones que estén ACTIVAMENTE en curso muestran su indicador, porque se deriva del estado vivo del backend. De momento, esto responde a una limitación técnica que aún no tiene solución disponible.
 
 ---
 
@@ -173,9 +174,13 @@ Parte del reproductor legacy de Smart Contact y le aplica unos ajustes mínimos.
 | Icono | Cuándo aparece | Click |
 |---|---|---|
 | **Análisis** (nuevo) | Siempre. Deshabilitado si no hay transcripción o si ya se analizó. | Lanza el análisis directamente, sin modal de confirmación intermedio. |
-| **Descargar** | Siempre. | Audio + transcripción si los hay; solo texto si es chat. |
+| **Descargar** | Siempre. | Abre el modal "Download" del legacy con dos checkboxes activos por defecto (**Records** y **Recordings/Chats**) + un aviso "Deleted or empty conversations won't download". Permite combinar formatos antes de descargar. En el flujo masivo, el mismo modal añade un tercer checkbox **CDR**. |
 
 [imagen: reproductor unitario v1 · audio bar simple del legacy · tabs y fila de acciones a la derecha con Análisis (nuevo) y Descargar]
+
+[imagen: modal "Download" en unitario · checkboxes Records y Recordings/Chats marcados por defecto · aviso "Deleted or empty conversations won't download" · botones Cancel/Download]
+
+[imagen: modal "Download" en bulk · tres checkboxes vacíos por defecto (Record, CDR, Recordings/Chats) · botones Cancel/Download (deshabilitado hasta marcar al menos uno)]
 
 [NOTA: el botón "Análisis" en el header es nuevo en v1. Antes había que entrar en la pestaña Análisis para descubrir que se podía generar. Ahora se descubre desde la vista por defecto. Tooltip "Análisis" si habilitado · "Requiere transcripción" o "Análisis ya realizado" si deshabilitado.]
 
@@ -359,6 +364,20 @@ Cualquiera de estos filtros activos aparece como chip cerrable en la toolbar, co
 | genera coste · ~30 s | génère un coût · ~30 s | generates cost · ~30 s |
 | genera coste · ~10 s | génère un coût · ~10 s | generates cost · ~10 s |
 | genera coste · transcripción + análisis | génère un coût · transcription + analyse | generates cost · transcription + analysis |
+
+### Strings del modal Download (legacy heredado en v1)
+
+| ES | FR | EN |
+|---|---|---|
+| Descargar | Télécharger | Download |
+| Cancelar | Annuler | Cancel |
+| Grabación | Enregistrement | Record |
+| Grabaciones | Enregistrements | Records |
+| CDR | CDR | CDR |
+| Grabaciones/Chats | Enregistrements/Chats | Recordings/Chats |
+| Las conversaciones eliminadas o vacías no se descargarán | Les conversations supprimées ou vides ne seront pas téléchargées | Deleted or empty conversations won't download |
+
+[NOTA: el modal "Download" lo aporta el legacy de Smart Contact · v1 lo hereda tal cual. En unitario muestra dos checkboxes (Grabaciones + Grabaciones/Chats, marcados por defecto) y el aviso de elementos no descargables. En bulk añade un tercer checkbox CDR, todos vacíos por defecto, con el botón Descargar deshabilitado hasta marcar al menos uno. Las strings de aquí son las existentes en producción; no requieren trabajo de traducción adicional · solo aparecen en el COA para que el equipo identifique que el modal sigue siendo el de hoy.]
 
 ### Strings del modal de re-transcripción
 

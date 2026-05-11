@@ -214,7 +214,7 @@ Detalle técnico de la animación del fill: usa `transform: scaleX()` con origen
 A la derecha de las dos tabs viven las acciones globales del modal:
 
 - **Analizar** (icono `Sparkles`): visible siempre. Deshabilitado si no hay transcripción o si ya se analizó. Click lanza el análisis directamente, sin modal de confirmación intermedio. Tooltip dinámico: "Análisis" si está habilitado, "Requiere transcripción" o "Análisis ya realizado" si está deshabilitado.
-- **Descargar** (icono `Download`): visible siempre, paridad chat/llamada. El tooltip cambia: "Descargar audio" para llamadas, "Descargar conversación" para chats.
+- **Descargar** (icono `Download`): visible siempre, paridad chat/llamada. En v1 abre el modal "Download" heredado del legacy de Smart Contact, con dos checkboxes (Grabaciones + Grabaciones/Chats, marcados por defecto) y aviso "Deleted or empty conversations won't download". El prototipo simplifica esto a un toast informativo (`Descargando audio` / `Descargando conversación`) porque el modal de descarga no se modifica en v1.
 - **Re-transcribir** (icono `RotateCcw`, low-key) · *post-v1, no entra en el primer rollout.* En el prototipo aparece a la izquierda de Analizar cuando ya hay transcripción y abre un modal de confirmación destructivo al pulsarlo. En v1 no se expone — el supervisor convive con la primera transcripción o solicita reproceso por canales internos.
 
 **Empty states de la pestaña Transcripción**

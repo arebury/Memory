@@ -1278,11 +1278,17 @@ How to apply:
 ### Limitación asumida (consciente, no urgente)
 
 **Pérdida de feedback visual tras logout o inactividad.**
-Si el usuario cierra sesión durante un batch, el backend sigue procesando. Al volver:
-- Las transcripciones nuevas (post-login) muestran feedback visual (fila amarilla, contador progresivo).
-- Las que se procesaron mientras estaba fuera pierden indicador visual — no se pueden identificar.
+Cuando la sesión se cierra, el feedback transitorio anterior no se conserva; solo las conversaciones en curso quedan marcadas al volver a entrar. Aplica a:
 
-Razón: el backend puede forzar la barra de progreso en peticiones nuevas, pero no reconstruir feedback histórico (requeriría una DB de actividad por usuario). Aceptado como limitación. Concepto futuro: indicador persistente tipo "marcar como leído" de Gmail/Teams.
+- Fila amarilla "recientemente procesada" (marca de "transcrita o analizada hace poco").
+- Indicador rojo de "transcripción fallida" en la columna Estado · y por tanto también al filtro "Solo fallidas" del panel · ambos son flags transitorios, no estado persistente del backend.
+- Toasts informativos / error previos (sticky o no): se pierden al cerrar la pestaña.
+
+Lo que SÍ se mantiene tras volver a entrar:
+- Las conversaciones que están **activamente en proceso** muestran su estado (spinner / icono pulsando) porque el backend sigue procesando y el indicador se deriva del estado vivo, no de un flag transitorio.
+- Las transcripciones nuevas que se lancen post-login pintan en amarillo y se cuentan normal.
+
+De momento, esto responde a una limitación técnica que aún no tiene solución disponible. El backend puede forzar la barra de progreso en peticiones nuevas, pero no reconstruir feedback histórico — requeriría una DB de actividad por usuario. Concepto futuro: indicador persistente tipo "marcar como leído" de Gmail/Teams.
 
 ---
 

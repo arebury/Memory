@@ -105,6 +105,20 @@ Cuando el supervisor confirma "Procesar", asume el coste completo. El producto e
 
 Por la misma restricción de backend, no llegan eventos "fallo en la conversación 27 de 50" durante el proceso. El backend notifica solo al inicio del batch (aceptado / rechazado) y al final (cuántas terminaron bien, cuántas fallaron). La UI se diseñó alrededor de esto: el feedback de error llega como un toast único al final del batch ("X transcripciones fallaron · Ver fallidas"), no como progreso granular.
 
+### El feedback transitorio no se conserva entre sesiones
+
+Cuando el supervisor cierra la sesión y vuelve a entrar más tarde, el feedback visual transitorio anterior no se conserva. Aplica a:
+
+- La fila amarilla "recientemente procesada" (marca de transcrita o analizada hace poco · se pierde tras logout, no quedan resaltadas al volver).
+- El indicador rojo de "transcripción fallida" en la columna Estado · y por tanto también el filtro "Solo fallidas" del panel deja de mostrar resultados al volver.
+- Toasts previos (informativos o de error) que estuvieran abiertos.
+
+Lo único que sí persiste tras volver a entrar son las conversaciones que están **activamente en proceso** — su spinner se deriva del estado vivo del backend, no de un flag de UI. El backend sigue procesando aunque el supervisor cierre el navegador, así que al volver puede ver lo que aún no ha terminado.
+
+**Por qué**: el backend de transcripción y análisis devuelve estado consultable (en curso, terminado bien, fallido) pero no expone una "DB de actividad por usuario" desde la que reconstruir feedback histórico. Para guardar el "amarillo recién procesado" o las marcas de fallida persistentemente haría falta esa pieza, que hoy no existe.
+
+De momento, esto responde a una limitación técnica que aún no tiene solución disponible. El concepto futuro a explorar sería un indicador persistente tipo "marcar como leído" de Gmail/Teams: cada supervisor tiene su propio estado de "qué he visto ya" sobre cada conversación. Cuando aterrice esa capa, el feedback se hace duradero. Hasta entonces, conviene que la documentación lo refleje para no prometer continuidad que el producto aún no puede entregar.
+
 ---
 
 ## Decisiones de UX cross-cutting
