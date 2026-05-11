@@ -158,7 +158,7 @@ Hubo una iteración temprana donde los docs se renderizaban dentro del prototipo
 
 Memory en su versión final NO se construye de golpe ni todo según el prototipo. La implementación en producción se hace por fases para optimizar coste/valor en cada momento.
 
-**v1 (primeros sprints)**: el equipo de desarrollo parte del reproductor existente en la plataforma Smart Contact y le aplica parches baratos — quitar la diarización, renombrar las pestañas, sustituir el modal de confirmación por la advertencia de coste inline, añadir el botón de Análisis en el header del reproductor, corregir la pluralización. El resultado captura alrededor del 70% del UX del prototipo a una fracción del coste. Memory entra en producción rápido y los supervisores empiezan a notar las mejoras.
+**v1 (primeros sprints)**: el equipo de desarrollo parte del reproductor existente en la plataforma Smart Contact y le aplica ajustes mínimos — quitar la diarización, renombrar las pestañas, sustituir el modal de confirmación por la advertencia de coste inline, añadir el botón de Análisis en el header del reproductor, corregir la pluralización. El resultado captura alrededor del 70% del UX del prototipo a una fracción del coste. Memory entra en producción rápido y los supervisores empiezan a notar las mejoras.
 
 **v2 (sprints posteriores, una vez v1 está validado)**: refactor profundo del reproductor hacia los patrones del prototipo. Empty states con CTAs claros, multi-rec timeline proporcional, sticky audio + flex-1 tab body, per-tramo Check icon. Solo si el feedback real de los supervisores valida que la inversión adicional vale la pena.
 

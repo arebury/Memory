@@ -623,7 +623,7 @@ Regla repo-wide. Las propiedades que se pueden animar con `transition` son:
 ✅ Permitidas: `transform` (translate, scale, rotate) y `opacity`.
 ❌ Prohibidas con transition: `width`, `height`, `top`, `left`, `padding`, `margin`.
 
-Razón: las propiedades de layout disparan reflow continuo en cada frame, lo que mata el rendimiento. `transform` y `opacity` solo afectan a la composición y son baratísimas en GPU.
+Razón: las propiedades de layout disparan reflow continuo en cada frame, lo que mata el rendimiento. `transform` y `opacity` solo afectan a la composición y son muy eficientes en GPU.
 
 Si un elemento necesita crecer o encoger, hay que escalar con `scaleX`/`scaleY` y compensar el contenido con `transform-origin`. Si necesita posicionarse, `translate`. Nunca cambiar `width` con `transition: width`.
 

@@ -1231,14 +1231,14 @@ How to apply:
 **15. Estrategia phased v1/v2/v3 para producción** (cerrada 15.42).
 Memory en producción NO se construye de golpe ni todo según el prototipo. Phased rollout para optimizar time-to-ship en v1 y profundizar el UX en v2:
 
-- **v1 (sprints 1-2)**: reusar el reproductor existente de la plataforma + parches baratos (quitar diarización · renombrar tabs · cost cue inline en lugar de confirm modal · botón Analizar en header · fix pluralización). Resultado: ~70% del UX del prototipo a ~25% del coste de desarrollo.
+- **v1 (sprints 1-2)**: reusar el reproductor existente de la plataforma + ajustes mínimos (quitar diarización · renombrar tabs · cost cue inline en lugar de confirm modal · botón Analizar en header · fix pluralización). Resultado: ~70% del UX del prototipo a ~25% del coste de desarrollo.
 - **v2 (sprints 3-5)**: refactor profundo del reproductor hacia patrones del prototipo (empty states con CTAs claros · multi-rec timeline proporcional · sticky head + flex-1 tab body · per-tramo Check). Solo si feedback de supervisores valida el coste.
 - **v3 (cuando aterrice el backend real)**: hero count = audios con desglose multi-rec · per-tramo transcription state · chain transcribir→analizar event-driven sobre backend real.
 
 Why: el reproductor del prototipo desde cero cuesta ~3-4 semanas dev senior. Evolucionar el legacy con parches cuesta ~1 semana. El delta (3 semanas) sale rentable solo si Memory tiene vida útil >3 años con uso intensivo de supervisores (8h/día) — ROI documentado en sesión 15.42. La estrategia phased NO es deuda técnica · es decisión consciente de optimizar coste/valor en cada fase.
 
 How to apply:
-- v1 hereda decisiones del prototipo donde son cheap (cost cue inline, botón Analizar header, pluralización singular, Cancelar destructive).
+- v1 hereda decisiones del prototipo de bajo coste de implementación (cost cue inline, botón Analizar header, pluralización singular, Cancelar destructive).
 - v1 NO toca el reproductor estructuralmente (sigue siendo el legacy con quirks).
 - v2 ataca el refactor del reproductor solo cuando v1 esté validado en producción y haya feedback real de supervisores.
 - v3 espera al backend (no es trabajo frontend).
@@ -1441,7 +1441,7 @@ El DS actual (`src/styles/sc-design-system.css` con tokens `--sc-*`) es **tempor
 
 En algún momento habrá que decidir qué hacer con este prototipo:
 
-- **Rol 1 · prototipo desechable** — el equipo Angular reescribe en PrimeNG, este código se descarta. Es lo más habitual y barato.
+- **Rol 1 · prototipo desechable** — el equipo Angular reescribe en PrimeNG, este código se descarta. Es lo más habitual y eficiente en coste.
 - **Rol 2 · spec viva en PrimeReact** — migrar el prototipo a PrimeReact (el port React de PrimeNG, mismo design system). El equipo Angular traduce 1:1 a PrimeNG. Sprint dedicado, no migración gradual.
 - **Rol 3 · pivote completo a Angular** — reescritura del prototipo en el stack de producción. El prototipo se convierte en producción.
 
@@ -1479,7 +1479,7 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 > Cuando este prototipo se traduzca a producción, el rollout no es big-bang. Se hace en tres fases con coste y riesgo distintos. Esta sección documenta qué entra en cada una para que el equipo de ingeniería de Smart Contact pueda planificar sprints.
 
 **v1 (sprints 1-2) · ~25% del coste, ~70% del UX**
-Reusar el reproductor legacy de la plataforma con parches baratos. Lo que entra:
+Reusar el reproductor legacy de la plataforma con ajustes mínimos. Lo que entra:
 - Quitar diarización del producto (decisión 15.23).
 - Renombrar tabs según convenciones de Memory (Transcripción · Análisis).
 - Cost cue inline en el modal masivo en lugar de modal de confirmación intermedio (decisiones 15.23 / 15.28).
@@ -1502,7 +1502,7 @@ Lo que no se puede hacer hasta tener el sistema productivo detrás:
 - Chain transcribir → analizar event-driven sobre eventos reales del backend (hoy `useEffect` que drena cuando el flag flipa por mutación local).
 - Indicador persistente "marcar como leído" para batches procesados durante logout (limitación 15.42 sec 13).
 
-**Esto NO es deuda técnica.** Es decisión consciente de optimizar coste/valor. Si se trata como deuda y se aplaza indefinidamente, Memory se queda con la versión cutre del legacy y se desperdicia la oportunidad de elevar el listón.
+**Esto NO es deuda técnica.** Es decisión consciente de optimizar coste/valor. Si se trata como deuda y se aplaza indefinidamente, Memory se queda con una versión heredada sin ningún upgrade y se desperdicia la oportunidad de elevar el listón.
 
 ROI documentado en sec 15.42: ~50 supervisores × 7s perdidos/sesión × 30 sesiones/día × 250 días/año ≈ 15h/año/supervisor → ~750 horas/año organización. ROI < 12 meses si el producto tiene vida útil > 3-5 años.
 
@@ -2537,7 +2537,7 @@ El COA describe la transcripción masiva + unitaria basándose en lo que hay en 
 
 **Decidido**:
 - **Estrategia phased v1/v2/v3 para producción** · NUEVA decisión cerrada en esta sesión:
-  - **v1 (sprint 1-2)**: reusar reproductor legacy + parches baratos (quitar diarización · renombrar tabs · cost cue inline en lugar de confirm modal · botón Analizar en header · fix pluralización). ~70% UX del prototipo a ~25% coste.
+  - **v1 (sprint 1-2)**: reusar reproductor legacy + ajustes mínimos (quitar diarización · renombrar tabs · cost cue inline en lugar de confirm modal · botón Analizar en header · fix pluralización). ~70% UX del prototipo a ~25% coste.
   - **v2 (sprint 3-5)**: refactor profundo del reproductor hacia patrones del prototipo (empty states con CTAs · multi-rec timeline · sticky head + flex-1 tab body · per-tramo Check). Solo si feedback de supervisores valida el coste.
   - **v3 (cuando aterrice backend real)**: hero count = audios con desglose · per-tramo transcription state · chain transcribir→analizar event-driven sobre backend real.
 - **Adoptar 3 patrones del Figma al prototipo** (ejecución en 15.43):
@@ -2548,7 +2548,7 @@ El COA describe la transcripción masiva + unitaria basándose en lo que hay en 
   - NO confirmation modal intermedio para acciones billables (15.23/15.28)
   - Hero count cuenta audios cuando hay multi-rec (15.31)
   - Selección estricta de filas locked (15.37 GDPR + processing)
-- **Phased rollout NO es deuda técnica · es decisión consciente** de optimizar time-to-ship en v1 y profundizar en v2. Si se trata como deuda y se aplaza indefinidamente, Memory se queda con la versión cutre del legacy y se desperdicia la oportunidad de elevar el listón.
+- **Phased rollout NO es deuda técnica · es decisión consciente** de optimizar time-to-ship en v1 y profundizar en v2. Si se trata como deuda y se aplaza indefinidamente, Memory se queda con una versión heredada sin ningún upgrade y se desperdicia la oportunidad de elevar el listón.
 
 **Pendiente · plan para 15.43**:
 
@@ -2645,7 +2645,7 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
   - Posicionado en y=3200 (debajo del contenido existente · sin overlap con secciones "Transcripción individual" y "Transcripciones masivas" del Figma legacy).
   - Tool MCP usada: `mcp__claude_ai_Figma__use_figma` con código JS plugin que crea las frames + auto-layout via posicionamiento absoluto + colores hardcoded desde tokens `sc-design-system.css`.
 
-- **Roadmap canon sec 17**: bloque nuevo "Estrategia de implementación en producción · phased v1/v2/v3" añadido antes de "Decisiones del audit 15.18" — detalla qué entra en cada fase (v1 parches baratos · v2 refactor profundo del player · v3 backend real) + ROI calc reusado de 15.42.
+- **Roadmap canon sec 17**: bloque nuevo "Estrategia de implementación en producción · phased v1/v2/v3" añadido antes de "Decisiones del audit 15.18" — detalla qué entra en cada fase (v1 ajustes mínimos · v2 refactor profundo del player · v3 backend real) + ROI calc reusado de 15.42.
 
 - **Sec 13 items 16/17/18**: cambiados de "ejecución pendiente para 15.43" a "implementada 15.43".
 
@@ -2677,7 +2677,7 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 
 - **logica-de-conteo · casos del prototipo + tono humano** (`5a4299e`): el doc lo describía bien técnicamente pero le faltaban casos visibles del prototipo (fallos de transcripción, filas en proceso re-seleccionadas, estados visuales de fila) y arrastraba lenguaje formal-pomposo. Reescrito con frases cortas, voz activa, "deja revisar" en vez de "permite revisar". Secciones nuevas: "Cuando una transcripción falla", "Sticky toast durante el batch", "Acciones en el header del player", "Estados visuales de una fila en la tabla", "Patrón sticky con update in-place" en scToast. Estado #6 nuevo en pestaña Transcripción para `hasFailedTranscription`.
 
-- **COA · v1/v2 split del reproductor** (`7d151b6`): la sección "Modal reproductor" describía la solución del prototipo y le ponía una NOTA suelta "este es v2". Confuso · el COA es lo que se construye AHORA, y AHORA es v1 (legacy + parches). Reestructurada en dos subsecciones: "v1 (versión que entra en producción)" describe legacy + parches baratos · "v2 (a dónde queremos llegar)" describe el prototipo de Memory como target eventual. NOTA FINAL alineada con la división.
+- **COA · v1/v2 split del reproductor** (`7d151b6`): la sección "Modal reproductor" describía la solución del prototipo y le ponía una NOTA suelta "este es v2". Confuso · el COA es lo que se construye AHORA, y AHORA es v1 (legacy + parches). Reestructurada en dos subsecciones: "v1 (versión que entra en producción)" describe legacy + ajustes mínimos · "v2 (a dónde queremos llegar)" describe el prototipo de Memory como target eventual. NOTA FINAL alineada con la división.
 
 - **Honesty pass coste→volumen** (`d900889`): los docs prometían "hacer visible el coste antes de incurrirlo" o "transparente sobre el coste". Falso: el producto muestra volumen (contadores) y estimación de tiempo aproximada ("genera coste · ~30 s"), nunca euros por operación. Reescritas tres líneas en COA + logica-de-conteo + decisiones que sobreprometían. Honesty principle: el desglose en euros vive en la capa de facturación, no en Memory.
 

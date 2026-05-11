@@ -8,7 +8,7 @@
 
 Memory deja revisar miles de conversaciones (llamadas y chats) y decidir cuáles transcribir y analizar con IA, sin escucharlas todas a mano.
 
-Este documento describe la solución que entra en producción primero (v1): el modal de procesamiento masivo, el reproductor unitario, los filtros relevantes y los estados que el supervisor verá en la tabla. El reproductor unitario v1 parte del reproductor legacy de Smart Contact con parches baratos; el refactor completo (v2) es el prototipo de Memory y entra en una segunda fase si los supervisores piden más.
+Este documento describe la solución que entra en producción primero (v1): el modal de procesamiento masivo, el reproductor unitario, los filtros relevantes y los estados que el supervisor verá en la tabla. El reproductor unitario v1 parte del reproductor legacy de Smart Contact con ajustes mínimos; el refactor completo (v2) es el prototipo de Memory y entra en una segunda fase si los supervisores piden más.
 
 Cómo leerlo: cada sección abre con una línea de orientación. Las que enumeran variantes usan tablas. Las notas entre `[corchetes]` son contexto para el equipo de Memory y se quitan al copiar a Jira.
 
@@ -24,7 +24,7 @@ Cómo leerlo: cada sección abre con una línea de orientación. Las que enumera
 - **"Cancelar" vs "Cerrar".** "Cancelar" se usa solo en confirmaciones destructivas (re-transcribir, eliminar). El resto de modales usan "Cerrar" porque pre-submit no hay nada que cancelar.
 - **Confirmación solo para destructivo.** No hay modal intermedio de "¿seguro?" para operaciones que solo generan coste. El aviso del coste va inline en el modal masivo, y la unitaria se lanza directo desde el CTA.
 
-[NOTA: la regla "confirmación solo para destructivo" se cerró tras quitar el modal intermedio que aparecía antes de transcribir/analizar por primera vez. El supervisor ya ve el volumen en el modal masivo y la etiqueta "genera coste" en el CTA unitario; un "¿seguro?" extra lo trataba como tonto.]
+[NOTA: la regla "confirmación solo para destructivo" se cerró tras quitar el modal intermedio que aparecía antes de transcribir/analizar por primera vez. El supervisor ya ve el volumen en el modal masivo y la etiqueta "genera coste" en el CTA unitario; un "¿seguro?" extra era ruido cognitivo sobre información que ya tenía a la vista.]
 
 ---
 
@@ -153,7 +153,7 @@ Caso: el supervisor abre una conversación multi-tramo, transcribe un tramo conc
 
 ### Modal reproductor · v1 (versión que entra en producción)
 
-Parte del reproductor legacy de Smart Contact y le aplica unos parches baratos.
+Parte del reproductor legacy de Smart Contact y le aplica unos ajustes mínimos.
 
 - Cabecera con título + metadatos (canal, fecha, duración, agente).
 - Audio bar simple para llamadas (play/pause, scrubber, tiempo). Layout de la maqueta legacy.
@@ -261,7 +261,7 @@ El panel de filtros (botón "Filtros" en la toolbar) tiene varias secciones. Las
 | Sección | Toggle | Para qué sirve |
 |---|---|---|
 | **Estado** | Solo fallidas | Deja visibles solo las filas con transcripción fallida. Se activa también desde la acción "Ver fallidas" del toast de error. |
-| **Multi-grabación** | Solo con varios tramos | Deja visibles solo las llamadas multi-tramo. Útil para revisarlas o para excluirlas del bulk si se quiere algo rápido y barato. |
+| **Multi-grabación** | Solo con varios tramos | Deja visibles solo las llamadas multi-tramo. Útil para revisarlas o para excluirlas del bulk si se quiere algo rápido y ligero. |
 | **Multi-grabación** | Solo con tramos parcialmente transcritos | Deja visibles solo las multi-tramo donde algunos tramos están transcritos y otros no. Es la forma proactiva de encontrar conversaciones en estado parcial antes de hacer select-all (ver "Multi-tramo parcial · caveat conocido"). |
 
 Cualquiera de estos filtros activos aparece como chip cerrable en la toolbar, con texto identificativo + acción "Limpiar filtro". El chip de "Solo fallidas" usa color de error (rojo); los chips de multi-grabación usan color neutro porque son filtros informacionales, no alarmas.
@@ -363,4 +363,4 @@ Cualquiera de estos filtros activos aparece como chip cerrable en la toolbar, co
 
 ---
 
-[NOTA FINAL: este documento describe v1 — la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con parches baratos (botón "Análisis" en header, pluralización, "Cancelar" en destructive, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast, filtro multi-grabación, hint de tramos ya iniciados). v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]
+[NOTA FINAL: este documento describe v1 — la versión que entra en producción primero. v1 = reproductor legacy de Smart Contact con ajustes mínimos (botón "Análisis" en header, pluralización, "Cancelar" en destructive, quitar modal intermedio de confirmación, quitar diarización, renombrar tabs, sticky toast, filtro multi-grabación, hint de tramos ya iniciados). v2 = el reproductor del prototipo de Memory, que es el target a medio plazo y se valida en una segunda fase si los supervisores piden más. v3 aterriza cuando haya backend real para hero count = audios y chain transcribir→analizar event-driven. El prototipo que el usuario tiene a mano para revisar muestra v2; este COA describe lo que se construye AHORA (v1).]
