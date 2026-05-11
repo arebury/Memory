@@ -414,7 +414,7 @@ export function BulkTranscriptionModal({
                           pulseKey > 0 && "animate-sc-pulse",
                         )}
                       >
-                        admiten análisis
+                        {nTrans + nAnBase === 1 ? "admite análisis" : "admiten análisis"}
                       </span>
                     </>
                   )}
