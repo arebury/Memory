@@ -2604,7 +2604,7 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 
 **Contexto**: continuación directa del plan persistido en 15.42. El usuario retomó con el mini-prompt acordado y pidió ejecutar en orden: adaptaciones código → COA → push Figma vía MCP. Sesión de ejecución limpia · cero replanteamiento durante la implementación.
 
-**Hecho** (commits — SHAs en cierre):
+**Hecho** (commits): `ba32023` sticky toast + plural download · `6ec60d0` botón Analizar player · `cfb4af8` Cancelar destructive · `9aa2ca9` pluralización bulk · `0dedddb` COA + canon. Detalle:
 
 - **Sticky toast "Generando..."** (`ConversationsView.tsx`):
   - `handleRequestTranscription(ids, inChain = false)` y `handleRequestAnalysis(ids)` ahora disparan `scToast.info({ title: "Generando transcripción..." / "Generando análisis...", duration: Infinity, dismiss: true, id: "progress-toast" })` al inicio.
