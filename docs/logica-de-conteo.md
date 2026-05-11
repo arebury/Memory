@@ -16,7 +16,7 @@ Se documentan cuatro componentes:
 |---|---|
 | `BulkTranscriptionModal` | Confirmar y lanzar transcripción/análisis en bloque sobre N conversaciones seleccionadas. |
 | `ConversationPlayerModal` | Ver una conversación: audio (si es llamada), transcripción tipo chat, panel de análisis IA. |
-| `RecordingTimeline` | Cuando una conversación tiene varias grabaciones, elegir cuál se está oyendo. |
+| `MultiRecordingPlayer` | Reproductor unificado para conversaciones multi-tramo · audio + selector de tramo en una sola superficie de tres filas. |
 | `scToast` | Notificaciones (éxito, error, en proceso) emitidas desde cualquier flujo. |
 
 Antes de entrar en componentes, hay un puñado de reglas que aplican a todo el modelo. Conviene leerlas primero porque las secciones siguientes las dan por supuestas.
@@ -122,7 +122,7 @@ El único caso donde es falso es cuando todo está ya procesado.
 
 Una conversación puede tener N grabaciones (transferencias entre grupos vía IVR generan tramos separados). Esto deja una pregunta abierta: si una conversación con tres grabaciones entra en una selección bulk, ¿qué tramo se transcribe?
 
-**La regla del producto es: el bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo solo existe en el modo individual, dentro del reproductor (`RecordingTimeline`). El bulk es para volumen; el single es para precisión.
+**La regla del producto es: el bulk transcribe TODAS las grabaciones de cada conversación seleccionada.** No elige tramo. La elección de tramo solo existe en el modo individual, dentro del reproductor (`MultiRecordingPlayer`). El bulk es para volumen; el single es para precisión.
 
 **Implementación**: el modelo `Recording` lleva un campo `hasTranscription: boolean` por tramo. El handler `handleRequestTranscription` flipa cada tramo pendiente y deja los ya transcritos intactos (idempotente). El agregado `Conversation.hasTranscription` se computa en `normalizeChats` como "todos los tramos transcritos".
 
@@ -137,12 +137,21 @@ Razones detrás de esta decisión:
 - En el `BulkTranscriptionModal`, cuando la selección incluye llamadas con tramos ya iniciados manualmente, el hint del hero añade "Incluye N con tramos ya iniciados" — el supervisor lo ve antes de pulsar Procesar.
 - En `TypeFilterPanel`, sección "Multi-grabación", el toggle "solo con tramos parcialmente transcritos" deja encontrar esas conversaciones proactivamente. Una vez identificadas, el supervisor puede deseleccionarlas a mano antes de lanzar el bulk.
 
-**Comunicación al supervisor antes de confirmar**: cuando hay multi-grabación en la selección, aparece una caption bajo el número grande con la única info que el subtitle no tiene. La caption compone hasta dos piezas independientes, unidas con " · ":
+**Comunicación al supervisor antes de confirmar**: la caption bajo el número grande compone hasta dos cláusulas separadas por punto. Cada cláusula sólo aparece si tiene contenido relevante:
 
-- Si la selección incluye llamadas multi-rec y el toggle análisis está apagado: `"N llamadas con varios tramos"` (explica por qué el número grande puede superar al número de conversaciones).
-- Si la selección incluye llamadas con tramos ya transcritos manualmente: `"M con tramos ya iniciados"` (el aviso del caveat parcial descrito arriba).
+**Incluye …** (lo que SÍ entra en el lote, con piezas unidas por " · "):
+- Si hay multi-rec y el toggle análisis está apagado: `"N llamadas con varios tramos"` (explica por qué el número grande puede superar al número de conversaciones).
+- Si hay llamadas con tramos ya transcritos manualmente: `"M con tramos ya iniciados"` (aviso del caveat parcial).
 
-Resultado: "Incluye 2 llamadas con varios tramos · 1 con tramos ya iniciados" cuando ambas piezas aplican. El subtitle ya cuenta cuántas conversaciones se seleccionaron y el desglose llamadas/chats; el número grande ya muestra el total de audios. La caption solo aparece cuando aporta información nueva — repetir "de N seleccionadas" cuando el subtitle ya lo dice se descartó como ruido. El espacio del hint mantiene altura aunque esté vacío, para evitar que el modal salte de tamaño al aparecer o desaparecer.
+**Excluye …** (lo que se omite silenciosamente del lote):
+- Si hay filas en proceso (transcribiéndose o analizándose) en la selección: `"K en proceso"`. Decisión 15.45: las filas ya no se bloquean en la tabla, así que el supervisor puede seleccionarlas sin querer. El bulk las filtra antes del cálculo para evitar doble dispatch y doble coste.
+
+Ejemplos del string completo:
+- Solo multi-tramo: `Incluye 2 llamadas con varios tramos.`
+- Solo en proceso: `Excluye 3 en proceso.`
+- Mezcla: `Incluye 2 llamadas con varios tramos · 1 con tramos ya iniciados. Excluye 3 en proceso.`
+
+La caption solo aparece cuando aporta información nueva — repetir "de N seleccionadas" cuando el subtitle ya lo dice se descartó como ruido. El espacio del hint mantiene altura aunque esté vacío para evitar layout-shift cuando aparece o desaparece.
 
 **Implicación para `nTrans`**: cuando hay multi-grabación en la selección, `nTrans` cuenta tramos pendientes, no conversaciones pendientes. Una conversación con 3 grabaciones sin transcribir suma 3 a `nTrans`, no 1.
 
@@ -337,17 +346,19 @@ El footer de los confirms destructivos usa "Cancelar" en lugar de "Cerrar" — e
 
 ### Multi-grabación
 
-Si la conversación tiene más de una grabación (`recordings.length > 1`), aparece un componente adicional sobre la barra de audio: el `RecordingTimeline`. Permite al supervisor elegir qué tramo está oyendo. Su lógica se documenta en la sección siguiente.
+Si la conversación tiene más de una grabación (`recordings.length > 1`), la barra de audio simple se sustituye por `MultiRecordingPlayer` — un componente unificado de tres filas (transport + tiempo, barra segmentada proporcional a la duración de cada tramo, etiquetas con flechas para navegar) que permite al supervisor elegir qué tramo está oyendo. Su lógica se documenta en la sección siguiente.
 
 Cada tramo lleva su propio estado de transcripción (`Recording.hasTranscription`). En el strip de tramos del player, los que ya están transcritos llevan un check pequeño junto a la duración; los pendientes no muestran nada (asimetría presente vs ausente, en lugar de verde vs gris — evita añadir un eje cromático nuevo). El supervisor lee el progreso del lote sin tener que abrir cada tramo.
 
 ---
 
-## 3. RecordingTimeline
+## 3. MultiRecordingPlayer
+
+> Históricamente llamado `RecordingTimeline` (selector de tramo aparte sobre la barra de audio). En 15.32 se unificó con la barra de audio en un solo componente de tres filas. La lógica de selección de tramo es la misma; la forma cambió.
 
 ### ¿Qué hace este componente?
 
-Un selector de tramo para conversaciones con varias grabaciones. Se renderiza solo cuando `recordings.length > 1`; con una sola grabación, no aparece (sería un selector de un único elemento, sin sentido).
+Un reproductor unificado para conversaciones con varias grabaciones. Sustituye a la barra de audio simple cuando `recordings.length > 1`; con una sola grabación, no se renderiza (la barra simple de `ConversationPlayerModal` queda en su sitio).
 
 Las conversaciones multi-grabación nacen de transferencias entre grupos vía IVR: el cliente entra al menú principal, lo transfieren al equipo comercial, lo transfieren a retención. Cada tramo se graba por separado.
 

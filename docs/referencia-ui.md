@@ -14,7 +14,7 @@ Cuatro componentes principales se documentan, en este orden:
 |---|---|
 | `BulkTranscriptionModal` | Modal de confirmación para procesar conversaciones en bloque. |
 | `ConversationPlayerModal` | Modal por conversación: audio, transcripción tipo chat, panel de análisis. |
-| `RecordingTimeline` | Selector de tramo dentro de una conversación con varias grabaciones. |
+| `MultiRecordingPlayer` | Reproductor unificado para conversaciones multi-tramo · audio + selector de tramo en una sola superficie de tres filas. |
 | `scToast` | Toasts canónicos del producto (5 severities × 2 estilos × 2 layouts). |
 
 Al final del documento hay dos secciones transversales: los **tokens compartidos del Smart Contact Design System** y las **reglas de UI que aplican a todo el producto** (iconografía, política de copy, anti layout-shift, etc.).
@@ -177,8 +177,9 @@ Modal (720px, surface blanca)
 │   ├── Title "Llamada · #{id}" o "Chat · #{id}"
 │   └── Subtitle "{servicio} · {fecha} {hora} · Duración {duración}"
 ├── Body
-│   ├── RecordingTimeline (solo si hay multi-grabación) — ver sección 3
-│   ├── Audio bar (solo en llamadas, oculta del todo en chats)
+│   ├── MultiRecordingPlayer (solo si hay multi-grabación) — ver sección 3 ·
+│   │   reemplaza a la audio bar simple e integra el selector de tramo
+│   ├── Audio bar simple (cuando NO hay multi-grabación · solo llamadas; oculta en chats)
 │   │   └── back-10 · play · fwd-10 · timestamp · scrub bar · timestamp
 │   ├── Tab row "Transcripción" / "Análisis" + acciones a la derecha
 │   │   (re-transcribir si aplica, descargar)
@@ -288,12 +289,14 @@ El speaker label y el timestamp aparecen pequeños encima del bubble. Los bubble
 - [ ] Descargar es accesible para chat y llamada (paridad).
 - [ ] Bubbles: agente a la derecha (accent-soft), cliente a la izquierda (border-soft).
 - [ ] Search filtra intervenciones en vivo.
-- [ ] El RecordingTimeline aparece solo si hay más de una grabación.
+- [ ] El MultiRecordingPlayer aparece solo si hay más de una grabación · reemplaza a la audio bar simple.
 - [ ] Cierre con ESC, clic fuera y "Cerrar" funcionan.
 
 ---
 
-## 3. RecordingTimeline
+## 3. MultiRecordingPlayer
+
+> Históricamente este componente vivía aparte como `RecordingTimeline` (un strip de tramos sobre la barra de audio). En 15.32 se unificó con la audio bar en un componente de tres filas. La lógica de proporcionalidad y selección sigue igual; lo que cambió es la forma (ahora es UN player, no dos elementos apilados).
 
 ### Anatomía
 
@@ -494,8 +497,8 @@ Los colores que aparecen con más frecuencia en los componentes documentados:
 | `--sc-cost-warn` (warning 600) | `#D97706` | Cue de coste (amber). |
 | `--sc-border` | `#D3D5DA` | Bordes de containers. |
 | `--sc-border-soft` | `#F3F4F6` | Hairlines, dividers. |
-| `--sc-info-strong` | `#1464FE` | Active del RecordingTimeline; toast info solid. |
-| `--sc-info-soft` | `#EEF4FF` | Background activo del RecordingTimeline; toast info light. |
+| `--sc-info-strong` | `#1464FE` | Active del MultiRecordingPlayer; toast info solid. |
+| `--sc-info-soft` | `#EEF4FF` | Background activo del MultiRecordingPlayer; toast info light. |
 
 Las severities del toast (`--sc-success-*`, `--sc-error-*`, `--sc-warning-*`, `--sc-indigo-*`) siguen el mismo patrón: cada una tiene una variante fuerte y una soft.
 

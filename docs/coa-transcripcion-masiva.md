@@ -79,12 +79,20 @@ Estructura: cabecera (título + subtítulo) · cuerpo (dos celdas separadas por 
 
 **Hint del hero**
 
-Aparece bajo la celda izquierda. Compone hasta dos piezas independientes, unidas con " · ":
+Aparece bajo la celda izquierda. Compone hasta dos cláusulas independientes separadas por punto:
 
-- Si hay llamadas multi-tramo en la selección y el toggle análisis está apagado: `N llamadas con varios tramos`.
-- Si hay conversaciones con tramos ya transcritos manualmente: `M con tramos ya iniciados` (ver "Multi-tramo parcial" más abajo).
+- **Incluye …** · resume lo que SÍ entra en el lote. Hasta dos piezas unidas por " · ":
+  - Si hay llamadas multi-tramo en la selección y el toggle análisis está apagado: `N llamadas con varios tramos`.
+  - Si hay conversaciones con tramos ya transcritos manualmente: `M con tramos ya iniciados` (ver "Multi-tramo parcial" más abajo).
+- **Excluye …** · resume lo que se omite silenciosamente del lote. Una pieza:
+  - Si hay filas en proceso (transcribiéndose o analizándose) en la selección: `K en proceso`. El bulk las filtra para evitar lanzar la misma operación dos veces sobre la misma fila (= doble coste en producción).
 
-Cuando ambas piezas aplican: `Incluye 2 llamadas con varios tramos · 1 con tramos ya iniciados`. El espacio del hint mantiene altura aunque esté vacío para evitar que el modal salte de tamaño.
+Ejemplos:
+- Solo multi-tramo: `Incluye 2 llamadas con varios tramos.`
+- Solo en proceso: `Excluye 3 en proceso.`
+- Mezcla: `Incluye 2 llamadas con varios tramos · 1 con tramos ya iniciados. Excluye 3 en proceso.`
+
+El espacio del hint mantiene altura aunque esté vacío, para evitar que el modal salte de tamaño cuando aparece o desaparece.
 
 [imagen: modal "Procesar conversaciones" con selección mixta · subtitle "8 conversaciones seleccionadas · 5 llamadas, 3 chats" · número izquierdo "8" con hint compuesto · número derecho "10 admiten análisis" con toggle activo]
 
