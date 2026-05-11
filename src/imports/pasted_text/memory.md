@@ -1243,7 +1243,7 @@ How to apply:
 - v2 ataca el refactor del reproductor solo cuando v1 esté validado en producción y haya feedback real de supervisores.
 - v3 espera al backend (no es trabajo frontend).
 
-**16. Sticky toast "Generando..." durante operaciones billables** (cerrada 15.42, ejecución pendiente para 15.43).
+**16. Sticky toast "Generando..." durante operaciones billables** (cerrada 15.42, implementada 15.43).
 Patrón adoptado del Figma legacy al prototipo: cuando se lanza una operación de transcripción/análisis (unitaria o bulk), aparece un toast persistente arriba a la derecha con copy "Generando transcripción..." o "Generando análisis..." y `duration: Infinity`. Al completar, el mismo toast (mismo `id`) se reemplaza por un success/error breve.
 
 Why: sin sticky toast, si el supervisor cambia de vista durante el batch, pierde visibilidad del estado en curso. El indicador en la fila no basta cuando navega fuera de la tabla. Sticky toast cumple Nielsen #1 "Visibility of system status".
@@ -1253,7 +1253,7 @@ How to apply:
 - En `setTimeout` de simulación (o en el handler del completion event del backend real), llamar a `scToast.success({ ..., id: "bulk-progress" })` con el mismo id para que sonner haga update in-place.
 - Si el wrapper `scToast` no soporta update via id, hacer `scToast.dismiss(id)` + nuevo toast.
 
-**17. Botón "Analizar" en header del player** (cerrada 15.42, ejecución pendiente para 15.43).
+**17. Botón "Analizar" en header del player** (cerrada 15.42, implementada 15.43).
 En el `ConversationPlayerModal`, añadir un botón "Analizar" en el header al lado de Re-transcribir y Download. Es la única acción discoverable sin tener que clicar en la pestaña Análisis. Disabled si no hay transcripción O si ya hay análisis (estado terminal). Click → dispatch directo a `handleRequestAnalysis` (NO modal de confirmación intermedio · respeta decisión 15.28).
 
 Why: el CTA dentro del tab Análisis requería al supervisor cambiar de pestaña para descubrir que puede analizar. El botón en header es visible siempre. Adopción del patrón del Figma legacy donde tiene esto bien.
@@ -1265,7 +1265,7 @@ How to apply:
 - onClick → `setShowAnalysisConfirm(false)` (NO confirm) → directly call `onRequestAnalysis(conversation.id)`.
 - Mantener el CTA dentro del tab Análisis para casos "dead-end resuelto" (sin transcripción, opción combo) — esos no se pueden lanzar desde el botón header porque está disabled.
 
-**18. "Cancelar" como excepción para confirms destructivos** (cerrada 15.42, refinement de 15.23).
+**18. "Cancelar" como excepción para confirms destructivos** (cerrada 15.42, implementada 15.43, refinement de 15.23).
 La decisión 15.23 estableció "Cerrar" como copy estándar del footer-cancel de modales (pre-submit no hay nada que cancelar). Para confirms **destructivos** específicamente (`DeleteCategoryDialog`, `RetranscriptionConfirmModal`) el copy cambia a "Cancelar" — semánticamente representa cancelar una acción consciente sobre algo existente, no solo cerrar el modal.
 
 Why: en confirms destructivos, el supervisor inició explícitamente una acción (Eliminar, Re-transcribir) y el modal es el gate antes de ejecutarla. "Cancelar" es semánticamente más correcto que "Cerrar" en ese contexto.
@@ -1473,6 +1473,38 @@ En algún momento habrá que decidir qué hacer con este prototipo:
 - Decisión pendiente sobre el destino del prototipo (rol 1/2/3) cuando el DS del cliente esté maduro — ver sección 16.
 - Añadir `tsconfig.json` y `npm run typecheck` script — hoy Vite usa esbuild solo (no hay typechecker en CI). (P2)
 - Resolver discusión sobre `<Sparkles>` como icono de tab Análisis en `ConversationPlayerModal.tsx:389`. memory.md sec 15.18 dice "Sparkles reservado exclusivamente a la pill 'Generado por IA'". Estricto vs práctico. (P3)
+
+### Estrategia de implementación en producción · phased v1/v2/v3 (cerrada 15.42)
+
+> Cuando este prototipo se traduzca a producción, el rollout no es big-bang. Se hace en tres fases con coste y riesgo distintos. Esta sección documenta qué entra en cada una para que el equipo de ingeniería de Smart Contact pueda planificar sprints.
+
+**v1 (sprints 1-2) · ~25% del coste, ~70% del UX**
+Reusar el reproductor legacy de la plataforma con parches baratos. Lo que entra:
+- Quitar diarización del producto (decisión 15.23).
+- Renombrar tabs según convenciones de Memory (Transcripción · Análisis).
+- Cost cue inline en el modal masivo en lugar de modal de confirmación intermedio (decisiones 15.23 / 15.28).
+- Botón "Analizar" en el header del player para discoverability (sec 13 item 17).
+- Fix pluralización singular/plural ("admite/admiten análisis", `Descargando 1 conversación` vs `Descargando N conversaciones`).
+- "Cancelar" en confirms destructivos · "Cerrar" en el resto (sec 13 item 18).
+- Sticky toast "Generando..." durante operaciones billables (sec 13 item 16).
+
+**v2 (sprints 3-5) · solo si feedback de supervisores justifica el coste**
+Refactor profundo del reproductor hacia los patrones del prototipo:
+- Empty states centrados con CTAs claros (DecisionState · ProcessingState · TerminalNote).
+- Multi-recording timeline · strip único proporcional (sec 20.15 + 20.16).
+- Sticky head + flex-1 tab body (decisión 15.33).
+- Per-tramo Check icon en `MultiRecordingPlayer` (decisión 15.40).
+
+**v3 · cuando aterrice backend real**
+Lo que no se puede hacer hasta tener el sistema productivo detrás:
+- Hero count = audios con desglose honesto en multi-tramo (decisión 15.31, hoy emulada cliente-side).
+- Per-tramo `hasTranscription` con flips reales (hoy `setTimeout` simulado).
+- Chain transcribir → analizar event-driven sobre eventos reales del backend (hoy `useEffect` que drena cuando el flag flipa por mutación local).
+- Indicador persistente "marcar como leído" para batches procesados durante logout (limitación 15.42 sec 13).
+
+**Esto NO es deuda técnica.** Es decisión consciente de optimizar coste/valor. Si se trata como deuda y se aplaza indefinidamente, Memory se queda con la versión cutre del legacy y se desperdicia la oportunidad de elevar el listón.
+
+ROI documentado en sec 15.42: ~50 supervisores × 7s perdidos/sesión × 30 sesiones/día × 250 días/año ≈ 15h/año/supervisor → ~750 horas/año organización. ROI < 12 meses si el producto tiene vida útil > 3-5 años.
 
 ### Decisiones del audit 15.18 — estado actual
 
@@ -2565,3 +2597,72 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 - El COA debe quedar copy-paste-ready · el usuario lo va a transcribir a Jira directamente. Cero referencias a "src/app/components/..." o jerga interna del prototipo. Lenguaje neutro de producto.
 - Cuando se cierre 15.43, recordar también pasar el resumen de las decisiones nuevas (sticky toast adopt, botón Analizar header, Cancelar destructive) a la sec 13 del canon + a `docs/decisiones.md` (mirror obligatorio · regla 15.41 paso 6).
 - Tres commits en esta sesión 15.42: `9410ae5` (favicon · originalmente b1b3f9a, después de rebase), `5a92c76` (sistema-de-diseno + popover hierarchy), `a32b875` (este canon update con análisis COA + plan completo).
+
+---
+
+### 15.43 · 2026-05-11 · Claude Code · adaptaciones Figma → prototipo (sticky toast · botón Analizar · Cancelar destructive · pluralización) + COA standalone + push 3 modales a Figma
+
+**Contexto**: continuación directa del plan persistido en 15.42. El usuario retomó con el mini-prompt acordado y pidió ejecutar en orden: adaptaciones código → COA → push Figma vía MCP. Sesión de ejecución limpia · cero replanteamiento durante la implementación.
+
+**Hecho** (commits — SHAs en cierre):
+
+- **Sticky toast "Generando..."** (`ConversationsView.tsx`):
+  - `handleRequestTranscription(ids, inChain = false)` y `handleRequestAnalysis(ids)` ahora disparan `scToast.info({ title: "Generando transcripción..." / "Generando análisis...", duration: Infinity, dismiss: true, id: "progress-toast" })` al inicio.
+  - Al completar, `scToast.success({ id: "progress-toast", ... })` reemplaza el sticky in-place via sonner (mismo id).
+  - **Chain sin doble toast**: `handleRequestTranscriptionAndAnalysis` pasa `inChain=true` a la transcripción → suprime su success intermedio. El sticky pasa de "Generando transcripción..." a "Generando análisis..." sin flash, ya que `handleRequestAnalysis` reutiliza el mismo id.
+  - **Kickoff toast redundante** en `handleBulkConfirm` (líneas 474-482 originales) eliminado — los handlers ahora son source-of-truth del feedback persistente.
+  - **Plural en download toast**: `Descargando 1 conversación` / `Descargando N conversaciones` (antes `conversación(es)` con paréntesis feos).
+
+- **Botón "Analizar" en header del player** (`ConversationPlayerModal.tsx`):
+  - Insertado entre Re-transcribir y Download en la fila de tabs (right-aligned).
+  - Icono `Sparkles size={15}` para consistencia con la tab "Análisis".
+  - `disabled` cuando `!conversation.hasTranscription || conversation.hasAnalysis === true || requestingAnalysis`.
+  - Tooltips dinámicos: "Análisis" (habilitado) · "Requiere transcripción" / "Análisis ya realizado" (deshabilitado).
+  - onClick → `handleAnalysisRequest` directo (NO modal de confirmación intermedio · respeta decisión 15.28).
+  - Estilo: matches Re-transcribir + Download (size-8, rounded-sc-md, hover state, FOCUS_RING), pero con `text-sc-muted/40` en disabled para señal visual clara.
+
+- **"Cancelar" en destructive confirms** (`RetranscriptionConfirmModal.tsx`):
+  - `<Modal.Cancel>Cerrar</Modal.Cancel>` → `<Modal.Cancel>Cancelar</Modal.Cancel>` (línea 148).
+  - `DeleteCategoryDialog` ya tenía "Cancelar" desde su migración al SC Modal shell (15.40) — verificado, sin cambio.
+  - Resto de modales mantienen "Cerrar" (BulkTranscriptionModal, CreateEntityModal, ConversationPlayerModal footer) per patrón general 15.23.
+
+- **Pluralización singular** (`BulkTranscriptionModal.tsx`):
+  - `admiten análisis` → `${nTrans + nAnBase === 1 ? "admite análisis" : "admiten análisis"}` (caption del hero derecho).
+  - Resto de plurales del bulk modal (subtitle "X conversaciones seleccionadas · Y llamadas, Z chats", hint "Incluye N llamadas con varios tramos") ya estaban correctamente pluralizados desde sesiones anteriores.
+
+- **COA standalone** (`docs/coa-transcripcion-masiva.md` nuevo):
+  - Escrito como primera versión, sin referencia al COA del compañero (usuario no quiere pisarle).
+  - Español, estilo plain text con bullets (no markdown narrativo elegante como `decisiones.md`).
+  - Secciones: Consideraciones generales · Solución bulk masiva · Transcripción unitaria · Traducciones (ES/FR/EN).
+  - Notas `[NOTA: ...]` para el usuario (que las borra al copiar a Jira).
+  - Placeholders `[imagen: descripción]` donde van screenshots que el usuario insertará.
+  - Tablas de traducciones cubren strings nuevos (sticky toast, botón Analizar, pluralización) + corrigen las traducciones del COA original donde aplican.
+
+- **Push 3 modales a Figma vía MCP** (sección "Adaptaciones · 15.43" en página `297:1875` · section id `402:93`):
+  - `BulkTranscriptionModal` 720×480 (frame `402:8`) — header + body two-cell hero (8 transcripciones · 10 admiten análisis con toggle ON teal) + footer Cerrar/Procesar + nota explicativa sticky toast.
+  - `DeleteCategoryDialog` 480×360 (frame `402:37`) — AlertTriangle + warning box + Lightbulb hint + footer Cancelar/Eliminar destructive + nota canon excepción "Cancelar".
+  - `ConversationPlayerModal` v2 760×574 (frame `402:58`) — header + sticky audio bar + tabs row con **botón Analizar (✦) NUEVO entre Re-transcribir y Download** + transcript fake + nota "Este modal corresponde a v2 del rollout phased · el botón Analizar entra ya en v1".
+  - Posicionado en y=3200 (debajo del contenido existente · sin overlap con secciones "Transcripción individual" y "Transcripciones masivas" del Figma legacy).
+  - Tool MCP usada: `mcp__claude_ai_Figma__use_figma` con código JS plugin que crea las frames + auto-layout via posicionamiento absoluto + colores hardcoded desde tokens `sc-design-system.css`.
+
+- **Roadmap canon sec 17**: bloque nuevo "Estrategia de implementación en producción · phased v1/v2/v3" añadido antes de "Decisiones del audit 15.18" — detalla qué entra en cada fase (v1 parches baratos · v2 refactor profundo del player · v3 backend real) + ROI calc reusado de 15.42.
+
+- **Sec 13 items 16/17/18**: cambiados de "ejecución pendiente para 15.43" a "implementada 15.43".
+
+**Decidido**:
+- Sticky toast usa **un id compartido** `"progress-toast"` para todos los stickies del flujo (transcripción, análisis, chain). Justificación: simplicidad por encima de robustez en el corner case "parallel mix" (alreadyTranscribed + needsTranscription cuando includeAnalysis=true). El parallel mix puede mostrar success "Análisis listo" antes de que termine la transcripción paralela; aceptado como imperfección de demo · si supervisores lo flagean en producción, refactor a counter mechanism con `useRef`.
+- `inChain` flag pasado explícitamente como segundo arg a `handleRequestTranscription` (en vez de detectar via `chainAnalysisIds` con closure). Razón: closure-based detection captura state stale; arg-pass es zero-ambiguity.
+- COA escrito en estilo plain text bulleted (NO markdown narrativo) porque el destino es Jira plain text, no doc rico tipo `decisiones.md`. Estilo distinto al de 15.31 intencional · contexto de destino dicta el estilo.
+
+**Validación**:
+- Build OK: 2982 mods, 871 KB JS / gzip 247 KB. Slight +11 KB sobre baseline 860 KB por el botón Analizar inline + sticky toast scaffolding.
+- Strings nuevos verificados en bundle: "Generando transcripción", "Generando análisis", "Generar análisis" (aria-label), "admite análisis", "progress-toast" (id sonner).
+- Preview server `vite preview --port 4173` levanta `200 OK · <title>Memory + 3.0</title>` — smoke test pasa.
+- Playwright no disponible en este entorno (no `playwright` en `node_modules/.bin/` ni global) — validación visual fiada al screenshot del push Figma + build limpio.
+
+**Notas para próxima sesión**:
+- Si supervisores piden refinar el sticky toast con count info ("Generando 5 transcripciones..."), está deliberadamente simplificado en 15.43 (solo "Generando transcripción..." sin contador). El contador ya se ve en el bulk modal antes de pulsar Procesar — repetirlo en el toast es redundancia.
+- El push Figma usa primitivos básicos (rectángulos, text, etc.), no componentes del DS de Figma. Si se quiere alinearlo con el DS oficial de SmartContact, hacer un segundo pass que importe componentes via `search_design_system` + `importComponentByKeyAsync`. Pragmático para esta sesión: las frames comunican el cambio sin ese overhead.
+- `DeleteCategoryDialog` ya tenía "Cancelar" desde 15.40 — el mini-prompt de 15.42 lo listaba como cambio pendiente por error. Solo `RetranscriptionConfirmModal` necesitó la edición real. Documentado para evitar dudas si alguien re-lee el plan.
+
+**Mirror obligatorio · regla 15.41 paso 6**: las decisiones nuevas (sticky toast, botón Analizar header, Cancelar destructive) ya estaban canonizadas en sec 13 items 16/17/18 desde 15.42. `docs/decisiones.md` se actualiza en este commit para reflejar la implementación.

@@ -160,7 +160,7 @@ Las operaciones que tardan (transcribir un batch de 200, analizar varias convers
 
 **Por qué**: el supervisor lanza un batch y cambia a otra pestaña del navegador, o navega a otra vista del producto. Sin el sticky toast, pierde visibilidad del estado en curso — vuelve sin saber si terminó. Con él, el estado siempre está visible.
 
-Este patrón viene heredado del Figma original donde estaba bien resuelto. El prototipo se quedó sin él durante la primera iteración y se identificó como gap en la revisión 15.42 del COA del equipo. Adoptado y planificado para la siguiente iteración del prototipo.
+Este patrón viene heredado del Figma original donde estaba bien resuelto. El prototipo se quedó sin él durante la primera iteración y se identificó como gap en la revisión 15.42 del COA del equipo. Implementado en 15.43 · un único toast con id estable que pasa de "Generando transcripción..." a "Generando análisis..." en el caso encadenado, sin un flash intermedio de éxito.
 
 ### Botón "Analizar" en el header del reproductor
 
