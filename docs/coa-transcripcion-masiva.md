@@ -6,14 +6,14 @@
 
 ## Consideraciones generales
 
-- Cada transcripción y cada análisis con IA tienen coste real. El producto debe hacer visible ese coste antes de incurrirlo, sin meter fricción innecesaria cuando ya lo es.
+- Cada transcripción y cada análisis con IA generan coste. El producto no desglosa euros por operación — esa parte queda fuera del scope, vive en la capa de facturación. Lo que sí hace es avisar antes de lanzar cualquier operación que genere coste: en el modal masivo se muestra el volumen (cuántas transcripciones, cuántos análisis se van a ejecutar) como números grandes, y en las acciones unitarias se añade una estimación de tiempo aproximada bajo el CTA ("genera coste · ~30 s"). El supervisor decide con esa información, sin un cálculo monetario exacto.
 - Un chat es texto por definición. No se "transcribe" como una llamada. A efectos del producto, sí tiene un atributo `transcrito` binario para que los filtros y la tabla traten ambos canales con la misma forma.
 - Las llamadas pueden tener una o varias grabaciones (multi-tramo). Cuando hay varios tramos, el coste real lo carga el número de audios, no el número de conversaciones. El producto tiene que reflejar eso o engaña al supervisor.
 - Las conversaciones con custodia GDPR vencida no se transcriben aunque estén seleccionadas. El filtro defensivo es silencioso (sin línea adicional en el modal) para no añadir ruido visual.
 - "Cancelar" se reserva para confirmaciones destructivas. El resto de modales usan "Cerrar" porque pre-submit no hay nada que cancelar.
 - No se introducen modales de confirmación intermedios para acciones que solo generan coste (transcribir, analizar). El cost cue va inline en el modal masivo, y la unitaria dispatcha directo. Modal de confirmación SOLO si la operación es destructiva.
 
-[NOTA: la regla "modal de confirmación solo para destructivo" se canonizó tras retirar el modal intermedio que aparecía antes de transcribir/analizar por primera vez. El supervisor ya ve el coste en el hero del modal masivo, repetir un "¿seguro?" lo trataba como tonto.]
+[NOTA: la regla "modal de confirmación solo para destructivo" se canonizó tras retirar el modal intermedio que aparecía antes de transcribir/analizar por primera vez. El supervisor ya ve el volumen en el hero del modal masivo y la etiqueta "genera coste" en el CTA unitario; repetir un "¿seguro?" lo trataba como tonto.]
 
 ---
 

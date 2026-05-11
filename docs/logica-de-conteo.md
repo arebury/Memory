@@ -129,7 +129,7 @@ Una conversación puede tener N grabaciones (transferencias entre grupos vía IV
 Razones detrás de esta decisión:
 
 - **Una sola regla, sencilla**. El supervisor no tiene que entender heurísticas ("¿el sistema escogió por mí cuál es la importante?").
-- **Transparente sobre el coste**. El modal muestra el desglose explícito antes de confirmar.
+- **Transparente sobre el volumen**. El modal muestra el desglose explícito antes de confirmar — número de audios, no de conversaciones, para que el supervisor sepa cuántas operaciones se ejecutan. El producto no calcula coste monetario; el desglose por volumen es lo que sustituye a un cálculo en euros.
 - **Consistente con el principio del bulk**. El bulk ejecuta sobre lo seleccionado, sin lógica oculta. Si el supervisor solo le interesa el tramo de retención de una conversación concreta, la abre, la transcribe individualmente y usa el bulk para el resto.
 
 **Comunicación al supervisor antes de confirmar**: cuando hay multi-grabación en la selección, aparece una caption bajo el número grande con la única info que el subtitle no tiene: `"Incluye N llamadas con varios tramos"`. El subtitle ya cuenta cuántas conversaciones se seleccionaron y el desglose llamadas/chats; el número grande ya muestra el total de audios. La caption solo aparece cuando aporta información nueva — repetir "de N seleccionadas" cuando el subtitle ya lo dice se descartó como ruido. El espacio del hint mantiene altura aunque esté vacío, para evitar que el modal salte de tamaño al aparecer o desaparecer la caption.

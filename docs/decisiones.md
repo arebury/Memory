@@ -18,7 +18,7 @@ Las decisiones técnicas más finas (estructura del modelo, contratos entre comp
 
 Memory existe porque transcribir y analizar conversaciones con IA cuesta dinero. Mucho dinero si se hace mal, sin control, sin criterio. La pregunta de fondo que el producto responde es: *¿cómo dejamos que un supervisor decida qué procesar sin que se le vaya la mano ni quede ciego ante miles de conversaciones?*
 
-De ahí derivan casi todas las decisiones que siguen. Cuándo confirmar, cuándo no, cuándo enseñar el desglose, qué silenciar — todo se inclina hacia: **hacer visible el coste antes de incurrirlo, y no añadir fricción innecesaria cuando ya lo es**.
+De ahí derivan casi todas las decisiones que siguen. Cuándo confirmar, cuándo no, cuándo enseñar el desglose, qué silenciar — todo se inclina hacia: **avisar de cualquier operación billable y mostrar el volumen real antes de lanzarla, sin añadir fricción innecesaria cuando ya queda claro lo que va a pasar**. El desglose en euros vive fuera del producto, en la capa de facturación; Memory enseña cuántas operaciones se van a ejecutar y, en las acciones unitarias, una estimación de tiempo aproximada. Esa es la información sobre la que el supervisor decide.
 
 ---
 
@@ -57,7 +57,7 @@ Cuando una conversación tiene varias grabaciones y entra en una selección masi
 **Por qué**:
 
 - Una sola regla es más fácil de explicar al supervisor que una heurística.
-- Es transparente sobre el coste: si se seleccionan 14 conversaciones y 3 son multi-grabación con 4 audios cada una, el contador del modal lo dice ("14 conversaciones · 3 con varios tramos → 26 audios"). El supervisor decide con la cuenta completa delante.
+- Es transparente sobre el volumen: si se seleccionan 14 conversaciones y 3 son multi-grabación con 4 audios cada una, el contador del modal lo dice ("14 conversaciones · 3 con varios tramos → 26 audios"). El supervisor decide con la cuenta completa delante. No se muestra coste monetario por operación — eso queda fuera del producto.
 - Si en algún caso concreto el supervisor solo quiere un tramo específico (por ejemplo, solo el del agente de retención), tiene un camino claro: abre esa conversación individualmente y la transcribe desde el reproductor, donde sí puede elegir tramo.
 
 El bulk es para volumen; el single es para precisión. La separación es deliberada.
