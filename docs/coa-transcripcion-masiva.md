@@ -14,6 +14,16 @@ Cómo leerlo: cada sección abre con una línea de orientación. Las que enumera
 
 ---
 
+## Recursos
+
+Tres enlaces que acompañan a este documento. Cada uno cubre una capa distinta de la solución:
+
+- **Lógica de conteo y reglas de negocio** · [https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md](https://github.com/arebury/Memory/blob/main/docs/logica-de-conteo.md) — la referencia técnica de qué datos necesita cada componente, qué deriva y qué reglas aplica antes de lanzar acciones. Léelo cuando aparezca una duda concreta sobre contadores, estados, agregados o filtros.
+- **Prototipo · entender el flujo** · [https://memoryplus3.netlify.app/](https://memoryplus3.netlify.app/) — la versión navegable de Memory para entender cómo se mueven las piezas (selección → modal masivo → procesado → resultado, o click en fila → reproductor unitario). No es Hi-Fi pixel-perfect: sirve para validar el flujo y descubrir los estados.
+- **Figma · Hi-Fi de los componentes** · [https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?m=dev](https://www.figma.com/design/EKXnAv7FND5VO6EcpKq3ZH/Memory--?m=dev) — el board en Dev Mode con los componentes a 1:1, medidas, tokens y specs listos para implementar. Es la fuente para anchuras, paddings, colores y tipografías exactas.
+
+---
+
 ## Consideraciones generales
 
 - **Coste.** Cada transcripción y cada análisis con IA generan coste. El producto **no desglosa euros por operación** — eso vive en la capa de facturación. Sí muestra volumen en el modal masivo y una estimación de tiempo aproximada en las unitarias ("genera coste · ~30 s").
