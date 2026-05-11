@@ -25,6 +25,15 @@ export interface TypeFilterPanelFilters {
   status: {
     onlyFailed: boolean;
   };
+  multirec: {
+    /** Solo llamadas con `recordings.length > 1`. */
+    onlyMulti: boolean;
+    /** Solo multi-rec donde algunos tramos están transcritos y otros no
+     *  — protege contra el footgun de select-all reprocesando tramos
+     *  que el supervisor dejó intencionadamente fuera tras transcribir
+     *  uno desde el modo unitario. */
+    onlyPartial: boolean;
+  };
 }
 
 interface TypeFilterPanelProps {
@@ -71,6 +80,7 @@ export function TypeFilterPanel({
       directions: { entrante: true, saliente: true },
       rules: { recording: false, transcription: false, classification: false },
       status: { onlyFailed: false },
+      multirec: { onlyMulti: false, onlyPartial: false },
     });
   };
 
@@ -197,13 +207,30 @@ export function TypeFilterPanel({
             />
           </FilterGroup>
 
-          <FilterGroup label="Estado" last>
+          <FilterGroup label="Estado">
             <FilterCheckbox
               checked={filters.status.onlyFailed}
               onChange={(c) =>
                 onFiltersChange({ ...filters, status: { ...filters.status, onlyFailed: c } })
               }
               label="solo fallidas"
+            />
+          </FilterGroup>
+
+          <FilterGroup label="Multi-grabación" last>
+            <FilterCheckbox
+              checked={filters.multirec.onlyMulti}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, multirec: { ...filters.multirec, onlyMulti: c } })
+              }
+              label="solo con varios tramos"
+            />
+            <FilterCheckbox
+              checked={filters.multirec.onlyPartial}
+              onChange={(c) =>
+                onFiltersChange({ ...filters, multirec: { ...filters.multirec, onlyPartial: c } })
+              }
+              label="solo con tramos parcialmente transcritos"
             />
           </FilterGroup>
         </div>
