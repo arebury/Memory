@@ -49,6 +49,14 @@ export function ShowcaseApp() {
             <span className="text-xs text-slate-500">
               {movedCount === 0 ? 'Asignación canónica intacta' : `${movedCount} movidos del canon`}
             </span>
+            <a
+              href="/showcase-standalone.html"
+              download
+              title="HTML autocontenido · ábrelo desde el disco sin servidor"
+              className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 transition hover:bg-slate-50 active:bg-slate-100"
+            >
+              Descargar HTML
+            </a>
             <button
               type="button"
               onClick={handleReset}
