@@ -235,8 +235,9 @@ Cuando el supervisor lanza un batch grande (200, 500, 2.000 conversaciones), la 
 
 - *Auto-clear con tiempo* (las amarillas decaen solas a las X horas): descartado por arbitrario. No resuelve el "10 minutos después tengo 200 amarillas" si el supervisor está atento.
 - *Botón "Marcar todas como leídas"* sin selección: descartado por peligroso. Demasiado scope; el supervisor podría perder cambios que querría revisar.
-- *Click derecho en la fila*: descartado por no escalar. Un click por fila es lo que ya tenemos hoy.
-- *Filtrar + seleccionar + acción*: elegido. Reutiliza la mecánica de selección y filtros que el supervisor ya entiende, es granular pero también permite "todas las visibles" si filtra antes.
+- *Filtrar + seleccionar + acción*: elegido para el caso batch. Reutiliza la mecánica de selección y filtros que el supervisor ya entiende, es granular pero también permite "todas las visibles" si filtra antes.
+
+**Complemento per-row con click derecho (15.47)**: la toolbar resuelve el batch, pero hay un caso más íntimo — el supervisor ya está inspeccionando UNA fila concreta (por ejemplo una fallida que acaba de mirar) y quiere quitarla del radar sin tocar el resto de su selección actual. Para ese flujo se añade click derecho sobre la fila → menú contextual con "Marcar como leída". El item se ve siempre (afordancia descubrible) y se deshabilita si la fila no es marcable. La acción individual NO toca `selectedIds` — el supervisor puede tener otras filas seleccionadas para una operación distinta y no queremos romper su flujo.
 
 **Conexión con la limitación de logout**: esta acción cubre parcialmente el problema descrito en "El feedback transitorio no se conserva entre sesiones". Las conversaciones marcadas como leídas SÍ persisten entre sesiones (el backend guarda el estado per-supervisor). El resto sigue siendo transitorio. Es un primer paso hacia el "concepto futuro tipo 'marcar como leído' de Gmail/Teams" que mencionaba la limitación; el siguiente paso completo sería que el backend persista todos los flags transitorios, pero eso es trabajo mayor.
 

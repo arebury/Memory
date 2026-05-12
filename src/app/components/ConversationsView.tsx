@@ -374,6 +374,19 @@ export function ConversationsView({
     }
   };
 
+  /* 15.47 · Marcar como leída individual desde el context menu (click
+        derecho en la fila). El item del menú ya viene disabled cuando
+        la fila no es marcable, así que aquí no hace falta volver a
+        comprobar — el toast siempre dispara. La acción NO toca la
+        selección actual: el supervisor puede tener N filas seleccionadas
+        para otra operación y querer limpiar el rojo/amarillo de OTRA
+        sin romper su flujo. */
+  const handleMarkAsReadSingle = (id: string) => {
+    setNewlyTranscribedIds((prev) => prev.filter((x) => x !== id));
+    setReadIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
+    scToast.info({ title: "Marcada como leída" });
+  };
+
   /* ── Transcription: moves IDs through processing → newlyTranscribed.
         On completion, also generates a random transcription so the
         single-conversation player has content to render.
@@ -950,6 +963,8 @@ export function ConversationsView({
           processingIds={processingIds}
           analyzingIds={analyzingIds}
           newlyTranscribedIds={newlyTranscribedIds}
+          readIds={readIds}
+          onMarkAsRead={handleMarkAsReadSingle}
           onClearNewlyTranscribed={handleClearNewlyTranscribed}
           onRequestTranscription={(id) => handleRequestTranscription(id)}
           onRequestAnalysis={(id) => handleRequestAnalysis(id)}

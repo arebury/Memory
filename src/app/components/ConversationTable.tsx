@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { TableBody, TableCell, TableHead, TableHeader, TableRow } from "./ui/table";
 import { Checkbox } from "./ui/checkbox";
-import { Search, AlertCircle } from "lucide-react";
+import { Search, AlertCircle, CheckCheck } from "lucide-react";
 import { Conversation } from "../data/mockData";
 import { ConversationPlayerModal } from "./ConversationPlayerModal";
 import { Input } from "./ui/input";
@@ -18,6 +18,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "./ui/tooltip";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "./ui/context-menu";
 
 interface ConversationTableProps {
   conversations: Conversation[];
@@ -49,6 +55,8 @@ interface ConversationTableProps {
   processingIds?: string[];
   analyzingIds?: string[];
   newlyTranscribedIds?: string[];
+  readIds?: string[];
+  onMarkAsRead?: (id: string) => void;
   onClearNewlyTranscribed?: (id: string) => void;
   onRequestTranscription?: (id: string) => void;
   onRequestAnalysis?: (id: string) => void;
@@ -66,6 +74,8 @@ export function ConversationTable({
   processingIds = [],
   analyzingIds = [],
   newlyTranscribedIds = [],
+  readIds = [],
+  onMarkAsRead,
   onClearNewlyTranscribed,
   onRequestTranscription,
   onRequestAnalysis,
@@ -324,9 +334,19 @@ export function ConversationTable({
             ) : (
               conversations.map((conv) => {
                 const locked = isLocked(conv.id);
+                // 15.47 · markability per-row replica de markableInSelection
+                // (ConversationsView): amarilla (newly-transcribed) o fallida
+                // no leída todavía. Si ninguno, el item del context menu queda
+                // disabled pero la afordancia sigue visible — el supervisor
+                // descubre que "marcar como leída" existe sin tener que abrir
+                // la toolbar.
+                const isRowMarkable =
+                  newlyTranscribedIds.includes(conv.id) ||
+                  (!!conv.hasFailedTranscription && !readIds.includes(conv.id));
                 return (
+                <ContextMenu key={conv.id}>
+                  <ContextMenuTrigger asChild>
                 <TableRow
-                  key={conv.id}
                   className={cn(
                     "border-b border-sc-border transition-colors h-14",
                     locked ? "cursor-not-allowed" : "cursor-pointer hover:bg-sc-accent-soft/50",
@@ -418,6 +438,17 @@ export function ConversationTable({
                   <TableCell className="w-[110px] text-sm text-sc-body py-3">{conv.waiting}</TableCell>
                   <TableCell className="w-[140px] text-xs text-sc-body py-3 font-light font-mono">{conv.id}</TableCell>
                 </TableRow>
+                  </ContextMenuTrigger>
+                  <ContextMenuContent>
+                    <ContextMenuItem
+                      disabled={!isRowMarkable}
+                      onSelect={() => onMarkAsRead?.(conv.id)}
+                    >
+                      <CheckCheck className="size-4" />
+                      Marcar como leída
+                    </ContextMenuItem>
+                  </ContextMenuContent>
+                </ContextMenu>
               );
               })
             )}

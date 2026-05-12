@@ -577,7 +577,7 @@ El producto usa iconos de la librería `lucide-react`, con estricta corresponden
 | `<Database>` / `<Tags>` | Entidades / Categorías | PrimaryCard del Repository. |
 | `<Download>` | Descargar contenido visible | Tab row del player. |
 | `<RotateCcw>` | Re-hacer (re-transcribir) | Tab row del player. |
-| `<CheckCheck>` | Marcar como leídas | Toolbar de la tabla, junto a Descargar. |
+| `<CheckCheck>` | Marcar como leídas | Toolbar de la tabla (batch) + context menu de fila (individual). |
 | `<Loader2>` | Cargando (girando) | Botones submit, ProcessingState. |
 | `<X>` / `<XCircle>` | Cerrar / error | Modal close, scToast error. |
 
@@ -650,6 +650,17 @@ Como se detalló en el `ConversationPlayerModal`, esta es una decisión cerrada 
 - Las operaciones destructivas (sobrescribir, borrar, cancelar algo en curso) sí van con un modal de confirmación explícito.
 
 El anti-patrón a evitar es "¿estás seguro?" antes de cada acción billable. Es click muerto que el supervisor interpreta como fricción y termina ignorando. Si el coste real (€) sube significativamente en algún flujo del futuro, el caso se reevalúa, pero la regla por defecto es la descrita.
+
+### Context menu de fila · acción individual sin perder selección
+
+Patrón nuevo (15.47) para acciones que se aplican a UNA fila concreta cuando el supervisor ya está mirando esa fila. Convive con la toolbar (que sigue siendo el camino para batch). Hoy solo hay un item — "Marcar como leída" — pero el patrón está pensado para crecer.
+
+- **Trigger**: click derecho (evento `contextmenu`) en cualquier parte de la fila. Implementado con `@radix-ui/react-context-menu` envolviendo `<TableRow>` con `<ContextMenuTrigger asChild>`. El portal posiciona el menú en la coordenada del click, no relativo a la fila.
+- **Afordancia siempre visible**: el item aparece en todas las filas (incluso no marcables) para que el supervisor descubra que existe. Si la fila no aplica, el item queda `data-disabled` (opacity-50, sin hover, sin click). Mejor que esconder porque la afordancia tiene que aprenderse una vez.
+- **NO toca la selección**: la acción individual opera solo sobre `conv.id` y no muta `selectedIds`. El supervisor puede tener N filas seleccionadas para otra operación batch y querer limpiar el rojo/amarillo de otra fila sin romper su flujo.
+- **Click izquierdo y derecho no chocan**: `onClick` de la fila (toggle de selección) escucha el evento `click` que solo dispara con botón izquierdo. El derecho dispara `contextmenu`, que Radix captura y previene el menú nativo del navegador. Ambos coexisten sin `stopPropagation`.
+- **Toast**: cada item del menú dispara su propio scToast con su copy específico ("Marcada como leída"). No reusar el toast de la toolbar (que suma "N marcadas como leídas") porque aquí siempre es una.
+- **Cuándo añadir items nuevos**: solo si la acción tiene sentido a nivel fila y el supervisor está inspeccionando esa fila en concreto. No portar a context menu cosas que ya están en la toolbar (rompería el modelo de "batch → toolbar / individual → context menu"). Tampoco usar context menu como atajo a operaciones billables sin confirmación (ver regla del modal destructivo).
 
 ---
 
