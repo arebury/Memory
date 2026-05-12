@@ -2830,3 +2830,51 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 - El usuario explícitamente descartó push Figma del botón de "Marcar como leídas" en la toolbar (la verificación interactiva sí se quería · está hecha).
 
 **Mirror obligatorio · regla 15.41 paso 6**: `docs/decisiones.md` ya actualizado en este commit con la entrada narrativa "Marcar como leídas · cómo el supervisor limpia el ruido post-batch".
+
+### 15.47 · 2026-05-12 · Claude Code · context menu per-row para "Marcar como leída" · complemento al batch de la toolbar
+
+**Contexto**: el usuario pidió ofrecer "Marcar como leídas" también vía click derecho en la fila, con la afordancia visible. La toolbar (15.46) cubre el caso batch ("limpio cientos de amarillas/rojas de golpe"); el click derecho cubre el caso íntimo ("estoy mirando ESTA fila concreta y quiero quitarla del radar sin tocar mi selección actual"). El bullet de decisiones que decía "click derecho descartado por no escalar" fue producto de leer mal el caso de uso · el click derecho NO es alternativa al batch, es complemento per-row.
+
+**Hecho**:
+
+- **Dep nueva** `@radix-ui/react-context-menu@2.2.6` añadida a `package.json` siguiendo el patrón aliasing del repo (Figma Make export). El paquete ya estaba en `node_modules` por un install previo no declarado; ahora queda formalizado.
+- **Wrapper UI** `src/app/components/ui/context-menu.tsx` espejo de `dropdown-menu.tsx` · misma API + tokens (`bg-popover text-popover-foreground`, focus states, animaciones data-state). Exporta el set completo (Root, Trigger, Content, Item, CheckboxItem, RadioItem, Label, Separator, Sub*) aunque hoy solo se use Item.
+- **ConversationTable**: cada `<TableRow>` envuelto en `<ContextMenu>` + `<ContextMenuTrigger asChild>`. El portal de Radix posiciona el `<ContextMenuContent>` en la coordenada del click, no relativo a la fila. Item único · "Marcar como leída" con icono `<CheckCheck>` de lucide.
+- **Per-row markability** replicada de `markableInSelection`: `newlyTranscribedIds.includes(conv.id) || (conv.hasFailedTranscription && !readIds.includes(conv.id))`. Si la fila no es marcable, el item queda `disabled` (Radix lo pinta con opacity-50, sin hover, no responde a click). Item visible siempre · afordancia descubrible.
+- **Handler nuevo** `handleMarkAsReadSingle(id)` en ConversationsView · solo toca `newlyTranscribedIds` y `readIds` para ese id, NO muta `selectedIds`. Toast "Marcada como leída" siempre que el item dispara (Radix ya bloquea el callback cuando está disabled, así que no hace falta re-checar markability aquí).
+- **Props nuevas** en ConversationTable · `readIds: string[]` + `onMarkAsRead: (id: string) => void`. Pasadas desde ConversationsView junto al resto de props existentes.
+
+**Co-existencia click izquierdo / derecho**: el `onClick` de la fila (toggle de selección) escucha `click`, que solo dispara con botón izquierdo. El derecho dispara `contextmenu`, que Radix captura y previene el menú nativo del navegador. Ambos coexisten sin necesidad de `stopPropagation`.
+
+**Docs alineados**:
+
+- **decisiones.md**: el bullet "Click derecho en la fila: descartado por no escalar" reescrito · ahora el batch (toolbar) y el per-row (context menu) son complementos, no alternativas. Añadido párrafo "Complemento per-row con click derecho (15.47)" que explica por qué no toca la selección.
+- **referencia-ui.md**: sección nueva "Context menu de fila · acción individual sin perder selección" dentro de Reglas transversales del DS. Documenta el patrón canónico para acciones per-row: trigger, afordancia siempre visible (descubrible), no muta selección, co-existencia click izq/der, toast propio, criterios para añadir items en el futuro.
+- **referencia-ui.md** tabla de iconografía · `<CheckCheck>` extendido · "Toolbar de la tabla (batch) + context menu de fila (individual)".
+- **COA / logica-de-conteo**: NO se tocan en este commit · la mecánica per-row es UX de detalle que no cambia conceptos del COA (sigue siendo "marcar como leída" con la misma semántica de filtro Solo fallidas + clear amarillo). Si en review se considera que el COA debería mencionarlo, se actualiza en una mini-iteración.
+
+**Decidido**:
+
+- **Batch en toolbar, individual en context menu** · regla mental que generaliza más allá de "marcar como leída". Si en el futuro aparece otra acción que tiene sentido a nivel fila, va al context menu. Si tiene sentido a nivel selección, va a la toolbar. NO duplicar items entre ambos sitios (rompería el modelo y el supervisor se confunde sobre cuál usar).
+- **Afordancia visible aunque disabled** en lugar de esconder · el supervisor tiene que aprender una vez que el click derecho existe; si solo aparece en filas marcables, el descubrimiento es errático ("a veces sale, a veces no") y no llega a quedarse en su modelo mental.
+- **NO tocar selección al disparar item per-row** · si el supervisor tiene 50 filas seleccionadas para un bulk transcribe y aprovecha para marcar como leída UNA fila concreta que estaba revisando, la selección del bulk debe quedar intacta. Sería frustrante perderla.
+- **NO añadir items billables al context menu sin confirmación** · sigue la regla del modal destructivo · operaciones que generan coste o destruyen estado van por el camino con feedback explícito (CTA con advertencia inline o modal de confirmación), no por menú contextual.
+
+**Validación**:
+
+- Build OK: 2984 modules · 885 KB JS / gzip 250 KB (+8 KB sobre 15.46 por el wrapper + el dep context-menu).
+- **Verificación interactiva pasada** (puppeteer-core + Chrome del sistema):
+  1. Sample "Errores de transcripción" cargado → row con icono rojo de fallida.
+  2. Click derecho en celda media → context menu visible · 1 item "Marcar como leída" · `data-disabled` null · screenshot guardado en `/tmp/ctx-menu-15-47-failed.png`.
+  3. Click en item → toast "Marcada como leída" presente · 0 errores en consola.
+  4. Sample "Todo procesado" cargado → row 1 (normal, no marcable).
+  5. Click derecho → item visible pero con `data-disabled` set · opacity reducida · no responde a click · screenshot `/tmp/ctx-menu-15-47-non-markable.png`.
+  0 page errors · 0 console errors durante todo el flujo.
+
+**Tour del prototipo para devs**: en mitad de la sesión el usuario pidió un mini-guión en bullets para hacer un tour de los samples del prototipo. Entregado inline en chat · 11 secciones (1 por sample + reproductor unitario + GDPR + cierre con "qué NO está en v1"). No persistido a archivo · era material de presentación efímero.
+
+**Notas para próxima sesión**:
+
+- El item del context menu sigue siendo único ("Marcar como leída"). Si el COA o reviews futuros piden más acciones per-row (descargar audio individual, abrir reproductor, copiar ID, etc.), el wrapper ya está listo · solo hay que añadir `<ContextMenuItem>` adicionales y eventualmente `<ContextMenuSeparator>` si hay grupos.
+- `pnpm-lock.yaml` no se ha regenerado · no hay pnpm en el sistema. Si en otra máquina se hace `pnpm install`, declarará el dep desde `package.json` y regenerará el lock. Build con vite resuelve igual desde node_modules.
+- Mirror obligatorio (regla 15.41 paso 6) cumplido en este commit · `docs/decisiones.md` actualizado, `docs/referencia-ui.md` extendido.
