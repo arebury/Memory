@@ -2878,3 +2878,23 @@ ORDEN DE EJECUCIÓN MAÑANA (mini-prompt acordado con usuario: *"Retoma el plan 
 - El item del context menu sigue siendo único ("Marcar como leída"). Si el COA o reviews futuros piden más acciones per-row (descargar audio individual, abrir reproductor, copiar ID, etc.), el wrapper ya está listo · solo hay que añadir `<ContextMenuItem>` adicionales y eventualmente `<ContextMenuSeparator>` si hay grupos.
 - `pnpm-lock.yaml` no se ha regenerado · no hay pnpm en el sistema. Si en otra máquina se hace `pnpm install`, declarará el dep desde `package.json` y regenerará el lock. Build con vite resuelve igual desde node_modules.
 - Mirror obligatorio (regla 15.41 paso 6) cumplido en este commit · `docs/decisiones.md` actualizado, `docs/referencia-ui.md` extendido.
+
+### 15.48 · 2026-05-13 · Claude Code · sesión exploratoria · reafirmación de sec 16 + auto-memoria nueva como pointer
+
+**Contexto**: el usuario tanteó "si migro todo a PrimeNG y Angular 21, sería un horror · se rompería todo". Tras una primera respuesta que asumía migración voluntaria, el usuario aclaró que el prototipo nunca fue el destino · se está a expensas de recibir un UI kit de PrimeOne y la plataforma real se va a hacer en Angular + PrimeNG. Esto coincide exactamente con lo que ya está canonizado en sec 16 ("Naturaleza del proyecto · stack del prototipo vs producción"), incluyendo las 5 reglas de la subsección final.
+
+**Hecho**:
+
+- **Auto-memoria nueva** `project_stack_destino.md` creada como **pointer corto** a canon sec 16 (no duplica contenido). Su única función es que el agente, cuando el usuario abra una conversación tipo "y si migro a X / cambio de stack", responda alineado con sec 16 sin tener que abrir el canon primero. Estructura: regla en una línea + why hace falta el pointer + 3 reglas de aplicación. Indexada en `MEMORY.md` con descripción que apunta explícitamente a "canon sec 16".
+- **NO se ha tocado el código** del prototipo. Sesión 100% conversacional/documental.
+- **NO se ha tocado sec 13 ni `docs/decisiones.md`** · no hay decisión NUEVA · solo se reafirma la que ya vive en sec 16.
+
+**Decidido** (reafirmación, no decisión nueva):
+
+- El prototipo NO se migra componente a componente a Angular/PrimeNG · sería rewrite · y aún no hay UI kit de PrimeOne contra el que migrar. Las 5 reglas de sec 16 siguen aplicando tal cual.
+- Lo que se traslada al stack final es el **canon** (decisiones de producto/UX), no el código. Por eso conviene seguir formulando entradas canon en términos framework-agnósticos donde sea posible · "confirm modal solo para destructivo" sobrevive · "AlertDialog variant=destructive de shadcn" no.
+
+**Notas para próxima sesión**:
+
+- Si el usuario vuelve a abrir el tema de migración (con o sin el UI kit de PrimeOne ya recibido), el agente debe leer sec 16 antes de responder · es la SSoT de esta decisión. Esta auto-memoria solo es un atajo de trigger.
+- Si en algún momento llega el UI kit y se decide ejecutar migración real, sec 16 subsección "Decisión de migración futura" enumera los 3 roles posibles (prototipo desechable / spec viva en PrimeReact / pivote completo a Angular). Esa decisión vive ahí, no en una sesión de chat.
